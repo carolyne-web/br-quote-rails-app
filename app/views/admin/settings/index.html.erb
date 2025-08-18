@@ -1,4 +1,102 @@
-<div>
-  <h1 class="font-bold text-4xl">Admin::Settings#index</h1>
-  <p>Find me in app/views/admin/settings/index.html.erb</p>
+<div class="bg-white shadow">
+  <div class="px-4 sm:px-6 lg:max-w-7xl lg:mx-auto lg:px-8">
+    <div class="py-6 md:flex md:items-center md:justify-between">
+      <div class="flex-1 min-w-0">
+        <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+          System Settings
+        </h1>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-8 space-y-8">
+  <!-- Talent Categories Settings -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">
+        Talent Category Base Rates
+      </h3>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+        Set the base daily rates for each talent category
+      </p>
+    </div>
+    <div class="border-t border-gray-200">
+      <%= form_with url: bulk_update_admin_settings_path, method: :patch, local: true do |f| %>
+        <dl>
+          <% @talent_settings.each_with_index do |setting, index| %>
+            <div class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-500">
+                <%= setting.key.humanize.titleize %>
+              </dt>
+              <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                <div class="flex items-center">
+                  <span class="mr-2">$</span>
+                  <%= number_field_tag "settings[#{setting.id}]", setting.value,
+                      class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md",
+                      step: 100 %>
+                </div>
+              </dd>
+            </div>
+          <% end %>
+        </dl>
+
+        <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
+          <%= f.submit "Update Talent Rates", class: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Duration Settings -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">
+        Duration Percentages
+      </h3>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+        Set the percentage multipliers for different contract durations
+      </p>
+    </div>
+    <div class="border-t border-gray-200">
+      <%= form_with url: bulk_update_admin_settings_path, method: :patch, local: true do |f| %>
+        <dl>
+          <% @duration_settings.each_with_index do |setting, index| %>
+            <div class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-500">
+                <%= setting.key.gsub('duration_', '').humanize.titleize %>
+              </dt>
+              <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                <div class="flex items-center">
+                  <%= number_field_tag "settings[#{setting.id}]", setting.value,
+                      class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md",
+                      step: 10 %>
+                  <span class="ml-2">%</span>
+                </div>
+              </dd>
+            </div>
+          <% end %>
+        </dl>
+
+        <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
+          <%= f.submit "Update Duration Settings", class: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Territories Management -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+      <div>
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+          Territory Percentages
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+          Manage territories and their percentage multipliers
+        </p>
+      </div>
+      <%= link_to "Manage Territories", admin_territories_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700" %>
+    </div>
+  </div>
 </div>

@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  get "quotations/index"
   root 'sessions#new'
 
   # Production House Authentication
@@ -13,14 +14,24 @@ Rails.application.routes.draw do
 
   # Admin Routes
   namespace :admin do
-    get 'dashboard', to: 'dashboard#index'
+    get "territories/index"
+    get "territories/new"
+    get "territories/create"
+    get "territories/edit"
+    get "territories/update"
+    get "territories/destroy"
+    get "dashboard", to: "dashboard#index"
     resources :settings, only: [:index, :edit, :update] do
       collection do
         patch :bulk_update
       end
     end
     resources :production_houses
-    resources :territories
+    resources :territories do
+      collection do
+        patch :bulk_update
+      end
+    end
   end
 
   # Production House Routes (to be added in next steps)
