@@ -1,0 +1,11 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  talent_category: one
+  talent_count: 1
+  days_count: 1
+
+two:
+  talent_category: two
+  talent_count: 1
+  days_count: 1

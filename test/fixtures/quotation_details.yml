@@ -1,0 +1,21 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  quotation: one
+  rehearsal_days: 1
+  travel_days: 1
+  down_days: 1
+  exclusivity_type: MyString
+  exclusivity_level: 1
+  pharmaceutical: false
+  duration: MyString
+
+two:
+  quotation: two
+  rehearsal_days: 1
+  travel_days: 1
+  down_days: 1
+  exclusivity_type: MyString
+  exclusivity_level: 1
+  pharmaceutical: false
+  duration: MyString
