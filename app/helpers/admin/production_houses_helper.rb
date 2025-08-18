@@ -1,0 +1,2 @@
+module Admin::ProductionHousesHelper
+end

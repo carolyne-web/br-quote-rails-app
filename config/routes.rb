@@ -1,14 +1,44 @@
 Rails.application.routes.draw do
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+  root 'sessions#new'
 
-  # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
-  # Can be used by load balancers and uptime monitors to verify that the app is live.
-  get "up" => "rails/health#show", as: :rails_health_check
+  # Production House Authentication
+  get 'login', to: 'sessions#new'
+  post 'login', to: 'sessions#create'
+  delete 'logout', to: 'sessions#destroy'
 
-  # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
-  # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
-  # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
+  # Admin Authentication
+  get 'admin/login', to: 'sessions#admin_new'
+  post 'admin/login', to: 'sessions#admin_create'
+  delete 'admin/logout', to: 'sessions#admin_destroy'
 
-  # Defines the root path route ("/")
-  # root "posts#index"
+  # Admin Routes
+  namespace :admin do
+    get 'dashboard', to: 'dashboard#index'
+    resources :settings, only: [:index, :edit, :update] do
+      collection do
+        patch :bulk_update
+      end
+    end
+    resources :production_houses
+    resources :territories
+  end
+
+  # Production House Routes (to be added in next steps)
+  resources :quotations do
+    member do
+      get :pdf
+      post :duplicate
+    end
+    resources :talent_categories
+    resources :quotation_territories
+    resources :quotation_adjustments
+  end
+
+  # API endpoints for dynamic forms (to be added)
+  namespace :api do
+    namespace :v1 do
+      resources :territories, only: [:index]
+      resources :settings, only: [:index]
+    end
+  end
 end
