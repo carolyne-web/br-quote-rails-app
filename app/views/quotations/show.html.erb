@@ -1,0 +1,272 @@
+<!-- app/views/quotations/show.html.erb -->
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900"><%= @quotation.project_name %></h1>
+          <p class="mt-2 text-gray-600">Quote #<%= @quotation.project_number %></p>
+        </div>
+        <div class="flex items-center gap-4">
+          <!-- Status Badge -->
+          <span class="px-4 py-2 rounded-full text-sm font-semibold
+            <%= @quotation.status == 'draft' ? 'bg-gray-100 text-gray-800' : '' %>
+            <%= @quotation.status == 'sent' ? 'bg-blue-100 text-blue-800' : '' %>
+            <%= @quotation.status == 'approved' ? 'bg-green-100 text-green-800' : '' %>
+            <%= @quotation.status == 'rejected' ? 'bg-red-100 text-red-800' : '' %>">
+            <%= @quotation.status.capitalize %>
+          </span>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-2">
+            <%= link_to edit_quotation_path(@quotation),
+                class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
+              <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              Edit
+            <% end %>
+
+            <%= link_to pdf_quotation_path(@quotation),
+                target: "_blank",
+                class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
+              <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              Download PDF
+            <% end %>
+
+            <%= button_to duplicate_quotation_path(@quotation),
+                method: :post,
+                class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
+              <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              Duplicate
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Main Content -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Project Information -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Project Information</h2>
+          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Production House</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @quotation.production_house&.name %></dd>
+            </div>
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Created Date</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @quotation.created_at.strftime('%B %d, %Y') %></dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Talent Categories -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Talent Breakdown</h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Daily Rate</th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Days</th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <% @talent_categories.each do |category| %>
+                  <tr>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <div class="flex items-center">
+                        <div class="w-8 h-8 bg-indigo-100 rounded flex items-center justify-center text-indigo-600 font-bold text-xs mr-3">
+                          <%= category.icon %>
+                        </div>
+                        <%= category.display_name %>
+                      </div>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right"><%= category.initial_count %></td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right">R<%= number_with_delimiter(category.daily_rate || category.default_daily_rate) %></td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right"><%= category.total_talent_days %></td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">R<%= number_with_delimiter(category.total_cost) %></td>
+                  </tr>
+
+                  <!-- Days on Set breakdown if exists -->
+                  <% if category.day_on_sets.any? %>
+                    <tr>
+                      <td colspan="5" class="px-4 py-2 bg-gray-50">
+                        <div class="text-xs text-gray-600">
+                          Days allocation:
+                          <% category.day_on_sets.each do |dos| %>
+                            <span class="ml-2"><%= dos.talent_count %> talent × <%= dos.days_count %> days</span>
+                          <% end %>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Schedule Details -->
+        <% if @quotation_detail %>
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Schedule Details</h2>
+            <div class="grid grid-cols-3 gap-4">
+              <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-2xl font-bold text-gray-900"><%= @quotation_detail.rehearsal_days || 0 %></div>
+                <div class="text-sm text-gray-500">Rehearsal Days</div>
+              </div>
+              <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-2xl font-bold text-gray-900"><%= @quotation_detail.travel_days || 0 %></div>
+                <div class="text-sm text-gray-500">Travel Days</div>
+              </div>
+              <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-2xl font-bold text-gray-900"><%= @quotation_detail.down_days || 0 %></div>
+                <div class="text-sm text-gray-500">Down Days</div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- Usage & Licensing -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Usage & Licensing</h2>
+          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <% if @quotation_detail %>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Duration</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.duration %></dd>
+              </div>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Media Type</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.media_type&.humanize %></dd>
+              </div>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Exclusivity</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.exclusivity_type&.humanize || 'None' %></dd>
+              </div>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Options</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                  <% if @quotation_detail.unlimited_stills %>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
+                      Unlimited Stills
+                    </span>
+                  <% end %>
+                  <% if @quotation_detail.unlimited_versions %>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Unlimited Versions
+                    </span>
+                  <% end %>
+                </dd>
+              </div>
+            <% end %>
+          </dl>
+
+          <% if @territories.any? %>
+            <div class="mt-4">
+              <dt class="text-sm font-medium text-gray-500 mb-2">Territories</dt>
+              <dd class="flex flex-wrap gap-2">
+                <% @territories.each do |territory| %>
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                    <%= territory.name %> (<%= territory.percentage %>%)
+                  </span>
+                <% end %>
+              </dd>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Adjustments -->
+        <% if @adjustments.any? %>
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Adjustments</h2>
+            <div class="space-y-3">
+              <% @adjustments.each do |adjustment| %>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <div class="text-sm font-medium text-gray-900"><%= adjustment.description || adjustment.adjustment_type.humanize %></div>
+                  </div>
+                  <div class="text-sm font-semibold text-<%= adjustment.adjustment_type == 'discount' ? 'red' : 'green' %>-600">
+                    <%= adjustment.adjustment_type == 'discount' ? '-' : '+' %><%= adjustment.percentage %>%
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Total Summary -->
+      <div class="lg:col-span-1">
+        <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg p-6 text-white sticky top-8">
+          <h3 class="text-xl font-semibold mb-6">Quote Summary</h3>
+
+          <div class="space-y-3">
+            <div class="flex justify-between text-sm">
+              <span class="text-indigo-100">Base Talent Cost</span>
+              <span class="font-semibold">R<%= number_with_delimiter(@calculation[:base_talent_cost]) %></span>
+            </div>
+
+            <div class="flex justify-between text-sm">
+              <span class="text-indigo-100">Rehearsal/Travel</span>
+              <span class="font-semibold">R<%= number_with_delimiter(@calculation[:rehearsal_travel_cost]) %></span>
+            </div>
+
+            <div class="flex justify-between text-sm">
+              <span class="text-indigo-100">Usage Fee</span>
+              <span class="font-semibold">R<%= number_with_delimiter(@calculation[:usage_fee]) %></span>
+            </div>
+
+            <% if @calculation[:manual_adjustment] != 0 %>
+              <div class="flex justify-between text-sm">
+                <span class="text-indigo-100">Adjustments</span>
+                <span class="font-semibold">R<%= number_with_delimiter(@calculation[:manual_adjustment]) %></span>
+              </div>
+            <% end %>
+
+            <div class="pt-4 mt-4 border-t border-indigo-400">
+              <div class="flex justify-between items-end">
+                <span class="text-lg">Total Quote</span>
+                <span class="text-3xl font-bold">R<%= number_with_delimiter(@calculation[:total]) %></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-6 border-t border-indigo-400">
+            <h4 class="text-sm font-semibold mb-3">Multipliers Applied</h4>
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between">
+                <span class="text-indigo-100">Territory</span>
+                <span><%= (@calculation[:territory_multiplier] * 100).round %>%</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-indigo-100">Media</span>
+                <span><%= (@calculation[:media_multiplier] * 100).round %>%</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-indigo-100">Duration</span>
+                <span><%= (@calculation[:duration_multiplier] * 100).round %>%</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-indigo-100">Exclusivity</span>
+                <span><%= (@calculation[:exclusivity_multiplier] * 100).round %>%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
