@@ -1,0 +1,241 @@
+<!-- app/views/quotations/new.html.erb -->
+<div class="max-w-6xl mx-auto">
+  <div class="bg-white shadow-lg rounded-lg">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-2xl font-bold text-gray-900">Create New Quotation</h2>
+    </div>
+
+    <%= form_with model: @quotation, local: true, class: "space-y-6 p-6" do |f| %>
+      <% if @quotation.errors.any? %>
+        <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+          <h3 class="font-semibold mb-2">Please correct the following errors:</h3>
+          <ul class="list-disc list-inside">
+            <% @quotation.errors.full_messages.each do |message| %>
+              <li><%= message %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <!-- Project Information -->
+      <div class="bg-gray-50 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Project Information</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <%= f.label :project_name, class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= f.text_field :project_name, required: true,
+                class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500",
+                placeholder: "Enter project name" %>
+          </div>
+
+          <div>
+            <%= f.label :status, class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= f.select :status, options_for_select(Quotation::STATUS_OPTIONS.map { |s| [s.capitalize, s] }, @quotation.status),
+                {}, class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Talent Categories -->
+      <div class="bg-gray-50 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Talent Categories</h3>
+
+        <div class="space-y-4" id="talent-categories">
+          <% TalentCategory::TYPES.each do |type_id, type_name| %>
+            <div class="bg-white rounded-lg p-4 border border-gray-200" data-category="<%= type_id %>">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-medium text-gray-900">
+                  <span class="text-lg mr-2"><%= TalentCategory.new(category_type: type_id).icon %></span>
+                  <%= type_name %>
+                </h4>
+                <div class="text-sm text-gray-500">
+                  Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(' ', '_')}_base_rate")&.typed_value || 0) %>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Number of Talent</label>
+                  <%= number_field_tag "talent_categories[#{type_id}][count]", 0,
+                      min: 0, class: "w-full px-3 py-2 border border-gray-300 rounded-md text-sm",
+                      data: { category_count: type_id } %>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Adjusted Rate (optional)</label>
+                  <%= number_field_tag "talent_categories[#{type_id}][adjusted_rate]", nil,
+                      placeholder: "Leave blank for base rate",
+                      class: "w-full px-3 py-2 border border-gray-300 rounded-md text-sm" %>
+                </div>
+
+                <div>
+                  <button type="button" class="btn-add-days-breakdown text-sm bg-indigo-100 text-indigo-700 px-3 py-2 rounded-md hover:bg-indigo-200 transition"
+                          data-category="<%= type_id %>">
+                    + Add Days Breakdown
+                  </button>
+                </div>
+              </div>
+
+              <!-- Days on Set Container (hidden by default) -->
+              <div class="days-on-set-container mt-4 hidden" data-category="<%= type_id %>">
+                <h5 class="text-sm font-medium text-gray-700 mb-2">Days on Set Breakdown</h5>
+                <div class="space-y-2 days-list">
+                  <!-- Days on set rows will be added here dynamically -->
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Project Details -->
+      <%= fields_for :quotation_detail, @quotation.quotation_detail || @quotation.build_quotation_detail do |detail_fields| %>
+        <div class="bg-gray-50 rounded-lg p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Project Details</h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <%= detail_fields.label :shoot_days, "Shoot Days", class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= detail_fields.number_field :shoot_days, value: 1, min: 1,
+                  class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+            </div>
+
+            <div>
+              <%= detail_fields.label :rehearsal_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= detail_fields.number_field :rehearsal_days, value: 0, min: 0,
+                  class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+            </div>
+
+            <div>
+              <%= detail_fields.label :travel_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= detail_fields.number_field :travel_days, value: 0, min: 0,
+                  class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+            </div>
+
+            <div>
+              <%= detail_fields.label :down_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= detail_fields.number_field :down_days, value: 0, min: 0,
+                  class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <%= detail_fields.label :media_type, class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= detail_fields.select :media_type,
+                  options_for_select([
+                    ['All Media', 'all_media'],
+                    ['Television', 'television'],
+                    ['Digital', 'digital'],
+                    ['Cinema', 'cinema'],
+                    ['Print', 'print'],
+                    ['Radio', 'radio']
+                  ], 'all_media'),
+                  {}, class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+            </div>
+
+            <div>
+              <%= detail_fields.label :duration, "Contract Duration", class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= detail_fields.select :duration,
+                  options_for_select([
+                    ['1 Month', '1_month'],
+                    ['3 Months', '3_months'],
+                    ['6 Months', '6_months'],
+                    ['12 Months', '12_months'],
+                    ['18 Months', '18_months'],
+                    ['24 Months', '24_months'],
+                    ['36 Months', '36_months']
+                  ], '12_months'),
+                  {}, class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+            </div>
+
+            <div>
+              <%= detail_fields.label :exclusivity_type, class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= detail_fields.select :exclusivity_type,
+                  options_for_select(@exclusivity_options, 'none'),
+                  {}, class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+            </div>
+          </div>
+
+          <div class="mt-4 space-y-2">
+            <label class="flex items-center">
+              <%= detail_fields.check_box :unlimited_stills, class: "mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" %>
+              <span class="text-sm text-gray-700">Unlimited Stills (+15%)</span>
+            </label>
+
+            <label class="flex items-center">
+              <%= detail_fields.check_box :unlimited_versions, class: "mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" %>
+              <span class="text-sm text-gray-700">Unlimited Versions (+15%)</span>
+            </label>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Territories -->
+      <div class="bg-gray-50 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Territories</h3>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <% @territories.group_by(&:group_name).each do |group_name, territories| %>
+            <% territories.each do |territory| %>
+              <label class="flex items-center p-2 bg-white rounded border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                <%= check_box_tag "territories[]", territory.id, false,
+                    class: "mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" %>
+                <div class="text-sm">
+                  <div class="font-medium text-gray-900"><%= territory.name %></div>
+                  <div class="text-xs text-gray-500"><%= territory.percentage %>%</div>
+                </div>
+              </label>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="flex justify-end space-x-3 pt-6 border-t">
+        <%= link_to "Cancel", quotations_path,
+            class: "px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50" %>
+        <%= f.submit "Create Quotation",
+            class: "px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Add days breakdown functionality
+  document.querySelectorAll('.btn-add-days-breakdown').forEach(button => {
+    button.addEventListener('click', function() {
+      const categoryId = this.dataset.category;
+      const container = document.querySelector(`.days-on-set-container[data-category="${categoryId}"]`);
+      const daysList = container.querySelector('.days-list');
+
+      container.classList.remove('hidden');
+
+      const rowIndex = daysList.children.length;
+      const rowHtml = `
+        <div class="flex gap-2 items-center">
+          <input type="number"
+                 name="talent_categories[${categoryId}][days_on_set][${rowIndex}][talent_count]"
+                 placeholder="Talent count"
+                 min="1"
+                 class="flex-1 px-3 py-1 text-sm border border-gray-300 rounded-md">
+          <span class="text-gray-500">×</span>
+          <input type="number"
+                 name="talent_categories[${categoryId}][days_on_set][${rowIndex}][days_count]"
+                 placeholder="Days"
+                 min="1"
+                 class="flex-1 px-3 py-1 text-sm border border-gray-300 rounded-md">
+          <button type="button" class="text-red-500 hover:text-red-700" onclick="this.parentElement.remove()">
+            Remove
+          </button>
+        </div>
+      `;
+
+      daysList.insertAdjacentHTML('beforeend', rowHtml);
+    });
+  });
+});
+</script>

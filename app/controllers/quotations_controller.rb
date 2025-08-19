@@ -11,7 +11,7 @@ class QuotationsController < ApplicationController
     @quotation_detail = @quotation.quotation_detail
     @territories = @quotation.territories
     @adjustments = @quotation.quotation_adjustments
-    
+
     # Calculate totals
     @calculation = QuotationCalculator.new(@quotation).calculate
   end
@@ -19,34 +19,34 @@ class QuotationsController < ApplicationController
   def new
     @quotation = current_production_house.quotations.build
     @quotation.build_quotation_detail
-    
+
     # Initialize talent categories
     TalentCategory::TYPES.each do |type, _|
       @quotation.talent_categories.build(category_type: type)
     end
-    
+
     load_form_data
   end
 
   def create
     @quotation = current_production_house.quotations.build(quotation_params)
-    
+
     if @quotation.save
       # Process talent categories and days on set
       process_talent_categories
       process_territories
-      
+
       # Calculate and save totals
       calculation = QuotationCalculator.new(@quotation).calculate
       @quotation.update(total_amount: calculation[:total])
-      
+
       # Create history entry
       @quotation.quotation_histories.create(
         action: 'created',
         user: current_production_house.name,
         data: { total: calculation[:total] }
       )
-      
+
       flash[:notice] = "Quotation created successfully"
       redirect_to @quotation
     else
@@ -64,18 +64,18 @@ class QuotationsController < ApplicationController
       # Process updates
       process_talent_categories
       process_territories
-      
+
       # Recalculate
       calculation = QuotationCalculator.new(@quotation).calculate
       @quotation.update(total_amount: calculation[:total])
-      
+
       # Create history entry
       @quotation.quotation_histories.create(
         action: 'updated',
         user: current_production_house.name,
         data: { total: calculation[:total] }
       )
-      
+
       flash[:notice] = "Quotation updated successfully"
       redirect_to @quotation
     else
@@ -94,27 +94,27 @@ class QuotationsController < ApplicationController
     new_quotation = @quotation.dup
     new_quotation.project_number = nil # Will regenerate
     new_quotation.status = 'draft'
-    
+
     if new_quotation.save
       # Duplicate related records
       @quotation.talent_categories.each do |tc|
         new_tc = tc.dup
         new_tc.quotation_id = new_quotation.id
         new_tc.save
-        
+
         tc.day_on_sets.each do |dos|
           new_dos = dos.dup
           new_dos.talent_category_id = new_tc.id
           new_dos.save
         end
       end
-      
+
       if @quotation.quotation_detail
         detail = @quotation.quotation_detail.dup
         detail.quotation_id = new_quotation.id
         detail.save
       end
-      
+
       flash[:notice] = "Quotation duplicated successfully"
       redirect_to edit_quotation_path(new_quotation)
     else
@@ -147,7 +147,7 @@ class QuotationsController < ApplicationController
         :duration, :unlimited_stills, :unlimited_versions
       ],
       talent_categories_attributes: [
-        :id, :category_type, :initial_count, :daily_rate, 
+        :id, :category_type, :initial_count, :daily_rate,
         :adjusted_rate, :_destroy
       ],
       quotation_adjustments_attributes: [
@@ -157,43 +157,43 @@ class QuotationsController < ApplicationController
   end
 
   def load_form_data
-    @talent_settings = Setting.where(category: 'talent').order(:key)
-    @duration_settings = Setting.where(category: 'duration').order(:key)
+    @talent_settings = Setting.where(category: "talent").order(:key)
+    @duration_settings = Setting.where(category: "duration").order(:key)
     @territories = Territory.all.order(:name)
     @exclusivity_options = [
-      ['None', 'none'],
-      ['Level 1', 'level_1'],
-      ['Level 2', 'level_2'],
-      ['Level 3', 'level_3'],
-      ['Level 4', 'level_4'],
-      ['Pharmaceutical Level 1', 'pharma_1'],
-      ['Pharmaceutical Level 2', 'pharma_2'],
-      ['Pharmaceutical Level 3', 'pharma_3'],
-      ['Pharmaceutical Level 4', 'pharma_4']
+      [ "None", "none" ],
+      [ "Level 1", "level_1" ],
+      [ "Level 2", "level_2" ],
+      [ "Level 3", "level_3" ],
+      [ "Level 4", "level_4" ],
+      [ "Pharmaceutical Level 1", "pharma_1" ],
+      [ "Pharmaceutical Level 2", "pharma_2" ],
+      [ "Pharmaceutical Level 3", "pharma_3" ],
+      [ "Pharmaceutical Level 4", "pharma_4" ]
     ]
   end
 
   def process_talent_categories
     return unless params[:talent_categories]
-    
+
     params[:talent_categories].each do |category_id, category_data|
       talent_category = @quotation.talent_categories.find_or_create_by(
         category_type: category_id
       )
-      
+
       talent_category.update(
         initial_count: category_data[:count].to_i,
         daily_rate: get_daily_rate(category_id),
         adjusted_rate: category_data[:adjusted_rate]
       )
-      
+
       # Process days on set
       if category_data[:days_on_set]
         talent_category.day_on_sets.destroy_all
-        
+
         category_data[:days_on_set].each do |_, dos_data|
           next if dos_data[:talent_count].to_i == 0
-          
+
           talent_category.day_on_sets.create(
             talent_count: dos_data[:talent_count].to_i,
             days_count: dos_data[:days_count].to_i
@@ -205,9 +205,9 @@ class QuotationsController < ApplicationController
 
   def process_territories
     return unless params[:territories]
-    
+
     @quotation.quotation_territories.destroy_all
-    
+
     params[:territories].each do |territory_id|
       territory = Territory.find(territory_id)
       @quotation.quotation_territories.create(
@@ -229,7 +229,7 @@ class QuotationsController < ApplicationController
     when 5 then 'kid_base_rate'
     when 6 then 'walk_on_base_rate'
     end
-    
+
     Setting.find_by(key: setting_key)&.typed_value || 0
   end
 end
