@@ -1,3 +1,4 @@
+# app/services/quotation_calculator.rb
 class QuotationCalculator
   def initialize(quotation)
     @quotation = quotation
@@ -8,33 +9,57 @@ class QuotationCalculator
   end
 
   def calculate
+    # Check for worldwide override condition
+    if should_use_worldwide?
+      apply_worldwide_calculation
+    else
+      standard_calculation
+    end
+  end
+
+  private
+
+  def should_use_worldwide?
+    return false unless @detail
+    
+    duration_months = parse_duration_months(@detail.duration)
+    duration_months && duration_months <= 12
+  end
+
+  def parse_duration_months(duration)
+    return nil unless duration
+    
+    case duration
+    when '1_month' then 1
+    when '3_months' then 3
+    when '6_months' then 6
+    when '12_months' then 12
+    when '18_months' then 18
+    when '24_months' then 24
+    when '36_months' then 36
+    else nil
+    end
+  end
+
+  def apply_worldwide_calculation
+    # When duration <= 12 months, use Worldwide All Media
+    worldwide_territory = Territory.find_by(name: 'Worldwide', media_type: 'all_media')
+    territory_multiplier = worldwide_territory ? (worldwide_territory.percentage / 100.0) : 12.0
+    
     base_talent_cost = calculate_base_talent_cost
     rehearsal_travel_cost = calculate_rehearsal_travel_cost
-
-    # Apply territory multiplier
-    territory_multiplier = calculate_territory_multiplier
-
-    # Apply media multiplier
-    media_multiplier = calculate_media_multiplier
-
-    # Apply duration multiplier
-    duration_multiplier = calculate_duration_multiplier
-
-    # Apply exclusivity multiplier
+    
+    # For worldwide, use full media multiplier
+    media_multiplier = 1.5 # All Media
+    duration_multiplier = 1.0 # Already factored into worldwide
     exclusivity_multiplier = calculate_exclusivity_multiplier
-
-    # Calculate usage fee
+    
     usage_fee = base_talent_cost * (territory_multiplier - 1.0) * media_multiplier * duration_multiplier * exclusivity_multiplier
-
-    # Calculate subtotal
+    
     subtotal = base_talent_cost + rehearsal_travel_cost + usage_fee
-
-    # Apply manual adjustments
     manual_adjustment = calculate_manual_adjustments(subtotal)
-
-    # Calculate total
     total = subtotal + manual_adjustment
-
+    
     {
       base_talent_cost: base_talent_cost.round(2),
       rehearsal_travel_cost: rehearsal_travel_cost.round(2),
@@ -45,11 +70,38 @@ class QuotationCalculator
       usage_fee: usage_fee.round(2),
       subtotal: subtotal.round(2),
       manual_adjustment: manual_adjustment.round(2),
-      total: total.round(2)
+      total: total.round(2),
+      worldwide_override: true
     }
   end
 
-  private
+  def standard_calculation
+    base_talent_cost = calculate_base_talent_cost
+    rehearsal_travel_cost = calculate_rehearsal_travel_cost
+    territory_multiplier = calculate_territory_multiplier
+    media_multiplier = calculate_media_multiplier
+    duration_multiplier = calculate_duration_multiplier
+    exclusivity_multiplier = calculate_exclusivity_multiplier
+    
+    usage_fee = base_talent_cost * (territory_multiplier - 1.0) * media_multiplier * duration_multiplier * exclusivity_multiplier
+    subtotal = base_talent_cost + rehearsal_travel_cost + usage_fee
+    manual_adjustment = calculate_manual_adjustments(subtotal)
+    total = subtotal + manual_adjustment
+    
+    {
+      base_talent_cost: base_talent_cost.round(2),
+      rehearsal_travel_cost: rehearsal_travel_cost.round(2),
+      territory_multiplier: territory_multiplier,
+      media_multiplier: media_multiplier,
+      duration_multiplier: duration_multiplier,
+      exclusivity_multiplier: exclusivity_multiplier,
+      usage_fee: usage_fee.round(2),
+      subtotal: subtotal.round(2),
+      manual_adjustment: manual_adjustment.round(2),
+      total: total.round(2),
+      worldwide_override: false
+    }
+  end
 
   def calculate_base_talent_cost
     total = 0
@@ -107,7 +159,7 @@ class QuotationCalculator
     return 1.0 unless @detail
 
     case @detail.media_type
-    when "television"
+    when "television", "tv"
       1.2
     when "digital"
       1.1
@@ -119,6 +171,16 @@ class QuotationCalculator
       1.3
     when "all_media"
       1.5
+    when "all_moving_media"
+      1.125  # 75% of all media
+    when "all_stills"
+      1.125  # 75% of all media
+    when "all_non_broadcast"
+      1.125  # 75% of all media
+    when "one_media"
+      0.75   # 50% of all media
+    when "two_media"
+      1.125  # 75% of all media
     else
       1.0
     end

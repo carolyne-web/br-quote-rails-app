@@ -1,0 +1,20 @@
+<!-- app/views/quotations/_history.html.erb -->
+<div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+  <h3 class="text-lg font-semibold mb-4">Quotation History</h3>
+  
+  <% @quotation.quotation_histories.order(created_at: :desc).each do |history| %>
+    <div class="border-l-4 border-indigo-500 pl-4 mb-4">
+      <div class="text-sm text-gray-500">
+        <%= history.created_at.strftime('%B %d, %Y at %I:%M %p') %>
+      </div>
+      <div class="font-medium">
+        <%= history.action.humanize %> by <%= history.user %>
+      </div>
+      <% if history.data.present? %>
+        <div class="text-sm text-gray-600">
+          Total: R<%= number_with_delimiter(history.data['total']) %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_19_153902) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_20_095059) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -39,6 +39,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_19_153902) do
     t.decimal "percentage"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "adjustment_type", default: "discount"
     t.index ["quotation_id"], name: "index_quotation_adjustments_on_quotation_id"
   end
 
@@ -53,6 +54,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_19_153902) do
     t.string "duration"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "shoot_days", default: 1
+    t.string "media_type", default: "all_media"
+    t.boolean "unlimited_stills", default: false
+    t.boolean "unlimited_versions", default: false
     t.index ["quotation_id"], name: "index_quotation_details_on_quotation_id"
   end
 

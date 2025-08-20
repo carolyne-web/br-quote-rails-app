@@ -25,6 +25,10 @@ gem "bcrypt", "~> 3.1.7"
 # Session management
 gem "redis", "~> 4.0"
 
+# PDF Generation
+gem 'prawn'
+gem 'prawn-table'
+
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
