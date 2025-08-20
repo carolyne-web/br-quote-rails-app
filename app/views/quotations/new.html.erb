@@ -1,11 +1,28 @@
 <!-- app/views/quotations/new.html.erb -->
-<div class="max-w-6xl mx-auto">
-  <div class="bg-white shadow-lg rounded-lg">
-    <div class="px-6 py-4 border-b border-gray-200">
-      <h2 class="text-2xl font-bold text-gray-900">Create New Quotation</h2>
-    </div>
+<div class="min-h-screen bg-gray-50 flex">
+  <%= form_with model: @quotation, local: true, class: "w-full flex" do |f| %>
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between">
+      <div class="flex-1 overflow-y-auto">
+        <h2 class="text-lg font-semibold mb-4">Quote Sections</h2>
+        <ul class="space-y-2 text-sm text-gray-700">
+          <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Project Information</li>
+          <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
+          <li class="cursor-pointer hover:text-blue-600" data-section="schedule">Days & Schedule</li>
+          <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
+          <li class="cursor-pointer hover:text-blue-600" data-section="territories">Territories</li>
+        </ul>
+      </div>
+      <div class="border-t pt-4 flex-shrink-0">
+        <p class="text-sm text-gray-500">Current Total</p>
+        <p class="text-2xl font-bold" id="current-total">R 0.00</p>
+      </div>
+    </aside>
 
-    <%= form_with model: @quotation, local: true, class: "space-y-6 p-6" do |f| %>
+    <!-- Main Content -->
+    <main class="flex-1 p-6 space-y-6">
+      
+      <!-- Error Messages -->
       <% if @quotation.errors.any? %>
         <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
           <h3 class="font-semibold mb-2">Please correct the following errors:</h3>
@@ -16,195 +33,313 @@
           </ul>
         </div>
       <% end %>
-
+      
       <!-- Project Information -->
-      <div class="bg-gray-50 rounded-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Project Information</h3>
-
+      <section id="project-info" class="bg-white shadow rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">Project Information</h3>
+          <span class="text-sm text-gray-400">Step 1 of 5</span>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <%= f.label :project_name, class: "block text-sm font-medium text-gray-700 mb-1" %>
-            <%= f.text_field :project_name, required: true,
-                class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500",
-                placeholder: "Enter project name" %>
+            <%= f.label :project_name, "Project Name", class: "block text-sm font-medium text-gray-600" %>
+            <%= f.text_field :project_name, required: true, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "Enter project name" %>
           </div>
-
           <div>
-            <%= f.label :status, class: "block text-sm font-medium text-gray-700 mb-1" %>
-            <%= f.select :status, options_for_select(Quotation::STATUS_OPTIONS.map { |s| [s.capitalize, s] }, @quotation.status),
-                {}, class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+            <%= f.label :status, "Status", class: "block text-sm font-medium text-gray-600" %>
+            <%= f.select :status, options_for_select(Quotation::STATUS_OPTIONS.map { |s| [s.capitalize, s] }, @quotation.status), {}, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Talent Categories -->
-      <div class="bg-gray-50 rounded-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Talent Categories</h3>
-
-        <div class="space-y-4" id="talent-categories">
+      <section id="talent-categories" class="bg-white shadow rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">Talent Categories</h3>
+          <span class="text-sm text-gray-400">Step 2 of 5</span>
+        </div>
+        <div class="space-y-4">
           <% TalentCategory::TYPES.each do |type_id, type_name| %>
-            <div class="bg-white rounded-lg p-4 border border-gray-200" data-category="<%= type_id %>">
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="font-medium text-gray-900">
-                  <span class="text-lg mr-2"><%= TalentCategory.new(category_type: type_id).icon %></span>
-                  <%= type_name %>
-                </h4>
-                <div class="text-sm text-gray-500">
-                  Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(' ', '_')}_base_rate")&.typed_value || 0) %>
+            <div class="flex items-center justify-between border rounded-lg px-4 py-3 hover:bg-gray-50" data-category="<%= type_id %>">
+              <div class="flex items-center">
+                <span class="text-lg mr-3"><%= TalentCategory.new(category_type: type_id).icon %></span>
+                <div>
+                  <span class="font-medium"><%= type_name %></span>
+                  <div class="text-xs text-gray-500">
+                    Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(' ', '_')}_base_rate")&.typed_value || 0) %>
+                  </div>
                 </div>
               </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label class="block text-xs font-medium text-gray-600 mb-1">Number of Talent</label>
-                  <%= number_field_tag "talent_categories[#{type_id}][count]", 0,
-                      min: 0, class: "w-full px-3 py-2 border border-gray-300 rounded-md text-sm",
-                      data: { category_count: type_id } %>
-                </div>
-
-                <div>
-                  <label class="block text-xs font-medium text-gray-600 mb-1">Adjusted Rate (optional)</label>
-                  <%= number_field_tag "talent_categories[#{type_id}][adjusted_rate]", nil,
-                      placeholder: "Leave blank for base rate",
-                      class: "w-full px-3 py-2 border border-gray-300 rounded-md text-sm" %>
-                </div>
-
-                <div>
-                  <button type="button" class="btn-add-days-breakdown text-sm bg-indigo-100 text-indigo-700 px-3 py-2 rounded-md hover:bg-indigo-200 transition"
-                          data-category="<%= type_id %>">
-                    + Add Days Breakdown
-                  </button>
-                </div>
+              <div class="flex items-center space-x-3">
+                <%= number_field_tag "talent_categories[#{type_id}][count]", 0, min: 0, placeholder: "Quantity", class: "w-24 border rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500", data: { category_count: type_id } %>
+                <button type="button" class="text-sm text-blue-600 hover:text-blue-800 btn-add-days-breakdown" data-category="<%= type_id %>">
+                  + Days
+                </button>
               </div>
-
-              <!-- Days on Set Container (hidden by default) -->
-              <div class="days-on-set-container mt-4 hidden" data-category="<%= type_id %>">
-                <h5 class="text-sm font-medium text-gray-700 mb-2">Days on Set Breakdown</h5>
-                <div class="space-y-2 days-list">
-                  <!-- Days on set rows will be added here dynamically -->
-                </div>
+            </div>
+            
+            <!-- Days on Set Container (hidden by default) -->
+            <div class="days-on-set-container mt-2 ml-8 hidden bg-gray-50 rounded-lg p-3" data-category="<%= type_id %>">
+              <h5 class="text-sm font-medium text-gray-700 mb-2">Days on Set Breakdown</h5>
+              <div class="space-y-2 days-list">
+                <!-- Days on set rows will be added here dynamically -->
               </div>
             </div>
           <% end %>
         </div>
-      </div>
+      </section>
 
-      <!-- Project Details -->
+      <!-- Days on Set & Schedule -->
       <%= fields_for :quotation_detail, @quotation.quotation_detail || @quotation.build_quotation_detail do |detail_fields| %>
-        <div class="bg-gray-50 rounded-lg p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Project Details</h3>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <section id="schedule" class="bg-white shadow rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">Days on Set & Schedule</h3>
+            <span class="text-sm text-gray-400">Step 3 of 5</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <%= detail_fields.label :shoot_days, "Shoot Days", class: "block text-sm font-medium text-gray-700 mb-1" %>
-              <%= detail_fields.number_field :shoot_days, value: 1, min: 1,
-                  class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+              <%= detail_fields.label :shoot_days, "Shoot Days", class: "block text-sm font-medium text-gray-600" %>
+              <%= detail_fields.number_field :shoot_days, value: 1, min: 1, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
             </div>
-
             <div>
-              <%= detail_fields.label :rehearsal_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
-              <%= detail_fields.number_field :rehearsal_days, value: 0, min: 0,
-                  class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
-            </div>
-
-            <div>
-              <%= detail_fields.label :travel_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
-              <%= detail_fields.number_field :travel_days, value: 0, min: 0,
-                  class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
-            </div>
-
-            <div>
-              <%= detail_fields.label :down_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
-              <%= detail_fields.number_field :down_days, value: 0, min: 0,
-                  class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+              <%= detail_fields.label :rehearsal_days, "Rehearsal Days", class: "block text-sm font-medium text-gray-600" %>
+              <%= detail_fields.number_field :rehearsal_days, value: 0, min: 0, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
             </div>
           </div>
-
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <%= detail_fields.label :media_type, class: "block text-sm font-medium text-gray-700 mb-1" %>
-              <%= detail_fields.select :media_type,
-                  options_for_select([
-                    ['All Media', 'all_media'],
-                    ['Television', 'television'],
-                    ['Digital', 'digital'],
-                    ['Cinema', 'cinema'],
-                    ['Print', 'print'],
-                    ['Radio', 'radio']
-                  ], 'all_media'),
-                  {}, class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+              <%= detail_fields.label :travel_days, "Travel Days", class: "block text-sm font-medium text-gray-600" %>
+              <%= detail_fields.number_field :travel_days, value: 0, min: 0, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
             </div>
-
             <div>
-              <%= detail_fields.label :duration, "Contract Duration", class: "block text-sm font-medium text-gray-700 mb-1" %>
-              <%= detail_fields.select :duration,
-                  options_for_select([
-                    ['1 Month', '1_month'],
-                    ['3 Months', '3_months'],
-                    ['6 Months', '6_months'],
-                    ['12 Months', '12_months'],
-                    ['18 Months', '18_months'],
-                    ['24 Months', '24_months'],
-                    ['36 Months', '36_months']
-                  ], '12_months'),
-                  {}, class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
-            </div>
-
-            <div>
-              <%= detail_fields.label :exclusivity_type, class: "block text-sm font-medium text-gray-700 mb-1" %>
-              <%= detail_fields.select :exclusivity_type,
-                  options_for_select(@exclusivity_options, 'none'),
-                  {}, class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" %>
+              <%= detail_fields.label :down_days, "Down Days", class: "block text-sm font-medium text-gray-600" %>
+              <%= detail_fields.number_field :down_days, value: 0, min: 0, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
             </div>
           </div>
+        </section>
 
-          <div class="mt-4 space-y-2">
-            <label class="flex items-center">
-              <%= detail_fields.check_box :unlimited_stills, class: "mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" %>
-              <span class="text-sm text-gray-700">Unlimited Stills (+15%)</span>
-            </label>
-
-            <label class="flex items-center">
-              <%= detail_fields.check_box :unlimited_versions, class: "mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" %>
-              <span class="text-sm text-gray-700">Unlimited Versions (+15%)</span>
-            </label>
+        <!-- Usage & Licensing -->
+        <section id="licensing" class="bg-white shadow rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">Usage & Licensing</h3>
+            <span class="text-sm text-gray-400">Step 4 of 5</span>
           </div>
-        </div>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-2">Media Type</label>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <% [['Web / Digital', 'digital'], ['TV', 'television'], ['Cinema', 'cinema'], ['Print', 'print'], ['Radio', 'radio'], ['All Media', 'all_media']].each do |label, value| %>
+                  <label class="flex items-center space-x-2 p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <%= detail_fields.radio_button :media_type, value, class: "text-blue-600 focus:ring-blue-500" %>
+                    <span class="text-sm"><%= label %></span>
+                  </label>
+                <% end %>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <%= detail_fields.label :duration, "Contract Duration", class: "block text-sm font-medium text-gray-600" %>
+                <%= detail_fields.select :duration,
+                    options_for_select([
+                      ['1 Month', '1_month'],
+                      ['3 Months', '3_months'],
+                      ['6 Months', '6_months'],
+                      ['12 Months', '12_months'],
+                      ['18 Months', '18_months'],
+                      ['24 Months', '24_months'],
+                      ['36 Months', '36_months']
+                    ], '12_months'),
+                    {}, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
+              </div>
+            </div>
+            
+            <!-- Exclusivity Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <%= detail_fields.label :exclusivity_type, "Exclusivity", class: "block text-sm font-medium text-gray-600" %>
+                <%= detail_fields.select :exclusivity_type,
+                    options_for_select(@exclusivity_options, detail_fields.object.exclusivity_type),
+                    { prompt: "Select exclusivity type" },
+                    { class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" } %>
+              </div>
+            </div>
+            
+            <div class="space-y-2">
+              <label class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <%= detail_fields.check_box :unlimited_stills, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
+                <span class="text-sm">Unlimited Stills (+15%)</span>
+              </label>
+              <label class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <%= detail_fields.check_box :unlimited_versions, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
+                <span class="text-sm">Unlimited Versions (+15%)</span>
+              </label>
+            </div>
+          </div>
+        </section>
       <% end %>
 
       <!-- Territories -->
-      <div class="bg-gray-50 rounded-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Territories</h3>
-
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          <% @territories.group_by(&:group_name).each do |group_name, territories| %>
-            <% territories.each do |territory| %>
-              <label class="flex items-center p-2 bg-white rounded border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                <%= check_box_tag "territories[]", territory.id, false,
-                    class: "mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" %>
-                <div class="text-sm">
-                  <div class="font-medium text-gray-900"><%= territory.name %></div>
-                  <div class="text-xs text-gray-500"><%= territory.percentage %>%</div>
-                </div>
-              </label>
-            <% end %>
-          <% end %>
+      <section id="territories" class="bg-white shadow rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">Territories</h3>
+          <span class="text-sm text-gray-400">Step 5 of 5</span>
         </div>
-      </div>
+        
+        <!-- Search Bar -->
+        <div class="mb-4">
+          <input type="text" id="territory-search" placeholder="Search territories (type 3+ letters)..." 
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        
+        <!-- Territories List -->
+        <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+          <div id="territories-list" class="space-y-1 p-2">
+            <% @territories.group_by(&:group_name).each do |group_name, territories| %>
+              <% territories.each do |territory| %>
+                <label class="territory-item flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" 
+                       data-name="<%= territory.name.downcase %>">
+                  <div class="flex items-center">
+                    <%= check_box_tag "territories[]", territory.id, false, 
+                        class: "mr-3 rounded text-blue-600 focus:ring-blue-500 territory-checkbox",
+                        data: { territory_id: territory.id, territory_name: territory.name, percentage: territory.percentage } %>
+                    <div class="text-sm">
+                      <div class="font-medium text-gray-900"><%= territory.name %></div>
+                      <div class="text-xs text-gray-500"><%= group_name %></div>
+                    </div>
+                  </div>
+                  <div class="text-sm font-medium text-blue-600"><%= territory.percentage %>%</div>
+                </label>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quote Preview -->
+      <section class="bg-white shadow rounded-2xl p-6">
+        <h3 class="text-lg font-semibold mb-4">Quote Preview</h3>
+        
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Talent Summary -->
+            <div>
+              <h4 class="text-sm font-medium text-gray-600 mb-3">Talent Summary</h4>
+              <div id="talent-summary" class="space-y-2 text-sm">
+                <div class="text-gray-500 italic">No talent selected</div>
+              </div>
+            </div>
+            
+            <!-- Territory Summary -->
+            <div>
+              <h4 class="text-sm font-medium text-gray-600 mb-3">Selected Territories</h4>
+              <div id="territory-summary" class="space-y-1 text-sm max-h-32 overflow-y-auto">
+                <div class="text-gray-500 italic">No territories selected</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Cost Breakdown -->
+          <div class="mt-6 pt-4 border-t border-gray-200">
+            <div class="space-y-2">
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600">Talent Fees:</span>
+                <span id="talent-total">R 0.00</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600">Territory Multiplier:</span>
+                <span id="territory-multiplier">1.00x</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600">Exclusivity Multiplier:</span>
+                <span id="exclusivity-multiplier">1.00x</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600">Usage Fees:</span>
+                <span id="usage-fees">R 0.00</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600">Additional Options:</span>
+                <span id="additional-fees">R 0.00</span>
+              </div>
+              <div class="flex justify-between pt-2 border-t border-gray-300 font-semibold">
+                <span>Total Quote:</span>
+                <span id="total-quote" class="text-blue-600">R 0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- Form Actions -->
-      <div class="flex justify-end space-x-3 pt-6 border-t">
-        <%= link_to "Cancel", quotations_path,
-            class: "px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50" %>
-        <%= f.submit "Create Quotation",
-            class: "px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+      <div class="bg-white rounded-2xl p-6 shadow">
+        <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3 sm:justify-end">
+          <%= link_to "Cancel", quotations_path, 
+              class: "px-6 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition text-center" %>
+          <%= button_tag "Save as Draft", type: "button", 
+              class: "px-6 py-2 border border-blue-300 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition",
+              onclick: "saveDraft()" %>
+          <%= button_tag "Preview Quote", type: "button", 
+              class: "px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition",
+              onclick: "previewQuote()" %>
+          <%= f.submit "Generate Final Quote", 
+              class: "px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition" %>
+        </div>
       </div>
-    <% end %>
-  </div>
+    </main>
+  <% end %>
 </div>
+
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  // Sidebar navigation
+  const sidebarItems = document.querySelectorAll('[data-section]');
+  const sections = document.querySelectorAll('section[id]');
+  
+  sidebarItems.forEach(item => {
+    item.addEventListener('click', function() {
+      const targetSection = document.getElementById(this.dataset.section);
+      if (targetSection) {
+        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Update active sidebar item
+        sidebarItems.forEach(i => {
+          i.classList.remove('font-medium', 'text-blue-600');
+          i.classList.add('text-gray-700');
+        });
+        this.classList.add('font-medium', 'text-blue-600');
+        this.classList.remove('text-gray-700');
+      }
+    });
+  });
+
+
+  // Territory search functionality
+  const territorySearch = document.getElementById('territory-search');
+  const territoryItems = document.querySelectorAll('.territory-item');
+  
+  territorySearch.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    
+    if (searchTerm.length >= 3) {
+      territoryItems.forEach(item => {
+        const territoryName = item.dataset.name;
+        if (territoryName.includes(searchTerm)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    } else {
+      // Show all items if less than 3 characters
+      territoryItems.forEach(item => {
+        item.style.display = 'flex';
+      });
+    }
+  });
+
   // Add days breakdown functionality
   document.querySelectorAll('.btn-add-days-breakdown').forEach(button => {
     button.addEventListener('click', function() {
@@ -221,21 +356,180 @@ document.addEventListener('DOMContentLoaded', function() {
                  name="talent_categories[${categoryId}][days_on_set][${rowIndex}][talent_count]"
                  placeholder="Talent count"
                  min="1"
-                 class="flex-1 px-3 py-1 text-sm border border-gray-300 rounded-md">
+                 class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
           <span class="text-gray-500">×</span>
           <input type="number"
                  name="talent_categories[${categoryId}][days_on_set][${rowIndex}][days_count]"
                  placeholder="Days"
                  min="1"
-                 class="flex-1 px-3 py-1 text-sm border border-gray-300 rounded-md">
-          <button type="button" class="text-red-500 hover:text-red-700" onclick="this.parentElement.remove()">
+                 class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          <button type="button" class="text-red-500 hover:text-red-700 text-sm" onclick="this.parentElement.remove(); updateQuotePreview();">
             Remove
           </button>
         </div>
       `;
 
       daysList.insertAdjacentHTML('beforeend', rowHtml);
+      updateQuotePreview();
     });
   });
+
+  // Enhanced calculation and preview functionality
+  function updateQuotePreview() {
+    let talentTotal = 0;
+    let territoryMultiplier = 1.0;
+    let additionalFees = 0;
+    
+    const talentSummary = document.getElementById('talent-summary');
+    const territorySummary = document.getElementById('territory-summary');
+    
+    // Clear summaries
+    talentSummary.innerHTML = '';
+    territorySummary.innerHTML = '';
+    
+    // Calculate talent costs
+    const talentCounts = document.querySelectorAll('[data-category-count]');
+    let hasTalent = false;
+    
+    talentCounts.forEach(input => {
+      const quantity = parseInt(input.value) || 0;
+      if (quantity > 0) {
+        hasTalent = true;
+        const categoryDiv = input.closest('[data-category]');
+        const categoryName = categoryDiv.querySelector('.font-medium').textContent;
+        const baseCost = 5000; // This should come from your settings
+        const cost = quantity * baseCost;
+        talentTotal += cost;
+        
+        const summaryItem = document.createElement('div');
+        summaryItem.className = 'flex justify-between';
+        summaryItem.innerHTML = `
+          <span>${quantity}x ${categoryName}</span>
+          <span>R ${cost.toLocaleString()}.00</span>
+        `;
+        talentSummary.appendChild(summaryItem);
+      }
+    });
+    
+    if (!hasTalent) {
+      talentSummary.innerHTML = '<div class="text-gray-500 italic">No talent selected</div>';
+    }
+    
+    // Calculate territory multipliers
+    const selectedTerritories = document.querySelectorAll('.territory-checkbox:checked');
+    let hasTerritory = false;
+    
+    selectedTerritories.forEach(checkbox => {
+      hasTerritory = true;
+      const percentage = parseFloat(checkbox.dataset.percentage) || 0;
+      const name = checkbox.dataset.territoryName;
+      territoryMultiplier += (percentage / 100);
+      
+      const summaryItem = document.createElement('div');
+      summaryItem.className = 'flex justify-between';
+      summaryItem.innerHTML = `
+        <span>${name}</span>
+        <span>+${percentage}%</span>
+      `;
+      territorySummary.appendChild(summaryItem);
+    });
+    
+    if (!hasTerritory) {
+      territorySummary.innerHTML = '<div class="text-gray-500 italic">No territories selected</div>';
+    }
+    
+    // Calculate exclusivity fees
+    let exclusivityMultiplier = 1.0;
+    const exclusivitySelect = document.querySelector('select[name*="exclusivity_type"]');
+    if (exclusivitySelect && exclusivitySelect.value) {
+      // Get the percentage from the exclusivity options data
+      const selectedOption = exclusivitySelect.selectedOptions[0];
+      if (selectedOption) {
+        const text = selectedOption.textContent;
+        const percentageMatch = text.match(/\+(\d+)%/);
+        if (percentageMatch) {
+          const percentage = parseFloat(percentageMatch[1]) || 0;
+          exclusivityMultiplier += (percentage / 100);
+        }
+      }
+    }
+    
+    // Calculate additional fees
+    const unlimitedStills = document.querySelector('input[name*="unlimited_stills"]:checked');
+    const unlimitedVersions = document.querySelector('input[name*="unlimited_versions"]:checked');
+    
+    if (unlimitedStills) additionalFees += talentTotal * 0.15;
+    if (unlimitedVersions) additionalFees += talentTotal * 0.15;
+    
+    // Calculate usage fees (simplified)
+    const usageFees = talentTotal * 0.2; // 20% for usage
+    
+    // Calculate totals with exclusivity
+    const subtotal = talentTotal * territoryMultiplier * exclusivityMultiplier;
+    const totalQuote = subtotal + usageFees + additionalFees;
+    
+    // Update display
+    document.getElementById('talent-total').textContent = `R ${talentTotal.toLocaleString()}.00`;
+    document.getElementById('territory-multiplier').textContent = `${territoryMultiplier.toFixed(2)}x`;
+    document.getElementById('exclusivity-multiplier').textContent = `${exclusivityMultiplier.toFixed(2)}x`;
+    document.getElementById('usage-fees').textContent = `R ${usageFees.toLocaleString()}.00`;
+    document.getElementById('additional-fees').textContent = `R ${additionalFees.toLocaleString()}.00`;
+    document.getElementById('total-quote').textContent = `R ${totalQuote.toLocaleString()}.00`;
+    document.getElementById('current-total').textContent = `R ${totalQuote.toLocaleString()}.00`;
+  }
+  
+  // Update preview when form values change
+  document.addEventListener('input', updateQuotePreview);
+  document.addEventListener('change', updateQuotePreview);
+  
+  // Scroll spy to update sidebar
+  window.addEventListener('scroll', function() {
+    let current = '';
+    sections.forEach(section => {
+      const sectionTop = section.offsetTop;
+      const sectionHeight = section.clientHeight;
+      if (window.pageYOffset >= sectionTop - 200) {
+        current = section.getAttribute('id');
+      }
+    });
+    
+    sidebarItems.forEach(item => {
+      item.classList.remove('font-medium', 'text-blue-600');
+      item.classList.add('text-gray-700');
+      if (item.dataset.section === current) {
+        item.classList.add('font-medium', 'text-blue-600');
+        item.classList.remove('text-gray-700');
+      }
+    });
+  });
+  
+  // Initial calculation
+  updateQuotePreview();
 });
+
+// Action button functions
+function saveDraft() {
+  // Add a hidden field to indicate draft status
+  const form = document.querySelector('form');
+  const draftField = document.createElement('input');
+  draftField.type = 'hidden';
+  draftField.name = 'save_as_draft';
+  draftField.value = '1';
+  form.appendChild(draftField);
+  
+  // Submit the form
+  form.submit();
+}
+
+function previewQuote() {
+  // Open preview in new window/tab
+  const form = document.querySelector('form');
+  const formData = new FormData(form);
+  
+  // You can implement preview logic here
+  alert('Preview functionality will open quote preview in new window');
+  
+  // Or redirect to preview page
+  // window.open('/quotations/preview?' + new URLSearchParams(formData).toString(), '_blank');
+}
 </script>

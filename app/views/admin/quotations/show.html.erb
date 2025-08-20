@@ -1,0 +1,210 @@
+<div class="bg-white shadow">
+  <div class="px-4 sm:px-6 lg:max-w-7xl lg:mx-auto lg:px-8">
+    <div class="py-6 md:flex md:items-center md:justify-between">
+      <div class="flex-1 min-w-0">
+        <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+          <%= @quotation.project_name %>
+        </h1>
+        <p class="mt-1 text-sm text-gray-500">
+          Quote #<%= @quotation.id %> • <%= @quotation.production_house&.name %> • 
+          Created <%= @quotation.created_at.strftime("%B %d, %Y") %>
+        </p>
+      </div>
+      <div class="mt-4 flex md:mt-0 md:ml-4">
+        <%= link_to "Back to All Quotes", admin_quotations_path, 
+            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" %>
+        <%= link_to "View PDF", quotation_path(@quotation, format: :pdf), 
+            class: "ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700",
+            target: "_blank" if defined?(quotation_path) %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="lg:grid lg:grid-cols-3 lg:gap-6">
+    
+    <!-- Main Content -->
+    <div class="lg:col-span-2">
+      <!-- Project Information -->
+      <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">Project Information</h3>
+        </div>
+        <div class="px-4 py-5 sm:p-6">
+          <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Project Name</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @quotation.project_name %></dd>
+            </div>
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Status</dt>
+              <dd class="mt-1">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                  <%= case @quotation.status
+                      when 'draft' then 'bg-gray-100 text-gray-800'
+                      when 'pending' then 'bg-yellow-100 text-yellow-800'
+                      when 'approved' then 'bg-green-100 text-green-800'
+                      when 'rejected' then 'bg-red-100 text-red-800'
+                      else 'bg-gray-100 text-gray-800'
+                      end %>">
+                  <%= @quotation.status.humanize %>
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Production House</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @quotation.production_house&.name %></dd>
+            </div>
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Created Date</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @quotation.created_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Project Details -->
+      <% if @quotation_detail %>
+        <div class="bg-white shadow rounded-lg mb-6">
+          <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Project Details</h3>
+          </div>
+          <div class="px-4 py-5 sm:p-6">
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Shoot Days</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.shoot_days %></dd>
+              </div>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Rehearsal Days</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.rehearsal_days || 0 %></dd>
+              </div>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Travel Days</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.travel_days || 0 %></dd>
+              </div>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Down Days</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.down_days || 0 %></dd>
+              </div>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Media Type</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.media_type&.humanize %></dd>
+              </div>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Contract Duration</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.duration&.humanize %></dd>
+              </div>
+              <div class="sm:col-span-2">
+                <dt class="text-sm font-medium text-gray-500">Additional Options</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                  <% options = [] %>
+                  <% options << "Unlimited Stills" if @quotation_detail.unlimited_stills? %>
+                  <% options << "Unlimited Versions" if @quotation_detail.unlimited_versions? %>
+                  <%= options.any? ? options.join(", ") : "None" %>
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Talent Categories -->
+      <% if @talent_categories.any? %>
+        <div class="bg-white shadow rounded-lg mb-6">
+          <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Talent Categories</h3>
+          </div>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="space-y-4">
+              <% @talent_categories.each do |talent_category| %>
+                <div class="border-l-4 border-blue-500 pl-4">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <h4 class="text-sm font-medium text-gray-900">
+                        <%= talent_category.display_name %>
+                      </h4>
+                      <p class="text-sm text-gray-500">
+                        Count: <%= talent_category.count %> • 
+                        Rate: R <%= number_with_delimiter(talent_category.adjusted_rate || talent_category.base_rate || 0) %>.00
+                      </p>
+                    </div>
+                    <div class="text-sm font-medium text-gray-900">
+                      R <%= number_with_delimiter((talent_category.adjusted_rate || talent_category.base_rate || 0) * talent_category.count) %>.00
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Territories -->
+      <% if @territories.any? %>
+        <div class="bg-white shadow rounded-lg">
+          <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Selected Territories</h3>
+          </div>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <% @territories.each do |quotation_territory| %>
+                <div class="border border-gray-200 rounded-lg p-3">
+                  <div class="font-medium text-gray-900">
+                    <%= quotation_territory.territory.name %>
+                  </div>
+                  <div class="text-sm text-gray-500">
+                    <%= quotation_territory.territory.group_name %>
+                  </div>
+                  <div class="text-sm font-medium text-blue-600">
+                    +<%= quotation_territory.territory.percentage %>%
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="mt-6 lg:mt-0">
+      <!-- Quote Summary -->
+      <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">Quote Summary</h3>
+        </div>
+        <div class="px-4 py-5 sm:p-6">
+          <div class="text-center mb-4">
+            <div class="text-3xl font-bold text-gray-900">
+              R <%= number_with_delimiter(@quotation.total_amount || 0) %>.00
+            </div>
+            <div class="text-sm text-gray-500">Total Quote Value</div>
+          </div>
+          
+          <div class="border-t border-gray-200 pt-4">
+            <dl class="space-y-2">
+              <div class="flex justify-between text-sm">
+                <dt class="text-gray-500">Base Talent Fees:</dt>
+                <dd class="text-gray-900">R <%= number_with_delimiter(@quotation.base_amount || 0) %>.00</dd>
+              </div>
+              <div class="flex justify-between text-sm">
+                <dt class="text-gray-500">Territory Adjustments:</dt>
+                <dd class="text-gray-900">R <%= number_with_delimiter((@quotation.territory_amount || 0) - (@quotation.base_amount || 0)) %>.00</dd>
+              </div>
+              <div class="flex justify-between text-sm">
+                <dt class="text-gray-500">Usage & Licensing:</dt>
+                <dd class="text-gray-900">R <%= number_with_delimiter(@quotation.usage_amount || 0) %>.00</dd>
+              </div>
+              <div class="flex justify-between text-sm border-t border-gray-200 pt-2 font-medium">
+                <dt class="text-gray-900">Total:</dt>
+                <dd class="text-gray-900">R <%= number_with_delimiter(@quotation.total_amount || 0) %>.00</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

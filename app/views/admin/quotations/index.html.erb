@@ -1,0 +1,133 @@
+<div class="bg-white shadow">
+  <div class="px-4 sm:px-6 lg:max-w-7xl lg:mx-auto lg:px-8">
+    <div class="py-6 md:flex md:items-center md:justify-between">
+      <div class="flex-1 min-w-0">
+        <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+          All Quotations
+        </h1>
+        <p class="mt-1 text-sm text-gray-500">
+          View and manage quotations from all production houses
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-8">
+  <!-- Filters -->
+  <div class="bg-white shadow rounded-lg mb-6">
+    <div class="px-4 py-5 sm:p-6">
+      <%= form_with url: admin_quotations_path, method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-4" do |f| %>
+        <div>
+          <%= f.text_field :search, value: params[:search], placeholder: "Search project name...", 
+              class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" %>
+        </div>
+        
+        <div>
+          <%= f.select :production_house_id, 
+              options_from_collection_for_select(@production_houses, :id, :name, params[:production_house_id]),
+              { prompt: "All Production Houses" },
+              { class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" } %>
+        </div>
+        
+        <div>
+          <%= f.select :status,
+              options_for_select(@statuses.map { |s| [s.humanize, s] }, params[:status]),
+              { prompt: "All Statuses" },
+              { class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" } %>
+        </div>
+        
+        <div class="flex space-x-2">
+          <%= f.submit "Filter", class: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700" %>
+          <%= link_to "Clear", admin_quotations_path, class: "inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Quotations Table -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Project
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Production House
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Created
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Total Value
+            </th>
+            <th scope="col" class="relative px-6 py-3">
+              <span class="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <% @quotations.each do |quotation| %>
+            <tr class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div>
+                  <div class="text-sm font-medium text-gray-900">
+                    <%= quotation.project_name %>
+                  </div>
+                  <div class="text-sm text-gray-500">
+                    Quote #<%= quotation.id %>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <%= quotation.production_house&.name %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                  <%= case quotation.status
+                      when 'draft' then 'bg-gray-100 text-gray-800'
+                      when 'pending' then 'bg-yellow-100 text-yellow-800'
+                      when 'approved' then 'bg-green-100 text-green-800'
+                      when 'rejected' then 'bg-red-100 text-red-800'
+                      else 'bg-gray-100 text-gray-800'
+                      end %>">
+                  <%= quotation.status.humanize %>
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <%= quotation.created_at.strftime("%b %d, %Y") %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                R <%= number_with_delimiter(quotation.total_amount || 0) %>.00
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <%= link_to "View", admin_quotation_path(quotation), 
+                    class: "text-indigo-600 hover:text-indigo-900 mr-3" %>
+                <%= link_to "PDF", quotation_path(quotation, format: :pdf), 
+                    class: "text-gray-600 hover:text-gray-900", 
+                    target: "_blank" if defined?(quotation_path) %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      
+      <% if @quotations.empty? %>
+        <div class="text-center py-12">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">No quotations found</h3>
+          <p class="mt-1 text-sm text-gray-500">
+            No quotations match the current filters.
+          </p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

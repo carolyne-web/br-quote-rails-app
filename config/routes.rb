@@ -21,7 +21,7 @@ Rails.application.routes.draw do
     get "territories/update"
     get "territories/destroy"
     get "dashboard", to: "dashboard#index"
-    resources :settings, only: [ :index, :edit, :update ] do
+    resources :settings, only: [ :index, :edit, :update, :create, :destroy ] do
       collection do
         patch :bulk_update
       end
@@ -32,6 +32,7 @@ Rails.application.routes.draw do
         patch :bulk_update
       end
     end
+    resources :quotations, only: [ :index, :show ]
   end
 
   # Production House Routes (to be added in next steps)

@@ -160,17 +160,12 @@ class QuotationsController < ApplicationController
     @talent_settings = Setting.where(category: "talent").order(:key)
     @duration_settings = Setting.where(category: "duration").order(:key)
     @territories = Territory.all.order(:name)
-    @exclusivity_options = [
-      [ "None", "none" ],
-      [ "Level 1", "level_1" ],
-      [ "Level 2", "level_2" ],
-      [ "Level 3", "level_3" ],
-      [ "Level 4", "level_4" ],
-      [ "Pharmaceutical Level 1", "pharma_1" ],
-      [ "Pharmaceutical Level 2", "pharma_2" ],
-      [ "Pharmaceutical Level 3", "pharma_3" ],
-      [ "Pharmaceutical Level 4", "pharma_4" ]
-    ]
+    @exclusivity_options = Setting.where(category: "exclusivity").order(:value).map do |setting|
+      name = setting.key.gsub('exclusivity_', '').humanize.titleize
+      percentage = setting.typed_value
+      display_name = percentage > 0 ? "#{name} (+#{percentage}%)" : name
+      [display_name, setting.key]
+    end
   end
 
   def process_talent_categories
