@@ -28,7 +28,7 @@ class SessionsController < ApplicationController
   end
 
   def admin_create
-    if params[:admin_password] == ENV['ADMIN_PASSWORD']
+    if params[:admin_password] == ENV["ADMIN_PASSWORD"]
       session[:admin_authenticated] = true
       flash[:notice] = "Admin access granted"
       redirect_to admin_dashboard_path

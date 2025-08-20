@@ -4,38 +4,38 @@ class TalentCategory < ApplicationRecord
 
   # Define category types as constants
   TYPES = {
-    1 => 'Lead',
-    2 => 'Second Lead',
-    3 => 'Featured Extra',
-    4 => 'Teenager',
-    5 => 'Kid',
-    6 => 'Walk-on'
+    1 => "Lead",
+    2 => "Second Lead",
+    3 => "Featured Extra",
+    4 => "Teenager",
+    5 => "Kid",
+    6 => "Walk-on"
   }.freeze
 
   def display_name
-    TYPES[category_type] || 'Unknown'
+    TYPES[category_type] || "Unknown"
   end
 
   def icon
     case category_type
-    when 1 then '★'
-    when 2 then '☆'
-    when 3 then '◆'
-    when 4 then '♦'
-    when 5 then '♥'
-    when 6 then '•'
-    else '○'
+    when 1 then "★"
+    when 2 then "☆"
+    when 3 then "◆"
+    when 4 then "♦"
+    when 5 then "♥"
+    when 6 then "•"
+    else "○"
     end
   end
 
   def default_daily_rate
     setting_key = case category_type
-    when 1 then 'lead_base_rate'
-    when 2 then 'second_lead_base_rate'
-    when 3 then 'featured_extra_base_rate'
-    when 4 then 'teenager_base_rate'
-    when 5 then 'kid_base_rate'
-    when 6 then 'walk_on_base_rate'
+    when 1 then "lead_base_rate"
+    when 2 then "second_lead_base_rate"
+    when 3 then "featured_extra_base_rate"
+    when 4 then "teenager_base_rate"
+    when 5 then "kid_base_rate"
+    when 6 then "walk_on_base_rate"
     end
 
     Setting.find_by(key: setting_key)&.typed_value || 0

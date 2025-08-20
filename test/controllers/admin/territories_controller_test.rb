@@ -2,32 +2,32 @@ require "test_helper"
 
 class Admin::TerritoriesControllerTest < ActionDispatch::IntegrationTest
   test "should get index" do
-    get admin_territories_index_url
-    assert_response :success
+    get admin_territories_url
+    assert_response :redirect
   end
 
   test "should get new" do
-    get admin_territories_new_url
-    assert_response :success
+    get new_admin_territory_url
+    assert_response :redirect
   end
 
   test "should get create" do
-    get admin_territories_create_url
-    assert_response :success
+    post admin_territories_url
+    assert_response :redirect
   end
 
   test "should get edit" do
-    get admin_territories_edit_url
-    assert_response :success
+    get edit_admin_territory_url(territories(:one))
+    assert_response :redirect
   end
 
   test "should get update" do
-    get admin_territories_update_url
-    assert_response :success
+    patch admin_territory_url(territories(:one))
+    assert_response :redirect
   end
 
   test "should get destroy" do
-    get admin_territories_destroy_url
-    assert_response :success
+    delete admin_territory_url(territories(:one))
+    assert_response :redirect
   end
 end

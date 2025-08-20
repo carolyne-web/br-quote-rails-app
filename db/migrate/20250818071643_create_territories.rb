@@ -11,6 +11,6 @@ class CreateTerritories < ActiveRecord::Migration[8.0]
 
     add_index :territories, :code
     add_index :territories, :group_name
-    add_index :territories, [:name, :media_type], unique: true
+    add_index :territories, [ :name, :media_type ], unique: true
   end
 end

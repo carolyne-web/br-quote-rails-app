@@ -13,7 +13,7 @@ class Quotation < ApplicationRecord
 
   before_validation :generate_project_number, on: :create
 
-  STATUS_OPTIONS = ["draft", "sent", "approved", "rejected"].freeze
+  STATUS_OPTIONS = [ "draft", "sent", "approved", "rejected" ].freeze
   validates :status, inclusion: { in: STATUS_OPTIONS }
 
   private

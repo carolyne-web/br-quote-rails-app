@@ -77,7 +77,7 @@ territories_data = [
   { name: 'Canada', percentage: 200, media_type: 'all_media' },
   { name: 'USA', percentage: 500, media_type: 'all_media' },
   { name: 'France', percentage: 300, media_type: 'all_media' },
-  { name: 'UK', percentage: 300, media_type: 'all_media' },
+  { name: 'UK', percentage: 300, media_type: 'all_media' }
   # Add all other countries from your PDF...
 ]
 
@@ -89,7 +89,7 @@ end
 territory_groups = [
   { name: 'Pan Africa', percentage: 400, media_type: 'all_media', group_name: 'Africa Groups' },
   { name: 'USA & Canada', percentage: 600, media_type: 'all_media', group_name: 'North America Groups' },
-  { name: 'Worldwide', percentage: 1200, media_type: 'all_media', group_name: 'Global' },
+  { name: 'Worldwide', percentage: 1200, media_type: 'all_media', group_name: 'Global' }
   # Add all other groups from your PDF...
 ]
 

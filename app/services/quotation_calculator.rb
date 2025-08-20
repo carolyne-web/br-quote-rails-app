@@ -107,17 +107,17 @@ class QuotationCalculator
     return 1.0 unless @detail
 
     case @detail.media_type
-    when 'television'
+    when "television"
       1.2
-    when 'digital'
+    when "digital"
       1.1
-    when 'print'
+    when "print"
       0.8
-    when 'radio'
+    when "radio"
       0.7
-    when 'cinema'
+    when "cinema"
       1.3
-    when 'all_media'
+    when "all_media"
       1.5
     else
       1.0
@@ -140,23 +140,23 @@ class QuotationCalculator
     return 1.0 unless @detail&.exclusivity_type
 
     base_multiplier = case @detail.exclusivity_type
-    when 'none'
+    when "none"
       1.0
-    when 'level_1'
+    when "level_1"
       1.25
-    when 'level_2'
+    when "level_2"
       1.5
-    when 'level_3'
+    when "level_3"
       1.75
-    when 'level_4'
+    when "level_4"
       2.0
-    when 'pharma_1'
+    when "pharma_1"
       1.5
-    when 'pharma_2'
+    when "pharma_2"
       1.75
-    when 'pharma_3'
+    when "pharma_3"
       2.0
-    when 'pharma_4'
+    when "pharma_4"
       2.5
     else
       1.0
@@ -180,7 +180,7 @@ class QuotationCalculator
       amount = subtotal * (percentage / 100.0)
 
       # Negative for discounts, positive for surcharges
-      if adjustment.adjustment_type == 'discount'
+      if adjustment.adjustment_type == "discount"
         total_adjustment -= amount
       else
         total_adjustment += amount

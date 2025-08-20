@@ -2,32 +2,32 @@ require "test_helper"
 
 class Admin::ProductionHousesControllerTest < ActionDispatch::IntegrationTest
   test "should get index" do
-    get admin_production_houses_index_url
-    assert_response :success
+    get admin_production_houses_url
+    assert_response :redirect
   end
 
   test "should get new" do
-    get admin_production_houses_new_url
-    assert_response :success
+    get new_admin_production_house_url
+    assert_response :redirect
   end
 
   test "should get create" do
-    get admin_production_houses_create_url
-    assert_response :success
+    post admin_production_houses_url
+    assert_response :redirect
   end
 
   test "should get edit" do
-    get admin_production_houses_edit_url
-    assert_response :success
+    get edit_admin_production_house_url(production_houses(:one))
+    assert_response :redirect
   end
 
   test "should get update" do
-    get admin_production_houses_update_url
-    assert_response :success
+    patch admin_production_house_url(production_houses(:one))
+    assert_response :redirect
   end
 
   test "should get destroy" do
-    get admin_production_houses_destroy_url
-    assert_response :success
+    delete admin_production_house_url(production_houses(:one))
+    assert_response :redirect
   end
 end

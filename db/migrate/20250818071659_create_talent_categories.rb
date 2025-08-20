@@ -9,6 +9,6 @@ class CreateTalentCategories < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :talent_categories, [:quotation_id, :category_type], unique: true
+    add_index :talent_categories, [ :quotation_id, :category_type ], unique: true
   end
 end

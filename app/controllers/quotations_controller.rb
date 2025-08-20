@@ -1,6 +1,6 @@
 class QuotationsController < ApplicationController
   before_action :require_login
-  before_action :set_quotation, only: [:show, :edit, :update, :destroy, :pdf, :duplicate]
+  before_action :set_quotation, only: [ :show, :edit, :update, :destroy, :pdf, :duplicate ]
 
   def index
     @quotations = current_production_house.quotations.order(created_at: :desc)
@@ -42,7 +42,7 @@ class QuotationsController < ApplicationController
 
       # Create history entry
       @quotation.quotation_histories.create(
-        action: 'created',
+        action: "created",
         user: current_production_house.name,
         data: { total: calculation[:total] }
       )
@@ -71,7 +71,7 @@ class QuotationsController < ApplicationController
 
       # Create history entry
       @quotation.quotation_histories.create(
-        action: 'updated',
+        action: "updated",
         user: current_production_house.name,
         data: { total: calculation[:total] }
       )
@@ -93,7 +93,7 @@ class QuotationsController < ApplicationController
   def duplicate
     new_quotation = @quotation.dup
     new_quotation.project_number = nil # Will regenerate
-    new_quotation.status = 'draft'
+    new_quotation.status = "draft"
 
     if new_quotation.save
       # Duplicate related records
@@ -127,8 +127,8 @@ class QuotationsController < ApplicationController
     pdf = QuotationPdf.new(@quotation)
     send_data pdf.render,
               filename: "quotation_#{@quotation.project_number}.pdf",
-              type: 'application/pdf',
-              disposition: 'inline'
+              type: "application/pdf",
+              disposition: "inline"
   end
 
   private
@@ -212,8 +212,8 @@ class QuotationsController < ApplicationController
       territory = Territory.find(territory_id)
       @quotation.quotation_territories.create(
         territory: territory,
-        unlimited_stills: params[:unlimited_stills] == '1',
-        unlimited_versions: params[:unlimited_versions] == '1',
+        unlimited_stills: params[:unlimited_stills] == "1",
+        unlimited_versions: params[:unlimited_versions] == "1",
         stills_percentage: params[:stills_percentage],
         versions_percentage: params[:versions_percentage]
       )
@@ -222,12 +222,12 @@ class QuotationsController < ApplicationController
 
   def get_daily_rate(category_type)
     setting_key = case category_type.to_i
-    when 1 then 'lead_base_rate'
-    when 2 then 'second_lead_base_rate'
-    when 3 then 'featured_extra_base_rate'
-    when 4 then 'teenager_base_rate'
-    when 5 then 'kid_base_rate'
-    when 6 then 'walk_on_base_rate'
+    when 1 then "lead_base_rate"
+    when 2 then "second_lead_base_rate"
+    when 3 then "featured_extra_base_rate"
+    when 4 then "teenager_base_rate"
+    when 5 then "kid_base_rate"
+    when 6 then "walk_on_base_rate"
     end
 
     Setting.find_by(key: setting_key)&.typed_value || 0

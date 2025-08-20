@@ -3,13 +3,13 @@
 one:
   quotation: one
   category_type: 1
-  initial_count: 1
-  daily_rate: 9.99
-  adjusted_rate: 9.99
+  initial_count: 2
+  daily_rate: 500.00
+  adjusted_rate: 500.00
 
 two:
   quotation: two
-  category_type: 1
+  category_type: 2
   initial_count: 1
-  daily_rate: 9.99
-  adjusted_rate: 9.99
+  daily_rate: 300.00
+  adjusted_rate: 300.00

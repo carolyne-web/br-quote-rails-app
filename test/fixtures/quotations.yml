@@ -1,13 +1,13 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  project_name: MyString
-  project_number: MyString
+  project_name: Test Project One
+  project_number: PROJ001
   production_house: one
-  status: MyString
+  status: draft
 
 two:
-  project_name: MyString
-  project_number: MyString
+  project_name: Test Project Two
+  project_number: PROJ002
   production_house: two
-  status: MyString
+  status: sent

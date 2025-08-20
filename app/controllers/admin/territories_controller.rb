@@ -1,6 +1,6 @@
 class Admin::TerritoriesController < ApplicationController
   before_action :require_admin
-  before_action :set_territory, only: [:edit, :update, :destroy]
+  before_action :set_territory, only: [ :edit, :update, :destroy ]
 
   def index
     @territories = Territory.all.order(:name)
