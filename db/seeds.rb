@@ -98,3 +98,9 @@ territory_groups.each do |group|
 end
 
 puts "Seeded #{Setting.count} settings and #{Territory.count} territories"
+
+# Production Houses Login
+# Use the production house code and password to login at /login
+
+# Admin Login  
+# Set ADMIN_PASSWORD environment variable to login at /admin/login
