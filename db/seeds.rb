@@ -100,7 +100,18 @@ end
 puts "Seeded #{Setting.count} settings and #{Territory.count} territories"
 
 # Production Houses Login
-# Use the production house code and password to login at /login
+puts "Seeding ProductionHouses..."
 
-# Admin Login  
-# Set ADMIN_PASSWORD environment variable to login at /admin/login
+ProductionHouse.create!(
+  name: "ABC Productions",
+  code: "ABC123",
+  password: "password123"
+)
+
+ProductionHouse.create!(
+  name: "XYZ Studios",
+  code: "XYZ456",
+  password: "somepassword"
+)
+
+puts "Done! #{ProductionHouse.all}"
