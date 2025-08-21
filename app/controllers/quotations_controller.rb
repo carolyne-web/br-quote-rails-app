@@ -32,8 +32,7 @@ class QuotationsController < ApplicationController
     @quotation = current_production_house.quotations.build(quotation_params)
 
     if @quotation.save
-      # Process talent categories and days on set
-      process_talent_categories
+      # Process territories (still needed as it's not nested attributes)
       process_territories
 
       # Calculate and save totals
@@ -61,8 +60,7 @@ class QuotationsController < ApplicationController
 
   def update
     if @quotation.update(quotation_params)
-      # Process updates
-      process_talent_categories
+      # Process territories (still needed as it's not nested attributes)
       process_territories
 
       # Recalculate
@@ -142,13 +140,16 @@ class QuotationsController < ApplicationController
       :project_name,
       :status,
       quotation_detail_attributes: [
-        :id, :rehearsal_days, :travel_days, :down_days,
+        :id, :shoot_days, :rehearsal_days, :travel_days, :down_days,
         :exclusivity_type, :exclusivity_level, :pharmaceutical,
-        :duration, :unlimited_stills, :unlimited_versions
+        :duration, :media_type, :unlimited_stills, :unlimited_versions
       ],
       talent_categories_attributes: [
         :id, :category_type, :initial_count, :daily_rate,
-        :adjusted_rate, :_destroy
+        :adjusted_rate, :_destroy,
+        day_on_sets_attributes: [
+          :id, :talent_count, :days_count, :_destroy
+        ]
       ],
       quotation_adjustments_attributes: [
         :id, :description, :percentage, :adjustment_type, :_destroy

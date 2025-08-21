@@ -2,6 +2,12 @@ class TalentCategory < ApplicationRecord
   belongs_to :quotation
   has_many :day_on_sets, dependent: :destroy
 
+  # Accept nested attributes for day-on-set breakdowns
+  accepts_nested_attributes_for :day_on_sets, allow_destroy: true
+
+  # Auto-set daily rate before validation if not present
+  before_validation :set_default_daily_rate, if: :daily_rate_blank?
+
   # Define category types as constants
   TYPES = {
     1 => "Lead",
@@ -57,5 +63,15 @@ class TalentCategory < ApplicationRecord
     else
       initial_count * (quotation.quotation_detail&.shoot_days || 1) * rate
     end
+  end
+
+  private
+
+  def daily_rate_blank?
+    daily_rate.blank? || daily_rate == 0
+  end
+
+  def set_default_daily_rate
+    self.daily_rate = default_daily_rate
   end
 end

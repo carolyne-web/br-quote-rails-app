@@ -55,7 +55,7 @@
                   <%= type_name %>
                 </h4>
                 <div class="text-sm text-gray-500">
-                  Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(' ', '_')}_base_rate")&.typed_value || 0) %>
+                  Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(/[ -]/, '_')}_base_rate")&.typed_value || 0) %>
                 </div>
               </div>
 

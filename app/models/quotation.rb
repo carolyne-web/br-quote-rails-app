@@ -8,6 +8,11 @@ class Quotation < ApplicationRecord
   has_many :quotation_histories, dependent: :destroy
   has_one :quotation_detail, dependent: :destroy
 
+  # Accept nested attributes for proper form processing
+  accepts_nested_attributes_for :quotation_detail, allow_destroy: true
+  accepts_nested_attributes_for :talent_categories, allow_destroy: true
+  accepts_nested_attributes_for :quotation_adjustments, allow_destroy: true
+
   validates :project_name, presence: true
   validates :project_number, presence: true, uniqueness: true
 

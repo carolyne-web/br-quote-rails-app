@@ -2,7 +2,22 @@ class Admin::SettingsController < ApplicationController
   before_action :require_admin
 
   def index
-    @talent_settings = Setting.where(category: "talent").order(:key)
+    # Order talent settings by hierarchy, not alphabetically
+    talent_order = [
+      "lead_base_rate",
+      "second_lead_base_rate", 
+      "featured_extra_base_rate",
+      "teenager_base_rate",
+      "kid_base_rate",
+      "walk_on_base_rate"
+    ]
+    
+    # Load all talent settings and sort them in Ruby to avoid complex SQL
+    all_talent_settings = Setting.where(category: "talent").to_a
+    @talent_settings = talent_order.map { |key| 
+      all_talent_settings.find { |setting| setting.key == key } 
+    }.compact
+    
     @duration_settings = Setting.where(category: "duration").order(:key)
     @exclusivity_settings = Setting.where(category: "exclusivity").order(:key)
     @general_settings = Setting.where(category: "general").order(:key)

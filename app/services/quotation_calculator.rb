@@ -22,8 +22,11 @@ class QuotationCalculator
   def should_use_worldwide?
     return false unless @detail
     
+    # Only apply worldwide override if:
+    # 1. Duration is 12 months or less
+    # 2. No specific territories are selected (empty territories)
     duration_months = parse_duration_months(@detail.duration)
-    duration_months && duration_months <= 12
+    duration_months && duration_months <= 12 && @territories.empty?
   end
 
   def parse_duration_months(duration)
@@ -43,15 +46,14 @@ class QuotationCalculator
 
   def apply_worldwide_calculation
     # When duration <= 12 months, use Worldwide All Media
-    worldwide_territory = Territory.find_by(name: 'Worldwide', media_type: 'all_media')
-    territory_multiplier = worldwide_territory ? (worldwide_territory.percentage / 100.0) : 12.0
+    territory_multiplier = 12.0 # Worldwide = 1200%
     
     base_talent_cost = calculate_base_talent_cost
     rehearsal_travel_cost = calculate_rehearsal_travel_cost
     
-    # For worldwide, use full media multiplier
-    media_multiplier = 1.5 # All Media
-    duration_multiplier = 1.0 # Already factored into worldwide
+    # For worldwide override, use All Media multiplier
+    media_multiplier = 1.0 # All Media = 100%
+    duration_multiplier = calculate_duration_multiplier # Apply time-based adjustments
     exclusivity_multiplier = calculate_exclusivity_multiplier
     
     usage_fee = base_talent_cost * (territory_multiplier - 1.0) * media_multiplier * duration_multiplier * exclusivity_multiplier
@@ -132,7 +134,22 @@ class QuotationCalculator
 
     @talent_categories.each do |category|
       daily_rate = category.adjusted_rate || category.daily_rate || 0
+      
+      # Determine talent count for rehearsal/travel/down days
+      # Business rule: ALL hired talent (initial_count) participate in 
+      # rehearsal/travel/down days regardless of their specific shooting schedule
+      # This is because:
+      # - Rehearsal: All talent typically rehearse together
+      # - Travel: All talent travel to location regardless of when they shoot
+      # - Down days: All talent must be available/on standby
       talent_count = category.initial_count
+
+      # Alternative logic (if needed): Use average talent per day from breakdown
+      # if category.day_on_sets.any?
+      #   total_talent_days = category.day_on_sets.sum { |dos| dos.talent_count * dos.days_count }
+      #   total_shoot_days = category.day_on_sets.sum(&:days_count)
+      #   talent_count = (total_talent_days.to_f / total_shoot_days).round if total_shoot_days > 0
+      # end
 
       # Rehearsal days at 50% rate
       total += talent_count * rehearsal_days * daily_rate * 0.5
@@ -140,8 +157,8 @@ class QuotationCalculator
       # Travel days at 50% rate
       total += talent_count * travel_days * daily_rate * 0.5
 
-      # Down days at 25% rate
-      total += talent_count * down_days * daily_rate * 0.25
+      # Down days at 50% rate
+      total += talent_count * down_days * daily_rate * 0.5
     end
 
     total
@@ -150,37 +167,59 @@ class QuotationCalculator
   def calculate_territory_multiplier
     return 1.0 if @territories.empty?
 
-    # Use the highest percentage among selected territories
-    max_percentage = @territories.maximum(:percentage) || 100
-    max_percentage / 100.0
+    # Check for special territory exceptions first
+    territory_names = @territories.pluck(:name)
+    
+    # Handle territory exceptions with fixed percentages
+    if territory_names.include?('Worldwide')
+      return 12.0  # 1200%
+    elsif territory_names.include?('USA')
+      return 5.0   # 500%
+    elsif territory_names.include?('Western Europe (excl. UK)')
+      return 5.0   # 500%
+    elsif territory_names.include?('Western Europe (incl. UK)')
+      return 6.0   # 600%
+    elsif territory_names.include?('Europe (excl. UK)')
+      return 6.0   # 600%
+    elsif territory_names.include?('Europe (incl. UK)')
+      return 7.5   # 750%
+    else
+      # For all other territories, use the highest percentage from database
+      max_percentage = @territories.maximum(:percentage) || 100
+      max_percentage / 100.0
+    end
   end
 
   def calculate_media_multiplier
     return 1.0 unless @detail
 
     case @detail.media_type
-    when "television", "tv"
-      1.2
-    when "digital"
-      1.1
-    when "print"
-      0.8
-    when "radio"
-      0.7
-    when "cinema"
-      1.3
     when "all_media"
-      1.5
+      1.0    # 100% (base usage)
     when "all_moving_media"
-      1.125  # 75% of all media
-    when "all_stills"
-      1.125  # 75% of all media
-    when "all_non_broadcast"
-      1.125  # 75% of all media
-    when "one_media"
-      0.75   # 50% of all media
-    when "two_media"
-      1.125  # 75% of all media
+      0.75   # 75% of All Media
+    when "all_stills", "all_stills_media"
+      0.75   # 75% of All Media
+    when "all_non_broadcast", "all_non_broadcast_media"
+      0.75   # 75% of All Media
+    when "one_media", "one_medium_only"
+      0.5    # 50% of All Media
+    when "two_media", "two_media_only"
+      0.75   # 75% of All Media
+    when "three_or_more_media", "three_media", "multiple_media"
+      1.0    # 100% of All Media
+    when "stand_alone_ooh", "ooh", "out_of_home"
+      1.0    # 100% of All Media
+    when "television", "tv"
+      1.0    # Individual medium treated as base
+    when "digital", "online"
+      1.0    # Individual medium treated as base
+    when "print"
+      1.0    # Individual medium treated as base
+    when "radio"
+      1.0    # Individual medium treated as base
+    when "cinema"
+      1.0    # Individual medium treated as base
     else
       1.0
     end
@@ -189,13 +228,16 @@ class QuotationCalculator
   def calculate_duration_multiplier
     return 1.0 unless @detail&.duration
 
-    # Get duration setting
-    duration_key = "duration_#{@detail.duration}"
-    setting = Setting.find_by(key: duration_key)
+    # Calculate time-based adjustments based on duration rules
+    duration_months = parse_duration_months(@detail.duration)
+    return 1.0 unless duration_months
 
-    return 1.0 unless setting
-
-    setting.typed_value / 100.0
+    # 0-6 months flight period → usage × 75%
+    if duration_months <= 6
+      0.75
+    else
+      1.0
+    end
   end
 
   def calculate_exclusivity_multiplier

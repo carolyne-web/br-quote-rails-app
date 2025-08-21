@@ -66,7 +66,7 @@
                 <div>
                   <span class="font-medium"><%= type_name %></span>
                   <div class="text-xs text-gray-500">
-                    Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(' ', '_')}_base_rate")&.typed_value || 0) %>
+                    Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(/[ -]/, '_')}_base_rate")&.typed_value || 0) %>
                   </div>
                 </div>
               </div>
@@ -80,9 +80,20 @@
             
             <!-- Days on Set Container (hidden by default) -->
             <div class="days-on-set-container mt-2 ml-8 hidden bg-gray-50 rounded-lg p-3" data-category="<%= type_id %>">
-              <h5 class="text-sm font-medium text-gray-700 mb-2">Days on Set Breakdown</h5>
+              <div class="flex justify-between items-center mb-2">
+                <h5 class="text-sm font-medium text-gray-700">Days on Set Breakdown</h5>
+                <div class="text-xs text-gray-500" id="breakdown-summary-<%= type_id %>">
+                  Total: 0 talent-days
+                </div>
+              </div>
+              <div class="text-xs text-gray-600 mb-2">
+                Specify how many talent work on which days. This overrides the simple quantity × shoot days calculation.
+              </div>
               <div class="space-y-2 days-list">
                 <!-- Days on set rows will be added here dynamically -->
+              </div>
+              <div class="mt-2 text-xs text-amber-600" id="validation-warning-<%= type_id %>" style="display: none;">
+                ⚠️ Breakdown days should align with your total shoot days
               </div>
             </div>
           <% end %>
@@ -96,10 +107,16 @@
             <h3 class="text-lg font-semibold">Days on Set & Schedule</h3>
             <span class="text-sm text-gray-400">Step 3 of 5</span>
           </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div class="text-sm text-blue-800">
+              <strong>Note:</strong> Shoot days are used for basic calculations. If you add day-on-set breakdowns above, those will override the simple quantity × shoot days calculation for more precise costing.
+            </div>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <%= detail_fields.label :shoot_days, "Shoot Days", class: "block text-sm font-medium text-gray-600" %>
               <%= detail_fields.number_field :shoot_days, value: 1, min: 1, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
+              <div class="text-xs text-gray-500 mt-1">Used when no day-on-set breakdown is specified</div>
             </div>
             <div>
               <%= detail_fields.label :rehearsal_days, "Rehearsal Days", class: "block text-sm font-medium text-gray-600" %>
@@ -244,8 +261,12 @@
           <div class="mt-6 pt-4 border-t border-gray-200">
             <div class="space-y-2">
               <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Talent Fees:</span>
+                <span class="text-gray-600">Talent Fees (Shoot Days):</span>
                 <span id="talent-total">R 0.00</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600">Rehearsal/Travel/Down Days:</span>
+                <span id="rehearsal-travel-total">R 0.00</span>
               </div>
               <div class="flex justify-between text-sm">
                 <span class="text-gray-600">Territory Multiplier:</span>
@@ -363,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  placeholder="Days"
                  min="1"
                  class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-          <button type="button" class="text-red-500 hover:text-red-700 text-sm" onclick="this.parentElement.remove(); updateQuotePreview();">
+          <button type="button" class="text-red-500 hover:text-red-700 text-sm" onclick="const categoryId = '${categoryId}'; this.parentElement.remove(); updateQuotePreview(); updateBreakdownSummary(categoryId);">
             Remove
           </button>
         </div>
@@ -371,8 +392,58 @@ document.addEventListener('DOMContentLoaded', function() {
 
       daysList.insertAdjacentHTML('beforeend', rowHtml);
       updateQuotePreview();
+      updateBreakdownSummary(categoryId);
     });
   });
+
+  // Update breakdown summary for a category
+  function updateBreakdownSummary(categoryId) {
+    const container = document.querySelector(`.days-on-set-container[data-category="${categoryId}"]`);
+    const summaryElement = document.getElementById(`breakdown-summary-${categoryId}`);
+    const warningElement = document.getElementById(`validation-warning-${categoryId}`);
+    
+    if (!container || container.classList.contains('hidden')) {
+      return;
+    }
+    
+    let totalTalentDays = 0;
+    let maxDaysUsed = 0;
+    let totalBreakdownRows = 0;
+    const dayBreakdownInputs = container.querySelectorAll('input[name*="talent_count"]');
+    
+    dayBreakdownInputs.forEach((talentInput, index) => {
+      const talentCount = parseInt(talentInput.value) || 0;
+      const daysInput = container.querySelectorAll('input[name*="days_count"]')[index];
+      const daysCount = parseInt(daysInput?.value) || 0;
+      
+      if (talentCount > 0 && daysCount > 0) {
+        totalTalentDays += talentCount * daysCount;
+        maxDaysUsed = Math.max(maxDaysUsed, daysCount);
+        totalBreakdownRows++;
+      }
+    });
+    
+    if (summaryElement) {
+      if (totalBreakdownRows === 0) {
+        summaryElement.textContent = `Total: 0 talent-days`;
+      } else {
+        summaryElement.textContent = `Total: ${totalTalentDays} talent-days (${totalBreakdownRows} breakdown${totalBreakdownRows > 1 ? 's' : ''})`;
+      }
+    }
+    
+    // Validate against shoot days - use a more reasonable validation
+    const shootDaysInput = document.querySelector('input[name*="shoot_days"]');
+    const shootDays = parseInt(shootDaysInput?.value) || 1;
+    
+    if (warningElement) {
+      if (maxDaysUsed > shootDays) {
+        warningElement.style.display = 'block';
+        warningElement.textContent = `⚠️ Some breakdown entries use more days (${maxDaysUsed}) than total shoot days (${shootDays})`;
+      } else if (totalBreakdownRows > 0 && maxDaysUsed > 0) {
+        warningElement.style.display = 'none';
+      }
+    }
+  }
 
   // Enhanced calculation and preview functionality
   function updateQuotePreview() {
@@ -387,6 +458,20 @@ document.addEventListener('DOMContentLoaded', function() {
     talentSummary.innerHTML = '';
     territorySummary.innerHTML = '';
     
+    // Get shoot days for calculation
+    const shootDaysInput = document.querySelector('input[name*="shoot_days"]');
+    const shootDays = parseInt(shootDaysInput?.value) || 1;
+    
+    // Base rates for each talent category (dynamically loaded from settings)
+    const baseRates = {
+      1: <%= Setting.find_by(key: 'lead_base_rate')&.typed_value || 0 %>,           // Lead
+      2: <%= Setting.find_by(key: 'second_lead_base_rate')&.typed_value || 0 %>,   // Second Lead  
+      3: <%= Setting.find_by(key: 'featured_extra_base_rate')&.typed_value || 0 %>, // Featured Extra
+      4: <%= Setting.find_by(key: 'teenager_base_rate')&.typed_value || 0 %>,      // Teenager
+      5: <%= Setting.find_by(key: 'kid_base_rate')&.typed_value || 0 %>,           // Kid
+      6: <%= Setting.find_by(key: 'walk_on_base_rate')&.typed_value || 0 %>       // Walk-on
+    };
+    
     // Calculate talent costs
     const talentCounts = document.querySelectorAll('[data-category-count]');
     let hasTalent = false;
@@ -396,16 +481,46 @@ document.addEventListener('DOMContentLoaded', function() {
       if (quantity > 0) {
         hasTalent = true;
         const categoryDiv = input.closest('[data-category]');
+        const categoryId = parseInt(categoryDiv.dataset.category);
         const categoryName = categoryDiv.querySelector('.font-medium').textContent;
-        const baseCost = 5000; // This should come from your settings
-        const cost = quantity * baseCost;
+        const baseRate = baseRates[categoryId] || 0;
+        
+        // Check if this category has day-on-set breakdown
+        const breakdownContainer = document.querySelector(`.days-on-set-container[data-category="${categoryId}"]`);
+        let cost = 0;
+        let costDescription = '';
+        
+        if (breakdownContainer && !breakdownContainer.classList.contains('hidden')) {
+          // Use day-on-set breakdown calculation
+          const dayBreakdownInputs = breakdownContainer.querySelectorAll('input[name*="talent_count"]');
+          let totalTalentDays = 0;
+          
+          dayBreakdownInputs.forEach((talentInput, index) => {
+            const talentCount = parseInt(talentInput.value) || 0;
+            const daysInput = breakdownContainer.querySelectorAll('input[name*="days_count"]')[index];
+            const daysCount = parseInt(daysInput?.value) || 0;
+            
+            if (talentCount > 0 && daysCount > 0) {
+              const segmentCost = talentCount * daysCount * baseRate;
+              cost += segmentCost;
+              totalTalentDays += talentCount * daysCount;
+            }
+          });
+          
+          costDescription = `${categoryName} (breakdown: ${totalTalentDays} talent-days)`;
+        } else {
+          // Use simple calculation: quantity × shoot days × base rate
+          cost = quantity * shootDays * baseRate;
+          costDescription = `${quantity}x ${categoryName} × ${shootDays} days`;
+        }
+        
         talentTotal += cost;
         
         const summaryItem = document.createElement('div');
         summaryItem.className = 'flex justify-between';
         summaryItem.innerHTML = `
-          <span>${quantity}x ${categoryName}</span>
-          <span>R ${cost.toLocaleString()}.00</span>
+          <span class="text-sm">${costDescription}</span>
+          <span>R ${cost.toLocaleString()}</span>
         `;
         talentSummary.appendChild(summaryItem);
       }
@@ -415,26 +530,53 @@ document.addEventListener('DOMContentLoaded', function() {
       talentSummary.innerHTML = '<div class="text-gray-500 italic">No talent selected</div>';
     }
     
-    // Calculate territory multipliers
+    // Calculate territory multipliers (use highest percentage, not additive)
     const selectedTerritories = document.querySelectorAll('.territory-checkbox:checked');
     let hasTerritory = false;
+    let maxTerritoryPercentage = 0;
+    let territoryNames = [];
     
     selectedTerritories.forEach(checkbox => {
       hasTerritory = true;
       const percentage = parseFloat(checkbox.dataset.percentage) || 0;
       const name = checkbox.dataset.territoryName;
-      territoryMultiplier += (percentage / 100);
+      territoryNames.push(name);
       
-      const summaryItem = document.createElement('div');
-      summaryItem.className = 'flex justify-between';
-      summaryItem.innerHTML = `
-        <span>${name}</span>
-        <span>+${percentage}%</span>
-      `;
-      territorySummary.appendChild(summaryItem);
+      // Use the highest territory percentage (not additive)
+      if (percentage > maxTerritoryPercentage) {
+        maxTerritoryPercentage = percentage;
+      }
     });
     
-    if (!hasTerritory) {
+    // Apply territory multiplier logic
+    if (hasTerritory) {
+      // Check for special territory cases first
+      if (territoryNames.includes('Worldwide')) {
+        territoryMultiplier = 12.0;
+      } else if (territoryNames.includes('USA')) {
+        territoryMultiplier = 5.0;
+      } else if (territoryNames.includes('Western Europe (excl. UK)')) {
+        territoryMultiplier = 5.0;
+      } else if (territoryNames.includes('Western Europe (incl. UK)')) {
+        territoryMultiplier = 6.0;
+      } else if (territoryNames.includes('Europe (excl. UK)')) {
+        territoryMultiplier = 6.0;
+      } else if (territoryNames.includes('Europe (incl. UK)')) {
+        territoryMultiplier = 7.5;
+      } else {
+        territoryMultiplier = maxTerritoryPercentage / 100.0;
+      }
+    }
+    
+    // Update territory summary
+    if (hasTerritory) {
+      territoryNames.forEach(name => {
+        const summaryItem = document.createElement('div');
+        summaryItem.className = 'text-sm';
+        summaryItem.innerHTML = name;
+        territorySummary.appendChild(summaryItem);
+      });
+    } else {
       territorySummary.innerHTML = '<div class="text-gray-500 italic">No territories selected</div>';
     }
     
@@ -461,15 +603,43 @@ document.addEventListener('DOMContentLoaded', function() {
     if (unlimitedStills) additionalFees += talentTotal * 0.15;
     if (unlimitedVersions) additionalFees += talentTotal * 0.15;
     
-    // Calculate usage fees (simplified)
+    // Calculate rehearsal/travel/down days costs
+    let rehearsalTravelCost = 0;
+    const rehearsalDaysInput = document.querySelector('input[name*="rehearsal_days"]');
+    const travelDaysInput = document.querySelector('input[name*="travel_days"]');
+    const downDaysInput = document.querySelector('input[name*="down_days"]');
+    
+    const rehearsalDays = parseInt(rehearsalDaysInput?.value) || 0;
+    const travelDays = parseInt(travelDaysInput?.value) || 0;
+    const downDays = parseInt(downDaysInput?.value) || 0;
+    const extraDays = rehearsalDays + travelDays + downDays;
+    
+    if (extraDays > 0) {
+      // Calculate for each talent category using initial_count (all hired talent)
+      talentCounts.forEach(input => {
+        const quantity = parseInt(input.value) || 0;
+        if (quantity > 0) {
+          const categoryDiv = input.closest('[data-category]');
+          const categoryId = parseInt(categoryDiv.dataset.category);
+          const baseRate = baseRates[categoryId] || 0;
+          
+          // All hired talent participate in rehearsal/travel/down at 50% rate
+          rehearsalTravelCost += quantity * extraDays * baseRate * 0.5;
+        }
+      });
+    }
+    
+    // Calculate usage fees (simplified for preview)
     const usageFees = talentTotal * 0.2; // 20% for usage
     
     // Calculate totals with exclusivity
-    const subtotal = talentTotal * territoryMultiplier * exclusivityMultiplier;
+    const baseCost = talentTotal + rehearsalTravelCost;
+    const subtotal = baseCost * territoryMultiplier * exclusivityMultiplier;
     const totalQuote = subtotal + usageFees + additionalFees;
     
     // Update display
     document.getElementById('talent-total').textContent = `R ${talentTotal.toLocaleString()}.00`;
+    document.getElementById('rehearsal-travel-total').textContent = `R ${rehearsalTravelCost.toLocaleString()}.00`;
     document.getElementById('territory-multiplier').textContent = `${territoryMultiplier.toFixed(2)}x`;
     document.getElementById('exclusivity-multiplier').textContent = `${exclusivityMultiplier.toFixed(2)}x`;
     document.getElementById('usage-fees').textContent = `R ${usageFees.toLocaleString()}.00`;
@@ -479,8 +649,41 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Update preview when form values change
-  document.addEventListener('input', updateQuotePreview);
-  document.addEventListener('change', updateQuotePreview);
+  document.addEventListener('input', function(e) {
+    updateQuotePreview();
+    
+    // Update breakdown summaries when day breakdown inputs change
+    if (e.target.name && (e.target.name.includes('talent_count') || e.target.name.includes('days_count'))) {
+      const categoryMatch = e.target.name.match(/talent_categories\[(\d+)\]/);
+      if (categoryMatch) {
+        // Add a small delay to ensure DOM is updated
+        setTimeout(() => updateBreakdownSummary(categoryMatch[1]), 10);
+      }
+    }
+    
+    // Also update if shoot days change (affects validation)
+    if (e.target.name && e.target.name.includes('shoot_days')) {
+      // Update all visible breakdown summaries when shoot days change
+      document.querySelectorAll('.days-on-set-container:not(.hidden)').forEach(container => {
+        const categoryId = container.getAttribute('data-category');
+        if (categoryId) {
+          setTimeout(() => updateBreakdownSummary(categoryId), 10);
+        }
+      });
+    }
+  });
+  
+  document.addEventListener('change', function(e) {
+    updateQuotePreview();
+    
+    // Also handle change events for breakdown inputs
+    if (e.target.name && (e.target.name.includes('talent_count') || e.target.name.includes('days_count'))) {
+      const categoryMatch = e.target.name.match(/talent_categories\[(\d+)\]/);
+      if (categoryMatch) {
+        updateBreakdownSummary(categoryMatch[1]);
+      }
+    }
+  });
   
   // Scroll spy to update sidebar
   window.addEventListener('scroll', function() {
