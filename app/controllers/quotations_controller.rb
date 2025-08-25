@@ -19,12 +19,8 @@ class QuotationsController < ApplicationController
   def new
     @quotation = current_production_house.quotations.build
     @quotation.build_quotation_detail
-
-    # Initialize talent categories
-    TalentCategory::TYPES.each do |type, _|
-      @quotation.talent_categories.build(category_type: type)
-    end
-
+    
+    # Initialize with empty talent categories (user will add as needed)
     load_form_data
   end
 
@@ -32,11 +28,12 @@ class QuotationsController < ApplicationController
     @quotation = current_production_house.quotations.build(quotation_params)
 
     if @quotation.save
-      # Process territories (still needed as it's not nested attributes)
+      process_talent_categories
       process_territories
-
-      # Calculate and save totals
+      
+      # Calculate totals (product type adjustments are now handled in calculator)
       calculation = QuotationCalculator.new(@quotation).calculate
+      
       @quotation.update(total_amount: calculation[:total])
 
       # Create history entry
@@ -138,15 +135,19 @@ class QuotationsController < ApplicationController
   def quotation_params
     params.require(:quotation).permit(
       :project_name,
+      :campaign_name,
+      :product_type,
+      :is_guaranteed,
       :status,
       quotation_detail_attributes: [
         :id, :shoot_days, :rehearsal_days, :travel_days, :down_days,
         :exclusivity_type, :exclusivity_level, :pharmaceutical,
-        :duration, :media_type, :unlimited_stills, :unlimited_versions
+        :duration, :media_type, :unlimited_stills, :unlimited_versions,
+        :overtime_hours
       ],
       talent_categories_attributes: [
         :id, :category_type, :initial_count, :daily_rate,
-        :adjusted_rate, :_destroy,
+        :adjusted_rate, :overtime_hours, :standby_days, :_destroy,
         day_on_sets_attributes: [
           :id, :talent_count, :days_count, :_destroy
         ]
@@ -228,4 +229,5 @@ class QuotationsController < ApplicationController
 
     Setting.find_by(key: setting_key)&.typed_value || 0
   end
+
 end

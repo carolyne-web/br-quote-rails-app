@@ -1,16 +1,17 @@
 <!-- app/views/quotations/new.html.erb -->
-<div class="min-h-screen bg-gray-50 flex">
+<div class="min-h-screen bg-gray-50 flex" data-controller="quotation-form">
   <%= form_with model: @quotation, local: true, class: "w-full flex" do |f| %>
     <!-- Sidebar -->
     <aside class="w-64 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between">
       <div class="flex-1 overflow-y-auto">
         <h2 class="text-lg font-semibold mb-4">Quote Sections</h2>
         <ul class="space-y-2 text-sm text-gray-700">
-          <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Project Information</li>
+          <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Campaign Information</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="schedule">Days & Schedule</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="territories">Territories</li>
+          <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Guarantee & Final</li>
         </ul>
       </div>
       <div class="border-t pt-4 flex-shrink-0">
@@ -37,66 +38,123 @@
       <!-- Project Information -->
       <section id="project-info" class="bg-white shadow rounded-2xl p-6">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold">Project Information</h3>
-          <span class="text-sm text-gray-400">Step 1 of 5</span>
+          <h3 class="text-lg font-semibold">Campaign Information</h3>
+          <span class="text-sm text-gray-400">Step 1 of 6</span>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <%= f.label :project_name, "Project Name", class: "block text-sm font-medium text-gray-600" %>
             <%= f.text_field :project_name, required: true, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "Enter project name" %>
           </div>
           <div>
-            <%= f.label :status, "Status", class: "block text-sm font-medium text-gray-600" %>
-            <%= f.select :status, options_for_select(Quotation::STATUS_OPTIONS.map { |s| [s.capitalize, s] }, @quotation.status), {}, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
+            <%= f.label :campaign_name, "Campaign Name", class: "block text-sm font-medium text-gray-600" %>
+            <%= f.text_field :campaign_name, required: true, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "Enter campaign name" %>
           </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-600 mb-3">Product Type</label>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <%= f.radio_button :product_type, 'adult', class: "text-blue-600 focus:ring-blue-500" %>
+              <span class="text-sm font-medium">Adult Product</span>
+            </label>
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <%= f.radio_button :product_type, 'kids', class: "text-blue-600 focus:ring-blue-500" %>
+              <span class="text-sm font-medium">Kids Product</span>
+            </label>
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <%= f.radio_button :product_type, 'family', class: "text-blue-600 focus:ring-blue-500" %>
+              <span class="text-sm font-medium">Family Product</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="hidden">
+          <%= f.label :status, "Status", class: "block text-sm font-medium text-gray-600" %>
+          <%= f.select :status, options_for_select(Quotation::STATUS_OPTIONS.map { |s| [s.capitalize, s] }, @quotation.status), {}, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
         </div>
       </section>
 
       <!-- Talent Categories -->
       <section id="talent-categories" class="bg-white shadow rounded-2xl p-6">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold">Talent Categories</h3>
-          <span class="text-sm text-gray-400">Step 2 of 5</span>
+          <h3 class="text-lg font-semibold">Select Talent Categories</h3>
+          <span class="text-sm text-gray-400">Step 2 of 6</span>
         </div>
-        <div class="space-y-4">
+        
+        <div class="talent-categories">
           <% TalentCategory::TYPES.each do |type_id, type_name| %>
-            <div class="flex items-center justify-between border rounded-lg px-4 py-3 hover:bg-gray-50" data-category="<%= type_id %>">
-              <div class="flex items-center">
-                <span class="text-lg mr-3"><%= TalentCategory.new(category_type: type_id).icon %></span>
-                <div>
-                  <span class="font-medium"><%= type_name %></span>
-                  <div class="text-xs text-gray-500">
-                    Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(/[ -]/, '_')}_base_rate")&.typed_value || 0) %>
+            <div class="talent-category-section hidden mb-6 p-4 bg-gray-50 rounded-lg" id="talent-category-<%= type_id %>">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center">
+                  <span class="text-lg mr-3"><%= TalentCategory.new(category_type: type_id).icon %></span>
+                  <div>
+                    <h4 class="font-medium text-lg"><%= type_name %></h4>
+                    <div class="text-sm text-gray-500">
+                      Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(/[ -]/, '_')}_base_rate")&.typed_value || 0) %>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="flex items-center space-x-3">
-                <%= number_field_tag "talent_categories[#{type_id}][count]", 0, min: 0, placeholder: "Quantity", class: "w-24 border rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500", data: { category_count: type_id } %>
-                <button type="button" class="text-sm text-blue-600 hover:text-blue-800 btn-add-days-breakdown" data-category="<%= type_id %>">
-                  + Days
+                <button type="button" class="text-red-500 hover:text-red-700" onclick="removeTalentCategory(<%= type_id %>)">
+                  Remove
                 </button>
               </div>
-            </div>
-            
-            <!-- Days on Set Container (hidden by default) -->
-            <div class="days-on-set-container mt-2 ml-8 hidden bg-gray-50 rounded-lg p-3" data-category="<%= type_id %>">
-              <div class="flex justify-between items-center mb-2">
-                <h5 class="text-sm font-medium text-gray-700">Days on Set Breakdown</h5>
-                <div class="text-xs text-gray-500" id="breakdown-summary-<%= type_id %>">
-                  Total: 0 talent-days
+              
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-600 mb-1">Base Rate (±R100s)</label>
+                  <%= number_field_tag "talent[#{type_id}][base_rate]", nil, step: 100, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" %>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-600 mb-1">Number of Talent</label>
+                  <%= number_field_tag "talent[#{type_id}][count]", nil, min: 0, max: 1000, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { category_count: type_id } %>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-600 mb-1">Shoot Days</label>
+                  <%= number_field_tag "talent[#{type_id}][shoot_days]", 1, min: 0, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" %>
                 </div>
               </div>
-              <div class="text-xs text-gray-600 mb-2">
-                Specify how many talent work on which days. This overrides the simple quantity × shoot days calculation.
+              
+              <div class="mb-4">
+                <button type="button" class="text-sm text-blue-600 hover:text-blue-800 btn-add-days-breakdown" data-category="<%= type_id %>">
+                  + Add Different Days
+                </button>
               </div>
-              <div class="space-y-2 days-list">
-                <!-- Days on set rows will be added here dynamically -->
-              </div>
-              <div class="mt-2 text-xs text-amber-600" id="validation-warning-<%= type_id %>" style="display: none;">
-                ⚠️ Breakdown days should align with your total shoot days
+              
+              <!-- Days on Set Container (hidden by default) -->
+              <div class="days-on-set-container mt-2 hidden bg-white rounded-lg p-3 border" data-category="<%= type_id %>">
+                <div class="flex justify-between items-center mb-2">
+                  <h5 class="text-sm font-medium text-gray-700">Days on Set Breakdown</h5>
+                  <div class="text-xs text-gray-500" id="breakdown-summary-<%= type_id %>">
+                    Total: 0 talent-days
+                  </div>
+                </div>
+                <div class="text-xs text-gray-600 mb-2">
+                  Specify how many talent work on which days. This overrides the simple quantity × shoot days calculation.
+                </div>
+                <div class="space-y-2 days-list">
+                  <!-- Days on set rows will be added here dynamically -->
+                </div>
+                <div class="mt-2 text-xs text-amber-600" id="validation-warning-<%= type_id %>" style="display: none;">
+                  ⚠️ Breakdown days should align with your total shoot days
+                </div>
               </div>
             </div>
           <% end %>
+        </div>
+        
+        <div class="mb-4">
+          <h4 class="text-sm font-medium text-gray-600 mb-3">Available Talent Categories</h4>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <% TalentCategory::TYPES.each do |type_id, type_name| %>
+              <button type="button" class="talent-btn flex items-center p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-300" data-category="<%= type_id %>">
+                <span class="text-lg mr-2"><%= TalentCategory.new(category_type: type_id).icon %></span>
+                <span class="text-sm font-medium"><%= type_name %></span>
+              </button>
+            <% end %>
+          </div>
         </div>
       </section>
 
@@ -105,7 +163,7 @@
         <section id="schedule" class="bg-white shadow rounded-2xl p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold">Days on Set & Schedule</h3>
-            <span class="text-sm text-gray-400">Step 3 of 5</span>
+            <span class="text-sm text-gray-400">Step 3 of 6</span>
           </div>
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
             <div class="text-sm text-blue-800">
@@ -123,7 +181,7 @@
               <%= detail_fields.number_field :rehearsal_days, value: 0, min: 0, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
             </div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
               <%= detail_fields.label :travel_days, "Travel Days", class: "block text-sm font-medium text-gray-600" %>
               <%= detail_fields.number_field :travel_days, value: 0, min: 0, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
@@ -133,39 +191,79 @@
               <%= detail_fields.number_field :down_days, value: 0, min: 0, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
             </div>
           </div>
+          
+          <div class="border-t pt-4">
+            <h4 class="text-md font-medium text-gray-700 mb-3">Standby Days (50% of day rate)</h4>
+            <div class="text-sm text-gray-600 mb-3">Rehearsal, travel, and down days are automatically calculated at 50% of the day rate.</div>
+          </div>
+          
+          <div class="border-t pt-4">
+            <h4 class="text-md font-medium text-gray-700 mb-3">Overtime (10% of day rate per hour)</h4>
+            <div class="mb-2">
+              <%= detail_fields.label :overtime_hours, "Global Overtime Hours", class: "block text-sm font-medium text-gray-600" %>
+              <%= detail_fields.number_field :overtime_hours, value: 0, min: 0, step: 0.5, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
+              <div class="text-xs text-gray-500 mt-1">Applied to all talent categories</div>
+            </div>
+          </div>
         </section>
 
         <!-- Usage & Licensing -->
         <section id="licensing" class="bg-white shadow rounded-2xl p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold">Usage & Licensing</h3>
-            <span class="text-sm text-gray-400">Step 4 of 5</span>
+            <span class="text-sm text-gray-400">Step 4 of 6</span>
           </div>
           
-          <div class="space-y-4">
+          <div class="space-y-6">
             <div>
-              <label class="block text-sm font-medium text-gray-600 mb-2">Media Type</label>
-              <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <% [['Web / Digital', 'digital'], ['TV', 'television'], ['Cinema', 'cinema'], ['Print', 'print'], ['Radio', 'radio'], ['All Media', 'all_media']].each do |label, value| %>
-                  <label class="flex items-center space-x-2 p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <%= detail_fields.radio_button :media_type, value, class: "text-blue-600 focus:ring-blue-500" %>
-                    <span class="text-sm"><%= label %></span>
-                  </label>
-                <% end %>
+              <label class="block text-sm font-medium text-gray-600 mb-3">Select Media Type(s)</label>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <%= check_box_tag "media_types[]", "all_media", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
+                  <span class="text-sm font-medium">All Media</span>
+                </label>
+                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <%= check_box_tag "media_types[]", "all_moving", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
+                  <span class="text-sm font-medium">All Moving Media</span>
+                </label>
+                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <%= check_box_tag "media_types[]", "internet", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
+                  <span class="text-sm font-medium">Internet Only</span>
+                </label>
+                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <%= check_box_tag "media_types[]", "cinema", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
+                  <span class="text-sm font-medium">Cinema Only</span>
+                </label>
+                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <%= check_box_tag "media_types[]", "tv", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
+                  <span class="text-sm font-medium">TV Only</span>
+                </label>
+                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <%= check_box_tag "media_types[]", "print", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
+                  <span class="text-sm font-medium">All Print Media</span>
+                </label>
+              </div>
+              
+              <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <div class="text-sm text-blue-800">
+                  <strong>Media Multiplier Logic:</strong> 1 media = 50%, 2 media = 75%, 3+ media = 100%
+                </div>
+                <div class="text-xs text-blue-600 mt-1">
+                  Current multiplier: <span id="media-multiplier">100%</span>
+                </div>
               </div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <%= detail_fields.label :duration, "Contract Duration", class: "block text-sm font-medium text-gray-600" %>
                 <%= detail_fields.select :duration,
                     options_for_select([
-                      ['1 Month', '1_month'],
-                      ['3 Months', '3_months'],
-                      ['6 Months', '6_months'],
+                      ['Up to 3 Months', '3_months'],
+                      ['Up to 6 Months', '6_months'],
                       ['12 Months', '12_months'],
                       ['18 Months', '18_months'],
-                      ['24 Months', '24_months'],
+                      ['2 Years', '24_months'],
                       ['36 Months', '36_months']
                     ], '12_months'),
                     {}, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
@@ -175,7 +273,7 @@
             <!-- Exclusivity Section -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <%= detail_fields.label :exclusivity_type, "Exclusivity", class: "block text-sm font-medium text-gray-600" %>
+                <%= detail_fields.label :exclusivity_type, "Exclusivity Level", class: "block text-sm font-medium text-gray-600" %>
                 <%= detail_fields.select :exclusivity_type,
                     options_for_select(@exclusivity_options, detail_fields.object.exclusivity_type),
                     { prompt: "Select exclusivity type" },
@@ -201,7 +299,13 @@
       <section id="territories" class="bg-white shadow rounded-2xl p-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Territories</h3>
-          <span class="text-sm text-gray-400">Step 5 of 5</span>
+          <span class="text-sm text-gray-400">Step 5 of 6</span>
+        </div>
+        
+        <div class="mb-4">
+          <button type="button" class="text-sm text-blue-600 hover:text-blue-800 add-territory">
+            + Add Another Territory/Media Combination
+          </button>
         </div>
         
         <!-- Search Bar -->
@@ -230,6 +334,38 @@
                 </label>
               <% end %>
             <% end %>
+          </div>
+        </div>
+      </section>
+
+      <!-- Guarantee & Manual Adjustments -->
+      <section id="guarantee" class="bg-white shadow rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">Guarantee & Manual Adjustments</h3>
+          <span class="text-sm text-gray-400">Step 6 of 6</span>
+        </div>
+        
+        <!-- Guarantee Option -->
+        <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <label class="flex items-center">
+            <%= f.check_box :is_guaranteed, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
+            <span class="text-sm font-medium">Apply 25% Guarantee Discount?</span>
+          </label>
+          <div class="text-xs text-gray-600 mt-2">
+            When selected, the final quote will be reduced by 25% as a guarantee discount.
+          </div>
+        </div>
+        
+        <!-- Manual Adjustments -->
+        <div class="manual-adjustments">
+          <h4 class="text-md font-medium text-gray-700 mb-3">Manual Adjustments</h4>
+          <div class="mb-3">
+            <button type="button" class="text-sm text-blue-600 hover:text-blue-800 add-adjustment">
+              + Add Adjustment
+            </button>
+          </div>
+          <div id="adjustments-container">
+            <!-- Manual adjustments will be added here dynamically -->
           </div>
         </div>
       </section>
@@ -301,9 +437,6 @@
           <%= button_tag "Save as Draft", type: "button", 
               class: "px-6 py-2 border border-blue-300 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition",
               onclick: "saveDraft()" %>
-          <%= button_tag "Preview Quote", type: "button", 
-              class: "px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition",
-              onclick: "previewQuote()" %>
           <%= f.submit "Generate Final Quote", 
               class: "px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition" %>
         </div>

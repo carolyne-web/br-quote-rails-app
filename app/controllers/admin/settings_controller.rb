@@ -21,6 +21,24 @@ class Admin::SettingsController < ApplicationController
     @duration_settings = Setting.where(category: "duration").order(:key)
     @exclusivity_settings = Setting.where(category: "exclusivity").order(:key)
     @general_settings = Setting.where(category: "general").order(:key)
+    
+    # New settings categories for BR Quotation System
+    @media_settings = Setting.where(category: "media").order(:key)
+    @product_type_settings = Setting.where(category: "product_type").order(:key)
+    
+    # Create default media settings if they don't exist
+    create_default_media_settings if @media_settings.empty?
+    
+    # Create default product type settings if they don't exist  
+    create_default_product_type_settings if @product_type_settings.empty?
+    
+    # Create default duration multiplier settings if they don't exist
+    create_default_duration_settings if @duration_settings.empty?
+    
+    # Reload after creation
+    @media_settings = Setting.where(category: "media").order(:key)
+    @product_type_settings = Setting.where(category: "product_type").order(:key)
+    @duration_settings = Setting.where(category: "duration").order(:key)
   end
 
   def edit
@@ -97,5 +115,58 @@ class Admin::SettingsController < ApplicationController
 
   def setting_params
     params.require(:setting).permit(:value)
+  end
+
+  def create_default_media_settings
+    media_defaults = [
+      { key: "media_one_type", value: 50, description: "One media type selected" },
+      { key: "media_two_types", value: 75, description: "Two media types selected" },
+      { key: "media_three_or_more", value: 100, description: "Three or more media types selected" }
+    ]
+    
+    media_defaults.each do |setting|
+      Setting.create!(
+        key: setting[:key],
+        value: setting[:value],
+        category: "media",
+        data_type: "integer"
+      )
+    end
+  end
+
+  def create_default_product_type_settings
+    product_type_defaults = [
+      { key: "product_type_adult_kids_adjustment", value: 50, description: "Adult product Kids category reduction" },
+      { key: "product_type_family_kids_adjustment", value: 25, description: "Family product Kids category reduction" }
+    ]
+    
+    product_type_defaults.each do |setting|
+      Setting.create!(
+        key: setting[:key],
+        value: setting[:value],
+        category: "product_type",
+        data_type: "integer"
+      )
+    end
+  end
+
+  def create_default_duration_settings
+    duration_defaults = [
+      { key: "duration_3_months", value: 50, description: "Up to 3 months multiplier" },
+      { key: "duration_6_months", value: 75, description: "Up to 6 months multiplier" },
+      { key: "duration_12_months", value: 100, description: "12 months multiplier (base)" },
+      { key: "duration_18_months", value: 175, description: "18 months multiplier" },
+      { key: "duration_24_months", value: 200, description: "2 years multiplier" },
+      { key: "duration_36_months", value: 300, description: "36 months multiplier" }
+    ]
+    
+    duration_defaults.each do |setting|
+      Setting.create!(
+        key: setting[:key],
+        value: setting[:value],
+        category: "duration",
+        data_type: "integer"
+      )
+    end
   end
 end

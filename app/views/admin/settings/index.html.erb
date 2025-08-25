@@ -228,6 +228,89 @@
     </div>
   </div>
 
+  <!-- Media Type Multipliers -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">
+        Media Type Multipliers
+      </h3>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+        Set the percentage multipliers for different media types (1 media = 50%, 2 media = 75%, 3+ media = 100%)
+      </p>
+    </div>
+    <div class="border-t border-gray-200">
+      <%= form_with url: bulk_update_admin_settings_path, method: :patch, local: true do |f| %>
+        <dl>
+          <% @media_settings.each_with_index do |setting, index| %>
+            <div class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-500">
+                <%= setting.key.gsub('media_', '').humanize.titleize %>
+              </dt>
+              <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                <div class="flex items-center">
+                  <%= number_field_tag "settings[#{setting.id}]", setting.value,
+                      class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md",
+                      step: 5, min: 0, max: 100 %>
+                  <span class="ml-2">%</span>
+                </div>
+              </dd>
+            </div>
+          <% end %>
+        </dl>
+
+        <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
+          <%= f.submit "Update Media Type Settings", class: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Product Type Rules -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">
+        Product Type Rules
+      </h3>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+        Configure Kids category adjustments for different product types
+      </p>
+    </div>
+    <div class="border-t border-gray-200">
+      <%= form_with url: bulk_update_admin_settings_path, method: :patch, local: true do |f| %>
+        <dl>
+          <% @product_type_settings.each_with_index do |setting, index| %>
+            <div class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-500">
+                <%= setting.key.gsub('product_type_', '').humanize.titleize %> Product
+                <div class="text-xs text-gray-400 mt-1">Kids category adjustment</div>
+              </dt>
+              <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                <div class="flex items-center">
+                  <%= number_field_tag "settings[#{setting.id}]", setting.value,
+                      class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md",
+                      step: 5, min: 0, max: 100 %>
+                  <span class="ml-2">% of Kids buyout</span>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">
+                  <% case setting.key %>
+                  <% when 'product_type_adult_kids_adjustment' %>
+                    Adult products reduce Kids category buyout by this percentage
+                  <% when 'product_type_family_kids_adjustment' %>
+                    Family products reduce Kids category buyout by this percentage
+                  <% end %>
+                </div>
+              </dd>
+            </div>
+          <% end %>
+        </dl>
+
+        <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
+          <%= f.submit "Update Product Type Rules", class: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
   <!-- Territories Management -->
   <div class="bg-white shadow overflow-hidden sm:rounded-lg">
     <div class="px-4 py-5 sm:px-6 flex justify-between items-center">

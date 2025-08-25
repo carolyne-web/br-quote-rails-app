@@ -23,8 +23,7 @@
           <div class="flex items-center space-x-4">
             <% if admin_logged_in? %>
               <%= link_to "Dashboard", admin_dashboard_path, class: "text-gray-700 hover:text-gray-900" %>
-              <%= link_to "Settings", admin_settings_path, class: "text-gray-700 hover:text-gray-900" %>
-              <%= link_to "Production Houses", admin_production_houses_path, class: "text-gray-700 hover:text-gray-900" %>
+             
               <%= button_to "Admin Logout", admin_logout_path, method: :delete, class: "text-red-600 hover:text-red-900" %>
             <% elsif logged_in? %>
               <span class="text-gray-700">Welcome, <%= current_production_house.name %></span>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_20_095059) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_25_102445) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -58,6 +58,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_20_095059) do
     t.string "media_type", default: "all_media"
     t.boolean "unlimited_stills", default: false
     t.boolean "unlimited_versions", default: false
+    t.decimal "overtime_hours"
     t.index ["quotation_id"], name: "index_quotation_details_on_quotation_id"
   end
 
@@ -92,6 +93,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_20_095059) do
     t.decimal "total_amount", precision: 10, scale: 2
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "campaign_name"
+    t.string "product_type"
+    t.boolean "is_guaranteed", default: false
     t.index ["production_house_id"], name: "index_quotations_on_production_house_id"
     t.index ["project_number"], name: "index_quotations_on_project_number", unique: true
     t.index ["status"], name: "index_quotations_on_status"
@@ -116,6 +120,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_20_095059) do
     t.decimal "adjusted_rate", precision: 8, scale: 2
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.decimal "overtime_hours"
+    t.integer "standby_days"
     t.index ["quotation_id", "category_type"], name: "index_talent_categories_on_quotation_id_and_category_type", unique: true
     t.index ["quotation_id"], name: "index_talent_categories_on_quotation_id"
   end
