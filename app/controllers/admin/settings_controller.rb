@@ -9,7 +9,8 @@ class Admin::SettingsController < ApplicationController
       "featured_extra_base_rate",
       "teenager_base_rate",
       "kid_base_rate",
-      "walk_on_base_rate"
+      "walk_on_base_rate",
+      "extras_base_rate"
     ]
     
     # Load all talent settings and sort them in Ruby to avoid complex SQL

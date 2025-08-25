@@ -21,7 +21,8 @@ talent_rates = [
   { key: 'featured_extra_base_rate', value: '1500', display: 'Featured Extra' },
   { key: 'teenager_base_rate', value: '1000', display: 'Teenager' },
   { key: 'kid_base_rate', value: '800', display: 'Kid' },
-  { key: 'walk_on_base_rate', value: '500', display: 'Walk-on' }
+  { key: 'walk_on_base_rate', value: '500', display: 'Walk-on' },
+  { key: 'extras_base_rate', value: '300', display: 'Extras' }
 ]
 
 talent_rates.each do |rate|

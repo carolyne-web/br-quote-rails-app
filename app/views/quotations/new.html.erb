@@ -42,15 +42,9 @@
           <span class="text-sm text-gray-400">Step 1 of 6</span>
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <%= f.label :project_name, "Project Name", class: "block text-sm font-medium text-gray-600" %>
-            <%= f.text_field :project_name, required: true, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "Enter project name" %>
-          </div>
-          <div>
-            <%= f.label :campaign_name, "Campaign Name", class: "block text-sm font-medium text-gray-600" %>
-            <%= f.text_field :campaign_name, required: true, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "Enter campaign name" %>
-          </div>
+        <div class="mb-4">
+          <%= f.label :campaign_name, "Campaign Name", class: "block text-sm font-medium text-gray-600" %>
+          <%= f.text_field :campaign_name, required: true, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "Enter campaign name" %>
         </div>
 
         <div class="mb-4">
@@ -84,77 +78,92 @@
           <span class="text-sm text-gray-400">Step 2 of 6</span>
         </div>
         
-        <div class="talent-categories">
-          <% TalentCategory::TYPES.each do |type_id, type_name| %>
-            <div class="talent-category-section hidden mb-6 p-4 bg-gray-50 rounded-lg" id="talent-category-<%= type_id %>">
-              <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center">
-                  <span class="text-lg mr-3"><%= TalentCategory.new(category_type: type_id).icon %></span>
-                  <div>
-                    <h4 class="font-medium text-lg"><%= type_name %></h4>
-                    <div class="text-sm text-gray-500">
-                      Base Rate: R<%= number_with_delimiter(Setting.find_by(key: "#{type_name.downcase.gsub(/[ -]/, '_')}_base_rate")&.typed_value || 0) %>
-                    </div>
-                  </div>
-                </div>
-                <button type="button" class="text-red-500 hover:text-red-700" onclick="removeTalentCategory(<%= type_id %>)">
-                  Remove
-                </button>
-              </div>
-              
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-600 mb-1">Base Rate (±R100s)</label>
-                  <%= number_field_tag "talent[#{type_id}][base_rate]", nil, step: 100, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" %>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-600 mb-1">Number of Talent</label>
-                  <%= number_field_tag "talent[#{type_id}][count]", nil, min: 0, max: 1000, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { category_count: type_id } %>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-600 mb-1">Shoot Days</label>
-                  <%= number_field_tag "talent[#{type_id}][shoot_days]", 1, min: 0, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" %>
-                </div>
-              </div>
-              
-              <div class="mb-4">
-                <button type="button" class="text-sm text-blue-600 hover:text-blue-800 btn-add-days-breakdown" data-category="<%= type_id %>">
-                  + Add Different Days
-                </button>
-              </div>
-              
-              <!-- Days on Set Container (hidden by default) -->
-              <div class="days-on-set-container mt-2 hidden bg-white rounded-lg p-3 border" data-category="<%= type_id %>">
-                <div class="flex justify-between items-center mb-2">
-                  <h5 class="text-sm font-medium text-gray-700">Days on Set Breakdown</h5>
-                  <div class="text-xs text-gray-500" id="breakdown-summary-<%= type_id %>">
-                    Total: 0 talent-days
-                  </div>
-                </div>
-                <div class="text-xs text-gray-600 mb-2">
-                  Specify how many talent work on which days. This overrides the simple quantity × shoot days calculation.
-                </div>
-                <div class="space-y-2 days-list">
-                  <!-- Days on set rows will be added here dynamically -->
-                </div>
-                <div class="mt-2 text-xs text-amber-600" id="validation-warning-<%= type_id %>" style="display: none;">
-                  ⚠️ Breakdown days should align with your total shoot days
-                </div>
-              </div>
-            </div>
-          <% end %>
-        </div>
-        
-        <div class="mb-4">
+        <!-- Talent Category Buttons -->
+        <div class="mb-6">
           <h4 class="text-sm font-medium text-gray-600 mb-3">Available Talent Categories</h4>
-          <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <% TalentCategory::TYPES.each do |type_id, type_name| %>
-              <button type="button" class="talent-btn flex items-center p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-300" data-category="<%= type_id %>">
+              <button type="button" class="talent-btn flex items-center p-3 border-2 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors" data-category="<%= type_id %>">
                 <span class="text-lg mr-2"><%= TalentCategory.new(category_type: type_id).icon %></span>
                 <span class="text-sm font-medium"><%= type_name %></span>
               </button>
             <% end %>
           </div>
+        </div>
+        
+        <!-- Selected Talent Categories -->
+        <div class="selected-talent-categories">
+          <% TalentCategory::TYPES.each do |type_id, type_name| %>
+            <div class="talent-category-section hidden mb-6 p-6 bg-gray-50 rounded-lg border-l-4 border-blue-500" id="talent-category-<%= type_id %>">
+              <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center">
+                  <span class="text-2xl mr-3"><%= TalentCategory.new(category_type: type_id).icon %></span>
+                  <div>
+                    <h4 class="font-bold text-xl text-gray-900"><%= type_name %></h4>
+                    <div class="text-sm text-gray-600">
+                      Default Rate: R<%= number_with_delimiter(TalentCategory.new(category_type: type_id).default_daily_rate) %>
+                    </div>
+                  </div>
+                </div>
+                <button type="button" class="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors" onclick="removeTalentCategory(<%= type_id %>)">
+                  Remove Category
+                </button>
+              </div>
+              
+              <!-- Talent Combinations -->
+              <div class="talent-combinations mb-6" id="talent-combinations-<%= type_id %>">
+                <h5 class="text-sm font-semibold text-gray-700 mb-3">Talent Combinations</h5>
+                <div class="combinations-list" data-category="<%= type_id %>">
+                  <!-- Combinations will be added here -->
+                </div>
+                <button type="button" class="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors add-combination-btn" data-category="<%= type_id %>">
+                  + Add Talent Combination
+                </button>
+              </div>
+              
+              <!-- Standby Days Section -->
+              <div class="standby-section mb-6 p-4 bg-white rounded-lg border">
+                <h5 class="text-sm font-semibold text-gray-700 mb-3">Standby Days (50% of day rate)</h5>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Rehearsal Days</label>
+                    <%= number_field_tag "talent[#{type_id}][rehearsal_days]", 0, min: 0, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { standby_input: type_id } %>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Down Days</label>
+                    <%= number_field_tag "talent[#{type_id}][down_days]", 0, min: 0, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { standby_input: type_id } %>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Travel Days</label>
+                    <%= number_field_tag "talent[#{type_id}][travel_days]", 0, min: 0, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { standby_input: type_id } %>
+                  </div>
+                </div>
+                <div class="mt-3 text-sm text-gray-600">
+                  Standby Rate: <span class="font-medium" id="standby-cost-<%= type_id %>">R0</span>
+                </div>
+              </div>
+              
+              <!-- Overtime Section -->
+              <div class="overtime-section p-4 bg-white rounded-lg border">
+                <h5 class="text-sm font-semibold text-gray-700 mb-3">Overtime (10% of day rate per hour)</h5>
+                <div>
+                  <label class="block text-sm font-medium text-gray-600 mb-1">Overtime Hours</label>
+                  <%= number_field_tag "talent[#{type_id}][overtime_hours]", 0, min: 0, step: 0.5, class: "w-full md:w-48 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { overtime_input: type_id } %>
+                </div>
+                <div class="mt-3 text-sm text-gray-600">
+                  Overtime Rate: <span class="font-medium" id="overtime-cost-<%= type_id %>">R0</span>
+                </div>
+              </div>
+              
+              <!-- Category Total -->
+              <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                <div class="flex justify-between items-center">
+                  <span class="font-semibold text-gray-900">Category Total:</span>
+                  <span class="text-lg font-bold text-blue-600" id="category-total-<%= type_id %>">R0</span>
+                </div>
+              </div>
+            </div>
+          <% end %>
         </div>
       </section>
 

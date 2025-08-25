@@ -11,11 +11,12 @@ class TalentCategory < ApplicationRecord
   # Define category types as constants
   TYPES = {
     1 => "Lead",
-    2 => "Second Lead",
+    2 => "Second Lead", 
     3 => "Featured Extra",
     4 => "Teenager",
     5 => "Kid",
-    6 => "Walk-on"
+    6 => "Walk-on",
+    7 => "Extras"
   }.freeze
 
   def display_name
@@ -30,6 +31,7 @@ class TalentCategory < ApplicationRecord
     when 4 then "♦"
     when 5 then "♥"
     when 6 then "•"
+    when 7 then "○"
     else "○"
     end
   end
@@ -42,6 +44,7 @@ class TalentCategory < ApplicationRecord
     when 4 then "teenager_base_rate"
     when 5 then "kid_base_rate"
     when 6 then "walk_on_base_rate"
+    when 7 then "extras_base_rate"
     end
 
     Setting.find_by(key: setting_key)&.typed_value || 0

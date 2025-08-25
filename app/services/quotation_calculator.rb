@@ -155,9 +155,10 @@ class QuotationCalculator
 
     @talent_categories.each do |category|
       if category.day_on_sets.any?
-        # Use day-on-set breakdown
+        # Use day-on-set breakdown with adjusted rate
+        rate_to_use = category.adjusted_rate || category.daily_rate || 0
         category.day_on_sets.each do |dos|
-          total += dos.talent_count * dos.days_count * (category.adjusted_rate || category.daily_rate || 0)
+          total += dos.talent_count * dos.days_count * rate_to_use
         end
       else
         # Use simple calculation
@@ -213,9 +214,12 @@ class QuotationCalculator
     total = 0
     @talent_categories.each do |category|
       daily_rate = category.adjusted_rate || category.daily_rate
-      standby_days = (@detail&.rehearsal_days || 0) + 
-                    (@detail&.travel_days || 0) + 
-                    (@detail&.down_days || 0)
+      
+      # Use category-specific standby_days if available, otherwise use global
+      standby_days = category.standby_days || 
+                    ((@detail&.rehearsal_days || 0) + 
+                     (@detail&.travel_days || 0) + 
+                     (@detail&.down_days || 0))
       
       total += category.initial_count * daily_rate * standby_days * 0.5
     end
@@ -225,19 +229,13 @@ class QuotationCalculator
   def calculate_overtime_cost
     total = 0
     @talent_categories.each do |category|
-      if category.overtime_hours && category.overtime_hours > 0
+      # Use category-specific overtime_hours if available, otherwise use global
+      overtime_hours = category.overtime_hours || @detail&.overtime_hours || 0
+      
+      if overtime_hours > 0
         daily_rate = category.adjusted_rate || category.daily_rate
         hourly_rate = daily_rate * 0.1 # 10% of day rate per hour
-        total += category.initial_count * hourly_rate * category.overtime_hours
-      end
-    end
-    
-    # Also check detail-level overtime
-    if @detail&.overtime_hours && @detail.overtime_hours > 0
-      @talent_categories.each do |category|
-        daily_rate = category.adjusted_rate || category.daily_rate
-        hourly_rate = daily_rate * 0.1 # 10% of day rate per hour
-        total += category.initial_count * hourly_rate * @detail.overtime_hours
+        total += category.initial_count * hourly_rate * overtime_hours
       end
     end
     

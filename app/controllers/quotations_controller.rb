@@ -26,6 +26,11 @@ class QuotationsController < ApplicationController
 
   def create
     @quotation = current_production_house.quotations.build(quotation_params)
+    
+    # Use campaign_name as project_name if project_name is blank
+    if @quotation.project_name.blank? && @quotation.campaign_name.present?
+      @quotation.project_name = @quotation.campaign_name
+    end
 
     if @quotation.save
       process_talent_categories
@@ -171,32 +176,56 @@ class QuotationsController < ApplicationController
   end
 
   def process_talent_categories
-    return unless params[:talent_categories]
+    return unless params[:talent]
 
-    params[:talent_categories].each do |category_id, category_data|
+    params[:talent].each do |category_id, category_data|
+      next unless category_data[:combinations].present?
+      
+      # Create or find talent category
       talent_category = @quotation.talent_categories.find_or_create_by(
         category_type: category_id
       )
 
-      talent_category.update(
-        initial_count: category_data[:count].to_i,
-        daily_rate: get_daily_rate(category_id),
-        adjusted_rate: category_data[:adjusted_rate]
-      )
+      # Clear existing day_on_sets (old structure)
+      talent_category.day_on_sets.destroy_all
 
-      # Process days on set
-      if category_data[:days_on_set]
-        talent_category.day_on_sets.destroy_all
-
-        category_data[:days_on_set].each do |_, dos_data|
-          next if dos_data[:talent_count].to_i == 0
-
-          talent_category.day_on_sets.create(
-            talent_count: dos_data[:talent_count].to_i,
-            days_count: dos_data[:days_count].to_i
-          )
-        end
+      # Calculate totals from combinations
+      total_count = 0
+      total_talent_days = 0
+      weighted_rate = 0
+      
+      category_data[:combinations].each do |index, combination|
+        rate = combination[:rate].to_f
+        count = combination[:count].to_i
+        days = combination[:days].to_i
+        
+        next if count == 0 || days == 0
+        
+        total_count += count
+        total_talent_days += (count * days)
+        weighted_rate += (rate * count)
+        
+        # Create day_on_sets entries to maintain compatibility with existing calculator
+        talent_category.day_on_sets.create(
+          talent_count: count,
+          days_count: days,
+          # Store the custom rate in a way that can be retrieved
+        )
       end
+      
+      # Set average rate and total count for compatibility
+      avg_rate = total_count > 0 ? weighted_rate / total_count : get_daily_rate(category_id)
+      
+      talent_category.update(
+        initial_count: total_count,
+        daily_rate: get_daily_rate(category_id),
+        adjusted_rate: avg_rate,
+        # Store standby/overtime data
+        overtime_hours: category_data[:overtime_hours].to_f,
+        standby_days: (category_data[:rehearsal_days].to_i + 
+                      category_data[:down_days].to_i + 
+                      category_data[:travel_days].to_i)
+      )
     end
   end
 
@@ -225,6 +254,7 @@ class QuotationsController < ApplicationController
     when 4 then "teenager_base_rate"
     when 5 then "kid_base_rate"
     when 6 then "walk_on_base_rate"
+    when 7 then "extras_base_rate"
     end
 
     Setting.find_by(key: setting_key)&.typed_value || 0
