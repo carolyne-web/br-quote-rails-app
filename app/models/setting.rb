@@ -1,7 +1,7 @@
 class Setting < ApplicationRecord
   validates :key, presence: true, uniqueness: true
 
-  CATEGORIES = [ "talent", "duration", "media", "general", "exclusivity" ].freeze
+  CATEGORIES = [ "talent", "duration", "media", "general", "exclusivity", "product_type" ].freeze
   DATA_TYPES = [ "string", "integer", "decimal", "boolean", "json" ].freeze
 
   validates :category, inclusion: { in: CATEGORIES }

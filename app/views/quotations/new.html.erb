@@ -8,7 +8,6 @@
         <ul class="space-y-2 text-sm text-gray-700">
           <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Campaign Information</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="schedule">Days & Schedule</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="territories">Territories</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Guarantee & Final</li>
@@ -79,13 +78,12 @@
         </div>
         
         <!-- Talent Category Buttons -->
-        <div class="mb-6">
-          <h4 class="text-sm font-medium text-gray-600 mb-3">Available Talent Categories</h4>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="mb-4">
+          <div class="flex flex-wrap gap-2">
             <% TalentCategory::TYPES.each do |type_id, type_name| %>
-              <button type="button" class="talent-btn flex items-center p-3 border-2 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors" data-category="<%= type_id %>">
-                <span class="text-lg mr-2"><%= TalentCategory.new(category_type: type_id).icon %></span>
-                <span class="text-sm font-medium"><%= type_name %></span>
+              <button type="button" class="talent-btn flex items-center px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-sm font-medium whitespace-nowrap cursor-pointer" data-category="<%= type_id %>">
+                <span class="text-sm font-bold mr-2 text-blue-600"><%= TalentCategory.new(category_type: type_id).icon %></span>
+                <span><%= type_name %></span>
               </button>
             <% end %>
           </div>
@@ -116,8 +114,9 @@
                 <div class="combinations-list" data-category="<%= type_id %>">
                   <!-- Combinations will be added here -->
                 </div>
-                <button type="button" class="mt-3 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors add-combination-btn" data-category="<%= type_id %>">
-                  + Add Talent Combination
+                <button type="button" class="mt-3 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors add-combination-btn flex items-center gap-1" data-category="<%= type_id %>">
+                  <span class="text-lg leading-none">+</span>
+                  <span>Add Line</span>
                 </button>
               </div>
               
@@ -167,60 +166,14 @@
         </div>
       </section>
 
-      <!-- Days on Set & Schedule -->
+      <!-- Usage & Licensing -->
       <%= fields_for :quotation_detail, @quotation.quotation_detail || @quotation.build_quotation_detail do |detail_fields| %>
-        <section id="schedule" class="bg-white shadow rounded-2xl p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold">Days on Set & Schedule</h3>
-            <span class="text-sm text-gray-400">Step 3 of 6</span>
-          </div>
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-            <div class="text-sm text-blue-800">
-              <strong>Note:</strong> Shoot days are used for basic calculations. If you add day-on-set breakdowns above, those will override the simple quantity × shoot days calculation for more precise costing.
-            </div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <%= detail_fields.label :shoot_days, "Shoot Days", class: "block text-sm font-medium text-gray-600" %>
-              <%= detail_fields.number_field :shoot_days, value: 1, min: 1, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
-              <div class="text-xs text-gray-500 mt-1">Used when no day-on-set breakdown is specified</div>
-            </div>
-            <div>
-              <%= detail_fields.label :rehearsal_days, "Rehearsal Days", class: "block text-sm font-medium text-gray-600" %>
-              <%= detail_fields.number_field :rehearsal_days, value: 0, min: 0, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
-            </div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <%= detail_fields.label :travel_days, "Travel Days", class: "block text-sm font-medium text-gray-600" %>
-              <%= detail_fields.number_field :travel_days, value: 0, min: 0, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
-            </div>
-            <div>
-              <%= detail_fields.label :down_days, "Down Days", class: "block text-sm font-medium text-gray-600" %>
-              <%= detail_fields.number_field :down_days, value: 0, min: 0, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
-            </div>
-          </div>
-          
-          <div class="border-t pt-4">
-            <h4 class="text-md font-medium text-gray-700 mb-3">Standby Days (50% of day rate)</h4>
-            <div class="text-sm text-gray-600 mb-3">Rehearsal, travel, and down days are automatically calculated at 50% of the day rate.</div>
-          </div>
-          
-          <div class="border-t pt-4">
-            <h4 class="text-md font-medium text-gray-700 mb-3">Overtime (10% of day rate per hour)</h4>
-            <div class="mb-2">
-              <%= detail_fields.label :overtime_hours, "Global Overtime Hours", class: "block text-sm font-medium text-gray-600" %>
-              <%= detail_fields.number_field :overtime_hours, value: 0, min: 0, step: 0.5, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
-              <div class="text-xs text-gray-500 mt-1">Applied to all talent categories</div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Usage & Licensing -->
+        <!-- Hidden field to maintain form compatibility -->
+        <%= detail_fields.hidden_field :shoot_days, value: 1 %>
         <section id="licensing" class="bg-white shadow rounded-2xl p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold">Usage & Licensing</h3>
-            <span class="text-sm text-gray-400">Step 4 of 6</span>
+            <span class="text-sm text-gray-400">Step 3 of 6</span>
           </div>
           
           <div class="space-y-6">
@@ -255,7 +208,7 @@
               
               <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <div class="text-sm text-blue-800">
-                  <strong>Media Multiplier Logic:</strong> 1 media = 50%, 2 media = 75%, 3+ media = 100%
+                  <strong>Media Multiplier Logic:</strong> All Media = 100%, 1 other media = 50%, 2 other media = 75%, 3+ other media = 100%
                 </div>
                 <div class="text-xs text-blue-600 mt-1">
                   Current multiplier: <span id="media-multiplier">100%</span>
@@ -308,7 +261,7 @@
       <section id="territories" class="bg-white shadow rounded-2xl p-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Territories</h3>
-          <span class="text-sm text-gray-400">Step 5 of 6</span>
+          <span class="text-sm text-gray-400">Step 4 of 6</span>
         </div>
         
         <div class="mb-4">
@@ -351,7 +304,7 @@
       <section id="guarantee" class="bg-white shadow rounded-2xl p-6">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Guarantee & Manual Adjustments</h3>
-          <span class="text-sm text-gray-400">Step 6 of 6</span>
+          <span class="text-sm text-gray-400">Step 5 of 5</span>
         </div>
         
         <!-- Guarantee Option -->

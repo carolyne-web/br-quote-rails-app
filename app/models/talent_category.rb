@@ -25,14 +25,14 @@ class TalentCategory < ApplicationRecord
 
   def icon
     case category_type
-    when 1 then "★"
-    when 2 then "☆"
-    when 3 then "◆"
-    when 4 then "♦"
-    when 5 then "♥"
-    when 6 then "•"
-    when 7 then "○"
-    else "○"
+    when 1 then "LD"   # Lead
+    when 2 then "2L"   # Second Lead
+    when 3 then "FE"   # Featured Extra
+    when 4 then "TN"   # Teenager
+    when 5 then "KD"   # Kid
+    when 6 then "WO"   # Walk-on
+    when 7 then "EX"   # Extras
+    else "NA"
     end
   end
 

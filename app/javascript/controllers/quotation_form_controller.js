@@ -36,76 +36,106 @@ export default class extends Controller {
       btn.addEventListener('click', (e) => {
         const categoryId = e.target.closest('.talent-btn').dataset.category
         const categorySection = document.getElementById(`talent-category-${categoryId}`)
+        const clickedBtn = e.target.closest('.talent-btn')
         
         if (categorySection) {
-          // Show the talent category section
-          categorySection.classList.remove('hidden')
+          // Check if already active (tab-like toggle behavior)
+          const isActive = clickedBtn.classList.contains('bg-blue-500')
           
-          // Add first combination automatically
-          this.addCombination(categoryId)
-          
-          // Update button appearance
-          e.target.closest('.talent-btn').classList.add('border-blue-500', 'bg-blue-50')
-          e.target.closest('.talent-btn').style.opacity = '0.7'
+          if (isActive) {
+            // Deactivate tab - hide section and reset button
+            categorySection.classList.add('hidden')
+            clickedBtn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500')
+            clickedBtn.classList.add('border-gray-300', 'hover:bg-blue-50')
+            
+            // Clear combinations when deactivating
+            const combinationsList = categorySection.querySelector('.combinations-list')
+            if (combinationsList) {
+              combinationsList.innerHTML = ''
+            }
+            this.calculateCategoryTotal(categoryId)
+          } else {
+            // Activate tab - show section and update button
+            categorySection.classList.remove('hidden')
+            
+            // Update button appearance to active tab style
+            clickedBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500')
+            clickedBtn.classList.remove('border-gray-300', 'hover:bg-blue-50')
+            
+            // Add first combination if none exist
+            const combinationsList = categorySection.querySelector('.combinations-list')
+            if (combinationsList && combinationsList.children.length === 0) {
+              this.addCombination(categoryId)
+            }
+            
+            // Setup standby and overtime input listeners for this category
+            this.setupStandbyOvertimeListeners(categoryId)
+          }
         }
       })
     })
     
-    // Setup add combination buttons
-    document.querySelectorAll('.add-combination-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const categoryId = e.target.dataset.category
+    // Setup add combination buttons using event delegation
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.add-combination-btn')) {
+        const btn = e.target.closest('.add-combination-btn')
+        const categoryId = btn.dataset.category
         this.addCombination(categoryId)
-      })
+      }
     })
   }
 
   addCombination(categoryId) {
-    const combinationsList = document.querySelector(`[data-category="${categoryId}"] .combinations-list`)
+    const combinationsList = document.querySelector(`#talent-category-${categoryId} .combinations-list`)
+    if (!combinationsList) {
+      console.error(`Could not find combinations list for category ${categoryId}`)
+      return
+    }
     const index = combinationsList.children.length
     const baseRate = this.baseRates[categoryId] || 5000
     
     const combinationHtml = `
-      <div class="combination-row mb-4 p-4 bg-white rounded-lg border" data-combination-index="${index}">
-        <div class="flex justify-between items-start mb-4">
-          <h6 class="font-medium text-gray-800">Combination ${index + 1}</h6>
-          <button type="button" class="text-red-500 hover:text-red-700 text-sm" onclick="removeCombination(${categoryId}, ${index})">Remove</button>
+      <div class="combination-row mb-3 p-3 bg-white rounded-lg border flex items-center gap-3" data-combination-index="${index}">
+        <!-- Number of Talent -->
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Talent:</label>
+          <input type="number" name="talent[${categoryId}][combinations][${index}][count]" min="1" max="1000" value="1"
+                 class="w-16 border rounded px-2 py-1 text-sm text-center talent-count" data-category="${categoryId}" data-index="${index}">
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <!-- Base Rate with +/- Controls -->
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-2">Base Rate (±R100)</label>
-            <div class="flex items-center space-x-2">
-              <button type="button" class="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm rate-decrease" data-category="${categoryId}" data-index="${index}">-</button>
-              <input type="number" name="talent[${categoryId}][combinations][${index}][rate]" value="${baseRate}" step="100" min="0" 
-                     class="w-full text-center border rounded px-2 py-1 text-sm rate-input" data-category="${categoryId}" data-index="${index}">
-              <button type="button" class="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm rate-increase" data-category="${categoryId}" data-index="${index}">+</button>
-            </div>
-          </div>
-          
-          <!-- Number of Talent -->
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-2">No. of Talent</label>
-            <input type="number" name="talent[${categoryId}][combinations][${index}][count]" min="1" max="1000" value="1"
-                   class="w-full border rounded px-3 py-1 text-sm talent-count" data-category="${categoryId}" data-index="${index}">
-          </div>
-          
-          <!-- Shoot Days -->
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-2">Shoot Days</label>
-            <input type="number" name="talent[${categoryId}][combinations][${index}][days]" min="1" value="1"
-                   class="w-full border rounded px-3 py-1 text-sm shoot-days" data-category="${categoryId}" data-index="${index}">
-          </div>
-          
-          <!-- Combination Total -->
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-2">Combination Total</label>
-            <div class="text-lg font-semibold text-blue-600 py-1 combination-total" data-category="${categoryId}" data-index="${index}">
-              R${this.formatNumber(baseRate)}
-            </div>
-          </div>
+        <span class="text-gray-400">×</span>
+        
+        <!-- Days -->
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-gray-600 whitespace-nowrap">Days:</label>
+          <input type="number" name="talent[${categoryId}][combinations][${index}][days]" min="1" value="1"
+                 class="w-16 border rounded px-2 py-1 text-sm text-center shoot-days" data-category="${categoryId}" data-index="${index}">
         </div>
+        
+        <span class="text-gray-400">@</span>
+        
+        <!-- Rate with +/- Controls -->
+        <div class="flex items-center gap-1">
+          <label class="text-sm font-medium text-gray-600 whitespace-nowrap">R</label>
+          <button type="button" class="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs rate-decrease" data-category="${categoryId}" data-index="${index}">-</button>
+          <input type="number" name="talent[${categoryId}][combinations][${index}][rate]" value="${baseRate}" step="100" min="0" 
+                 class="w-20 text-center border rounded px-1 py-1 text-xs rate-input" data-category="${categoryId}" data-index="${index}">
+          <button type="button" class="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs rate-increase" data-category="${categoryId}" data-index="${index}">+</button>
+        </div>
+        
+        <span class="text-gray-400">=</span>
+        
+        <!-- Combination Total -->
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-semibold text-blue-600 combination-total" data-category="${categoryId}" data-index="${index}">
+            R${this.formatNumber(baseRate)}
+          </span>
+        </div>
+        
+        <!-- Remove Button -->
+        <button type="button" class="ml-auto text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded hover:bg-red-50" onclick="removeCombination(${categoryId}, ${index})">
+          ✕
+        </button>
       </div>
     `
     
@@ -117,15 +147,20 @@ export default class extends Controller {
   setupCombinationEventListeners(categoryId, index) {
     const combination = document.querySelector(`[data-combination-index="${index}"]`)
     
+    if (!combination) {
+      console.error(`Could not find combination with index ${index}`)
+      return
+    }
+    
     // Rate increase/decrease buttons
-    combination.querySelector('.rate-decrease').addEventListener('click', (e) => {
+    combination.querySelector('.rate-decrease').addEventListener('click', () => {
       const input = combination.querySelector('.rate-input')
       const currentValue = parseInt(input.value) || 0
       input.value = Math.max(0, currentValue - 100)
       this.calculateCombinationTotal(categoryId, index)
     })
     
-    combination.querySelector('.rate-increase').addEventListener('click', (e) => {
+    combination.querySelector('.rate-increase').addEventListener('click', () => {
       const input = combination.querySelector('.rate-input')
       const currentValue = parseInt(input.value) || 0
       input.value = currentValue + 100
@@ -138,6 +173,26 @@ export default class extends Controller {
         this.calculateCombinationTotal(categoryId, index)
       })
     })
+  }
+
+  setupStandbyOvertimeListeners(categoryId) {
+    const section = document.getElementById(`talent-category-${categoryId}`)
+    if (!section) return
+    
+    // Setup standby inputs
+    section.querySelectorAll('[data-standby-input]').forEach(input => {
+      input.addEventListener('input', () => {
+        this.calculateCategoryTotal(categoryId)
+      })
+    })
+    
+    // Setup overtime input
+    const overtimeInput = section.querySelector('[data-overtime-input]')
+    if (overtimeInput) {
+      overtimeInput.addEventListener('input', () => {
+        this.calculateCategoryTotal(categoryId)
+      })
+    }
   }
 
   calculateCombinationTotal(categoryId, index) {
@@ -205,22 +260,55 @@ export default class extends Controller {
 
   setupMediaTypeLogic() {
     const mediaCheckboxes = document.querySelectorAll('input[name="media_types[]"]')
+    const allMediaCheckbox = document.querySelector('input[value="all_media"]')
+    const otherMediaCheckboxes = document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])')
     
     mediaCheckboxes.forEach(checkbox => {
       checkbox.addEventListener('change', () => {
+        // If "All Media" is selected, uncheck and disable all others
+        if (checkbox.value === 'all_media' && checkbox.checked) {
+          otherMediaCheckboxes.forEach(otherCheckbox => {
+            otherCheckbox.checked = false
+            otherCheckbox.disabled = true
+            otherCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+          })
+        }
+        // If "All Media" is unchecked, enable all others
+        else if (checkbox.value === 'all_media' && !checkbox.checked) {
+          otherMediaCheckboxes.forEach(otherCheckbox => {
+            otherCheckbox.disabled = false
+            otherCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+          })
+        }
+        // If any other checkbox is selected, uncheck "All Media"
+        else if (checkbox.value !== 'all_media' && checkbox.checked && allMediaCheckbox) {
+          allMediaCheckbox.checked = false
+        }
+        
         this.calculateMediaMultiplier()
       })
     })
     
-    // Initialize multiplier on page load
+    // Initialize multiplier on page load and set initial state
     this.calculateMediaMultiplier()
+    
+    // Check if All Media is already selected on page load
+    if (allMediaCheckbox && allMediaCheckbox.checked) {
+      otherMediaCheckboxes.forEach(otherCheckbox => {
+        otherCheckbox.disabled = true
+        otherCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+      })
+    }
   }
 
   calculateMediaMultiplier() {
     const selected = document.querySelectorAll('input[name="media_types[]"]:checked')
+    const allMediaSelected = document.querySelector('input[value="all_media"]:checked')
     let multiplier = 1.0
     
-    if (selected.length === 1) {
+    if (allMediaSelected) {
+      multiplier = 1.0 // All Media = 100%
+    } else if (selected.length === 1) {
       multiplier = 0.5 // One media = 50%
     } else if (selected.length === 2) {
       multiplier = 0.75 // Two media = 75%
@@ -315,11 +403,15 @@ export default class extends Controller {
     }
     
     if (talentBtn) {
-      // Re-enable the talent button
-      talentBtn.classList.remove('border-blue-500', 'bg-blue-50')
+      // Reset button to inactive tab state
+      talentBtn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500')
+      talentBtn.classList.add('border-gray-300', 'hover:bg-blue-50')
       talentBtn.style.opacity = '1'
       talentBtn.style.pointerEvents = 'auto'
     }
+    
+    // Recalculate totals
+    this.calculateCategoryTotal(categoryId)
   }
 
   // Utility method to format numbers with commas
