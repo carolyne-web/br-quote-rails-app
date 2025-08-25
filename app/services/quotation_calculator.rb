@@ -99,40 +99,40 @@ class QuotationCalculator
   end
 
   def standard_calculation
-    # Section A: Talent Fees
+    # A) Talent Fees (includes base + standby + overtime)
     base_talent_cost = calculate_base_talent_cost
     standby_cost = calculate_standby_cost
     overtime_cost = calculate_overtime_cost
-    
     total_talent_fee = base_talent_cost + standby_cost + overtime_cost
     
-    # Section B: Usage & Licensing
+    # B) Usage/Buyout (only base talent fees get multiplied, not standby/overtime)
     territory_multiplier = calculate_territory_multiplier
     media_multiplier = calculate_media_multiplier
     duration_multiplier = calculate_duration_multiplier
     exclusivity_multiplier = calculate_exclusivity_multiplier
     
-    # Add unlimited options
-    additional_multiplier = 0
-    additional_multiplier += 0.15 if @detail&.unlimited_stills
-    additional_multiplier += 0.15 if @detail&.unlimited_versions
+    # Calculate usage/buyout per category with campaign adjustments
+    usage_buyout_total = calculate_usage_buyout_by_category(
+      base_talent_cost, 
+      territory_multiplier, 
+      media_multiplier, 
+      duration_multiplier, 
+      exclusivity_multiplier
+    )
     
-    # Calculate buyout
-    total_multiplier = territory_multiplier * media_multiplier * duration_multiplier * 
-                      exclusivity_multiplier * (1 + additional_multiplier)
+    # Additional options (applied to base talent fees only)
+    additional_fees = 0
+    additional_fees += base_talent_cost * 0.15 if @detail&.unlimited_stills
+    additional_fees += base_talent_cost * 0.15 if @detail&.unlimited_versions
     
-    buyout_fee = total_talent_fee * (total_multiplier / 100.0)
-    
-    # Apply product type adjustments for kids
-    buyout_fee = apply_kids_adjustment(buyout_fee)
-    
-    # Apply guarantee discount if selected (25% off buyout)
+    # Apply guarantee discount if selected (25% off usage/buyout only)
     if @quotation.is_guaranteed
-      buyout_fee = buyout_fee * 0.75
+      usage_buyout_total = usage_buyout_total * 0.75
     end
     
-    manual_adjustment = calculate_manual_adjustments(buyout_fee)
-    total = buyout_fee + manual_adjustment
+    # C) Total = A + B + Additional Options
+    manual_adjustment = calculate_manual_adjustments(usage_buyout_total)
+    total = total_talent_fee + usage_buyout_total + additional_fees + manual_adjustment
     
     {
       base_talent_cost: base_talent_cost.round(2),
@@ -143,7 +143,8 @@ class QuotationCalculator
       media_multiplier: media_multiplier,
       duration_multiplier: duration_multiplier,
       exclusivity_multiplier: exclusivity_multiplier,
-      buyout_fee: buyout_fee.round(2),
+      usage_buyout_total: usage_buyout_total.round(2),
+      additional_fees: additional_fees.round(2),
       manual_adjustment: manual_adjustment.round(2),
       total: total.round(2),
       worldwide_override: false
@@ -245,76 +246,37 @@ class QuotationCalculator
   def calculate_territory_multiplier
     return 1.0 if @territories.empty?
 
-    # Check for special territory exceptions first
-    territory_names = @territories.pluck(:name)
-    
-    # Handle territory exceptions with fixed percentages
-    if territory_names.include?('Worldwide')
-      return 12.0  # 1200%
-    elsif territory_names.include?('USA')
-      return 5.0   # 500%
-    elsif territory_names.include?('Western Europe (excl. UK)')
-      return 5.0   # 500%
-    elsif territory_names.include?('Western Europe (incl. UK)')
-      return 6.0   # 600%
-    elsif territory_names.include?('Europe (excl. UK)')
-      return 6.0   # 600%
-    elsif territory_names.include?('Europe (incl. UK)')
-      return 7.5   # 750%
-    else
-      # For all other territories, use the highest percentage from database
-      max_percentage = @territories.maximum(:percentage) || 100
-      max_percentage / 100.0
-    end
+    # NEW LOGIC: Additive territories (sum all percentages)
+    total_percentage = @territories.sum(:percentage)
+    total_percentage / 100.0
   end
 
   def calculate_media_multiplier
     return 1.0 unless @detail
     
-    # Handle array-based media selection (new format from plan)
-    if @detail.respond_to?(:selected_media_types) && @detail.selected_media_types.present?
-      selected_media = @detail.selected_media_types
-      
-      case selected_media.count
-      when 1
-        0.5 # One media = 50% of All Media
-      when 2
-        0.75 # Two media = 75% of All Media
-      else
-        1.0 # Three or more = All Media (100%)
-      end
+    # Get media types from the form submission
+    media_types = []
+    if @quotation.respond_to?(:media_types) && @quotation.media_types.present?
+      media_types = @quotation.media_types
+    elsif @detail.respond_to?(:selected_media_types) && @detail.selected_media_types.present?
+      media_types = @detail.selected_media_types
+    end
+    
+    return 1.0 if media_types.empty?
+    
+    # NEW MEDIA LOGIC to match frontend
+    if media_types.include?('all_media')
+      1.0 # All Media = 100%
+    elsif media_types.count == 1 && media_types.include?('all_moving')
+      0.75 # All Moving Media alone = 75%
+    elsif media_types.count == 1
+      0.5 # One other media = 50%
+    elsif media_types.count == 2
+      0.75 # Two media (including All Moving Media + other) = 75%
+    elsif media_types.count >= 3
+      1.0 # Three or more media = 100%
     else
-      # Existing string-based media type logic (backward compatibility)
-      case @detail.media_type
-      when "all_media"
-        1.0    # 100% (base usage)
-      when "all_moving_media"
-        0.75   # 75% of All Media
-      when "all_stills", "all_stills_media"
-        0.75   # 75% of All Media
-      when "all_non_broadcast", "all_non_broadcast_media"
-        0.75   # 75% of All Media
-      when "one_media", "one_medium_only"
-        0.5    # 50% of All Media
-      when "two_media", "two_media_only"
-        0.75   # 75% of All Media
-      when "three_or_more_media", "three_media", "multiple_media"
-        1.0    # 100% of All Media
-      when "stand_alone_ooh", "ooh", "out_of_home"
-        1.0    # 100% of All Media
-      when "television", "tv"
-        1.0    # Individual medium treated as base
-      when "digital", "online"
-        1.0    # Individual medium treated as base
-      when "print"
-        1.0    # Individual medium treated as base
-      when "radio"
-        1.0    # Individual medium treated as base
-      when "cinema"
-        1.0    # Individual medium treated as base
-      else
-        1.0
-      end
+      1.0 # Default
     end
   end
 
@@ -433,6 +395,46 @@ class QuotationCalculator
     standby_cost = calculate_standby_cost
     overtime_cost = calculate_overtime_cost
     base_talent_cost + standby_cost + overtime_cost
+  end
+
+  def calculate_usage_buyout_by_category(base_talent_cost, territory_multiplier, media_multiplier, duration_multiplier, exclusivity_multiplier)
+    total_usage_buyout = 0
+    total_multiplier = territory_multiplier * media_multiplier * duration_multiplier * exclusivity_multiplier
+    
+    @talent_categories.each do |category|
+      # Calculate base fees for this category only
+      category_base_fees = calculate_category_base_fees(category)
+      
+      # Apply multipliers to get usage/buyout for this category
+      category_usage_buyout = category_base_fees * total_multiplier
+      
+      # Apply campaign type adjustments (only to kids category)
+      if category.category_type == 5 && @quotation.product_type.present? # Kids category
+        case @quotation.product_type
+        when 'adult'
+          category_usage_buyout *= 0.5  # 50% reduction
+        when 'family'
+          category_usage_buyout *= 0.75 # 25% reduction
+        # 'kids' product type gets no reduction (100%)
+        end
+      end
+      
+      total_usage_buyout += category_usage_buyout
+    end
+    
+    total_usage_buyout
+  end
+
+  def calculate_category_base_fees(category)
+    if category.day_on_sets.any?
+      # Use day-on-set breakdown with adjusted rate
+      rate_to_use = category.adjusted_rate || category.daily_rate || 0
+      category.day_on_sets.sum { |dos| dos.talent_count * dos.days_count * rate_to_use }
+    else
+      # Use simple calculation
+      shoot_days = @detail&.shoot_days || 1
+      (category.adjusted_rate || category.daily_rate || 0) * category.initial_count * shoot_days
+    end
   end
 
   def calculate_manual_adjustments(subtotal)

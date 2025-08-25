@@ -8,8 +8,8 @@
         <ul class="space-y-2 text-sm text-gray-700">
           <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Campaign Information</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="territories">Territories</li>
+          <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Guarantee & Final</li>
         </ul>
       </div>
@@ -166,6 +166,52 @@
         </div>
       </section>
 
+
+      <!-- Territories -->
+      <section id="territories" class="bg-white shadow rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold">Territories</h3>
+          <span class="text-sm text-gray-400">Step 3 of 5</span>
+        </div>
+        
+        <div class="mb-4">
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div class="text-sm text-blue-800">
+              <strong>Territory Logic:</strong> Multiple territories are additive. Example: East Europe (400%) + Pan African (400%) = 800% total.
+            </div>
+          </div>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="mb-4">
+          <input type="text" id="territory-search" placeholder="Search territories (type 3+ letters)..." 
+                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        
+        <!-- Territories List -->
+        <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+          <div id="territories-list" class="space-y-1 p-2">
+            <% @territories.group_by(&:group_name).each do |group_name, territories| %>
+              <% territories.each do |territory| %>
+                <label class="territory-item flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" 
+                       data-name="<%= territory.name.downcase %>">
+                  <div class="flex items-center">
+                    <%= check_box_tag "territories[]", territory.id, false, 
+                        class: "mr-3 rounded text-blue-600 focus:ring-blue-500 territory-checkbox",
+                        data: { territory_id: territory.id, territory_name: territory.name, percentage: territory.percentage } %>
+                    <div class="text-sm">
+                      <div class="font-medium text-gray-900"><%= territory.name %></div>
+                      <div class="text-xs text-gray-500"><%= group_name %></div>
+                    </div>
+                  </div>
+                  <div class="text-sm font-medium text-blue-600"><%= territory.percentage %>%</div>
+                </label>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </section>
+
       <!-- Usage & Licensing -->
       <%= fields_for :quotation_detail, @quotation.quotation_detail || @quotation.build_quotation_detail do |detail_fields| %>
         <!-- Hidden field to maintain form compatibility -->
@@ -173,7 +219,7 @@
         <section id="licensing" class="bg-white shadow rounded-2xl p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold">Usage & Licensing</h3>
-            <span class="text-sm text-gray-400">Step 3 of 6</span>
+            <span class="text-sm text-gray-400">Step 4 of 5</span>
           </div>
           
           <div class="space-y-6">
@@ -208,7 +254,7 @@
               
               <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <div class="text-sm text-blue-800">
-                  <strong>Media Multiplier Logic:</strong> All Media = 100%, 1 other media = 50%, 2 other media = 75%, 3+ other media = 100%
+                  <strong>Media Multiplier Logic:</strong> All Media = 100%, All Moving Media alone = 75%, All Moving Media + 1 other = 75%, 1 other media = 50%, 3+ media = 100%
                 </div>
                 <div class="text-xs text-blue-600 mt-1">
                   Current multiplier: <span id="media-multiplier">100%</span>
@@ -256,49 +302,6 @@
           </div>
         </section>
       <% end %>
-
-      <!-- Territories -->
-      <section id="territories" class="bg-white shadow rounded-2xl p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold">Territories</h3>
-          <span class="text-sm text-gray-400">Step 4 of 6</span>
-        </div>
-        
-        <div class="mb-4">
-          <button type="button" class="text-sm text-blue-600 hover:text-blue-800 add-territory">
-            + Add Another Territory/Media Combination
-          </button>
-        </div>
-        
-        <!-- Search Bar -->
-        <div class="mb-4">
-          <input type="text" id="territory-search" placeholder="Search territories (type 3+ letters)..." 
-                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        
-        <!-- Territories List -->
-        <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
-          <div id="territories-list" class="space-y-1 p-2">
-            <% @territories.group_by(&:group_name).each do |group_name, territories| %>
-              <% territories.each do |territory| %>
-                <label class="territory-item flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" 
-                       data-name="<%= territory.name.downcase %>">
-                  <div class="flex items-center">
-                    <%= check_box_tag "territories[]", territory.id, false, 
-                        class: "mr-3 rounded text-blue-600 focus:ring-blue-500 territory-checkbox",
-                        data: { territory_id: territory.id, territory_name: territory.name, percentage: territory.percentage } %>
-                    <div class="text-sm">
-                      <div class="font-medium text-gray-900"><%= territory.name %></div>
-                      <div class="text-xs text-gray-500"><%= group_name %></div>
-                    </div>
-                  </div>
-                  <div class="text-sm font-medium text-blue-600"><%= territory.percentage %>%</div>
-                </label>
-              <% end %>
-            <% end %>
-          </div>
-        </div>
-      </section>
 
       <!-- Guarantee & Manual Adjustments -->
       <section id="guarantee" class="bg-white shadow rounded-2xl p-6">
@@ -358,33 +361,58 @@
           <!-- Cost Breakdown -->
           <div class="mt-6 pt-4 border-t border-gray-200">
             <div class="space-y-2">
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Talent Fees (Shoot Days):</span>
-                <span id="talent-total">R 0.00</span>
+              <!-- A: Talent Fees -->
+              <div class="bg-gray-50 p-3 rounded-lg">
+                <div class="flex justify-between text-sm font-medium">
+                  <span class="text-gray-700">A) Talent Fees:</span>
+                  <span id="talent-total">R 0.00</span>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">Base talent fees + standby & overtime</div>
               </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Rehearsal/Travel/Down Days:</span>
-                <span id="rehearsal-travel-total">R 0.00</span>
+              
+              <!-- Usage/Buyout Calculation Details -->
+              <div class="space-y-1 text-xs text-gray-600 ml-2">
+                <div class="flex justify-between">
+                  <span>Territory Multiplier:</span>
+                  <span id="territory-multiplier">1.00x</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Media Multiplier:</span>
+                  <span id="media-display-multiplier">1.00x</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Duration Multiplier:</span>
+                  <span id="duration-multiplier">1.00x</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Exclusivity Adjustment:</span>
+                  <span id="exclusivity-multiplier">+0%</span>
+                </div>
               </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Territory Multiplier:</span>
-                <span id="territory-multiplier">1.00x</span>
+              
+              <!-- B: Usage/Buyout -->
+              <div class="bg-blue-50 p-3 rounded-lg">
+                <div class="flex justify-between text-sm font-medium mb-2">
+                  <span class="text-gray-700">B) Usage/Buyout:</span>
+                  <span id="usage-buyout-total">R 0.00</span>
+                </div>
+                <div id="usage-buyout-breakdown" class="text-xs text-gray-600 space-y-1">
+                  <!-- Category breakdowns will be inserted here -->
+                </div>
               </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Exclusivity Multiplier:</span>
-                <span id="exclusivity-multiplier">1.00x</span>
-              </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Usage Fees:</span>
-                <span id="usage-fees">R 0.00</span>
-              </div>
+              
+              <!-- Additional Options -->
               <div class="flex justify-between text-sm">
                 <span class="text-gray-600">Additional Options:</span>
                 <span id="additional-fees">R 0.00</span>
               </div>
-              <div class="flex justify-between pt-2 border-t border-gray-300 font-semibold">
-                <span>Total Quote:</span>
-                <span id="total-quote" class="text-blue-600">R 0.00</span>
+              
+              <!-- C: Total -->
+              <div class="bg-green-50 p-3 rounded-lg border-t border-gray-300">
+                <div class="flex justify-between font-semibold">
+                  <span class="text-gray-800">C) Total Quote (A+B):</span>
+                  <span id="total-quote" class="text-blue-600">R 0.00</span>
+                </div>
               </div>
             </div>
           </div>
@@ -540,6 +568,50 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  // Media multiplier calculation function
+  function calculateMediaMultiplier() {
+    const selected = document.querySelectorAll('input[name="media_types[]"]:checked');
+    const allMediaSelected = document.querySelector('input[value="all_media"]:checked');
+    const allMovingSelected = document.querySelector('input[value="all_moving"]:checked');
+    let multiplier = 1.0;
+    
+    if (allMediaSelected) {
+      multiplier = 1.0; // All Media = 100%
+    } else if (selected.length === 1 && allMovingSelected) {
+      multiplier = 0.75; // All Moving Media alone = 75%
+    } else if (selected.length === 1) {
+      multiplier = 0.5; // One other media = 50%
+    } else if (selected.length === 2) {
+      multiplier = 0.75; // Two media (including All Moving Media + other) = 75%
+    } else if (selected.length >= 3) {
+      multiplier = 1.0; // Three or more media = 100%
+    } else {
+      multiplier = 1.0; // No selection defaults to 100%
+    }
+    
+    return multiplier;
+  }
+
+  // Duration multiplier calculation function
+  function calculateDurationMultiplier() {
+    const durationSelect = document.querySelector('select[name*="duration"]');
+    if (!durationSelect || !durationSelect.value) {
+      return 1.0; // Default multiplier
+    }
+    
+    // Map duration values to multipliers using settings
+    const durationMultipliers = {
+      '3_months': <%= Setting.find_by(key: 'duration_3_months')&.typed_value || 50 %> / 100,
+      '6_months': <%= Setting.find_by(key: 'duration_6_months')&.typed_value || 75 %> / 100,
+      '12_months': <%= Setting.find_by(key: 'duration_12_months')&.typed_value || 100 %> / 100,
+      '18_months': <%= Setting.find_by(key: 'duration_18_months')&.typed_value || 175 %> / 100,
+      '24_months': <%= Setting.find_by(key: 'duration_24_months')&.typed_value || 200 %> / 100,
+      '36_months': <%= Setting.find_by(key: 'duration_36_months')&.typed_value || 300 %> / 100
+    };
+    
+    return durationMultipliers[durationSelect.value] || 1.0;
+  }
+
   // Enhanced calculation and preview functionality
   function updateQuotePreview() {
     let talentTotal = 0;
@@ -567,57 +639,51 @@ document.addEventListener('DOMContentLoaded', function() {
       6: <%= Setting.find_by(key: 'walk_on_base_rate')&.typed_value || 0 %>       // Walk-on
     };
     
-    // Calculate talent costs
-    const talentCounts = document.querySelectorAll('[data-category-count]');
+    // Calculate talent costs from active talent categories
+    const activeTalentSections = document.querySelectorAll('[id^="talent-category-"]:not(.hidden)');
     let hasTalent = false;
+    let baseTalentFeesOnly = 0; // Just the base fees for usage calculation
+    let talentCategoryBreakdown = []; // Store breakdown for usage calculation
     
-    talentCounts.forEach(input => {
-      const quantity = parseInt(input.value) || 0;
-      if (quantity > 0) {
-        hasTalent = true;
-        const categoryDiv = input.closest('[data-category]');
-        const categoryId = parseInt(categoryDiv.dataset.category);
-        const categoryName = categoryDiv.querySelector('.font-medium').textContent;
-        const baseRate = baseRates[categoryId] || 0;
+    activeTalentSections.forEach(section => {
+      const categoryId = section.id.replace('talent-category-', '');
+      const categoryName = section.querySelector('h4').textContent;
+      
+      // Get the category total (includes base + standby + overtime)
+      const categoryTotalElement = section.querySelector(`#category-total-${categoryId}`);
+      if (categoryTotalElement) {
+        const totalText = categoryTotalElement.textContent.replace(/[R,]/g, '');
+        const categoryTotal = parseInt(totalText) || 0;
         
-        // Check if this category has day-on-set breakdown
-        const breakdownContainer = document.querySelector(`.days-on-set-container[data-category="${categoryId}"]`);
-        let cost = 0;
-        let costDescription = '';
-        
-        if (breakdownContainer && !breakdownContainer.classList.contains('hidden')) {
-          // Use day-on-set breakdown calculation
-          const dayBreakdownInputs = breakdownContainer.querySelectorAll('input[name*="talent_count"]');
-          let totalTalentDays = 0;
+        if (categoryTotal > 0) {
+          hasTalent = true;
+          talentTotal += categoryTotal;
           
-          dayBreakdownInputs.forEach((talentInput, index) => {
-            const talentCount = parseInt(talentInput.value) || 0;
-            const daysInput = breakdownContainer.querySelectorAll('input[name*="days_count"]')[index];
-            const daysCount = parseInt(daysInput?.value) || 0;
-            
-            if (talentCount > 0 && daysCount > 0) {
-              const segmentCost = talentCount * daysCount * baseRate;
-              cost += segmentCost;
-              totalTalentDays += talentCount * daysCount;
-            }
+          // Calculate just the base fees (combination totals) for usage calculation
+          const combinationTotals = section.querySelectorAll('.combination-total');
+          let categoryBaseFees = 0;
+          combinationTotals.forEach(total => {
+            const value = total.textContent.replace(/[R,]/g, '');
+            categoryBaseFees += parseInt(value) || 0;
           });
           
-          costDescription = `${categoryName} (breakdown: ${totalTalentDays} talent-days)`;
-        } else {
-          // Use simple calculation: quantity × shoot days × base rate
-          cost = quantity * shootDays * baseRate;
-          costDescription = `${quantity}x ${categoryName} × ${shootDays} days`;
+          if (categoryBaseFees > 0) {
+            baseTalentFeesOnly += categoryBaseFees;
+            talentCategoryBreakdown.push({
+              id: categoryId,
+              name: categoryName,
+              baseFees: categoryBaseFees
+            });
+          }
+          
+          const summaryItem = document.createElement('div');
+          summaryItem.className = 'flex justify-between';
+          summaryItem.innerHTML = `
+            <span class="text-sm">${categoryName}</span>
+            <span>R ${categoryTotal.toLocaleString()}</span>
+          `;
+          talentSummary.appendChild(summaryItem);
         }
-        
-        talentTotal += cost;
-        
-        const summaryItem = document.createElement('div');
-        summaryItem.className = 'flex justify-between';
-        summaryItem.innerHTML = `
-          <span class="text-sm">${costDescription}</span>
-          <span>R ${cost.toLocaleString()}</span>
-        `;
-        talentSummary.appendChild(summaryItem);
       }
     });
     
@@ -625,10 +691,10 @@ document.addEventListener('DOMContentLoaded', function() {
       talentSummary.innerHTML = '<div class="text-gray-500 italic">No talent selected</div>';
     }
     
-    // Calculate territory multipliers (use highest percentage, not additive)
+    // Calculate territory multipliers (additive - sum all selected territories)
     const selectedTerritories = document.querySelectorAll('.territory-checkbox:checked');
     let hasTerritory = false;
-    let maxTerritoryPercentage = 0;
+    let totalTerritoryPercentage = 0;
     let territoryNames = [];
     
     selectedTerritories.forEach(checkbox => {
@@ -637,30 +703,13 @@ document.addEventListener('DOMContentLoaded', function() {
       const name = checkbox.dataset.territoryName;
       territoryNames.push(name);
       
-      // Use the highest territory percentage (not additive)
-      if (percentage > maxTerritoryPercentage) {
-        maxTerritoryPercentage = percentage;
-      }
+      // Add all territory percentages together (additive)
+      totalTerritoryPercentage += percentage;
     });
     
     // Apply territory multiplier logic
     if (hasTerritory) {
-      // Check for special territory cases first
-      if (territoryNames.includes('Worldwide')) {
-        territoryMultiplier = 12.0;
-      } else if (territoryNames.includes('USA')) {
-        territoryMultiplier = 5.0;
-      } else if (territoryNames.includes('Western Europe (excl. UK)')) {
-        territoryMultiplier = 5.0;
-      } else if (territoryNames.includes('Western Europe (incl. UK)')) {
-        territoryMultiplier = 6.0;
-      } else if (territoryNames.includes('Europe (excl. UK)')) {
-        territoryMultiplier = 6.0;
-      } else if (territoryNames.includes('Europe (incl. UK)')) {
-        territoryMultiplier = 7.5;
-      } else {
-        territoryMultiplier = maxTerritoryPercentage / 100.0;
-      }
+      territoryMultiplier = totalTerritoryPercentage / 100.0;
     }
     
     // Update territory summary
@@ -698,49 +747,63 @@ document.addEventListener('DOMContentLoaded', function() {
     if (unlimitedStills) additionalFees += talentTotal * 0.15;
     if (unlimitedVersions) additionalFees += talentTotal * 0.15;
     
-    // Calculate rehearsal/travel/down days costs
-    let rehearsalTravelCost = 0;
-    const rehearsalDaysInput = document.querySelector('input[name*="rehearsal_days"]');
-    const travelDaysInput = document.querySelector('input[name*="travel_days"]');
-    const downDaysInput = document.querySelector('input[name*="down_days"]');
     
-    const rehearsalDays = parseInt(rehearsalDaysInput?.value) || 0;
-    const travelDays = parseInt(travelDaysInput?.value) || 0;
-    const downDays = parseInt(downDaysInput?.value) || 0;
-    const extraDays = rehearsalDays + travelDays + downDays;
+    // Get media multiplier 
+    const mediaMultiplier = calculateMediaMultiplier();
     
-    if (extraDays > 0) {
-      // Calculate for each talent category using initial_count (all hired talent)
-      talentCounts.forEach(input => {
-        const quantity = parseInt(input.value) || 0;
-        if (quantity > 0) {
-          const categoryDiv = input.closest('[data-category]');
-          const categoryId = parseInt(categoryDiv.dataset.category);
-          const baseRate = baseRates[categoryId] || 0;
-          
-          // All hired talent participate in rehearsal/travel/down at 50% rate
-          rehearsalTravelCost += quantity * extraDays * baseRate * 0.5;
-        }
-      });
-    }
+    // Get duration multiplier from duration selection
+    const durationMultiplier = calculateDurationMultiplier();
     
-    // Calculate usage fees (simplified for preview)
-    const usageFees = talentTotal * 0.2; // 20% for usage
+    // Get campaign type for adjustments
+    const campaignTypeRadio = document.querySelector('input[name="quotation[product_type]"]:checked');
+    const campaignType = campaignTypeRadio ? campaignTypeRadio.value : null;
     
-    // Calculate totals with exclusivity
-    const baseCost = talentTotal + rehearsalTravelCost;
-    const subtotal = baseCost * territoryMultiplier * exclusivityMultiplier;
-    const totalQuote = subtotal + usageFees + additionalFees;
+    // NEW CALCULATION STRUCTURE:
+    // A) Talent Fees = talentTotal (includes base + standby + overtime)
+    const talentFees = talentTotal;
+    
+    // B) Usage/Buyout = Base talent fees × Territory × Media × Duration × Exclusivity (per category)
+    let usageBuyoutTotal = 0;
+    const usageBreakdownHtml = [];
+    const totalMultiplier = territoryMultiplier * mediaMultiplier * durationMultiplier * exclusivityMultiplier;
+    
+    talentCategoryBreakdown.forEach(category => {
+      let categoryUsage = category.baseFees * totalMultiplier;
+      let adjustmentText = '';
+      
+      // Apply campaign type adjustments
+      if (campaignType === 'adult' && category.id === '5') { // Kid category
+        categoryUsage *= 0.5; // 50% reduction for adult campaigns
+        adjustmentText = ' × 50% (Adult)';
+      } else if (campaignType === 'family' && category.id === '5') { // Kid category  
+        categoryUsage *= 0.75; // 25% reduction for family campaigns
+        adjustmentText = ' × 75% (Family)';
+      }
+      
+      usageBuyoutTotal += categoryUsage;
+      
+      usageBreakdownHtml.push(`
+        <div class="flex justify-between">
+          <span>${category.name}: R${category.baseFees.toLocaleString()} × ${totalMultiplier.toFixed(2)}x${adjustmentText}</span>
+          <span>R${Math.round(categoryUsage).toLocaleString()}</span>
+        </div>
+      `);
+    });
+    
+    // C) Total = A + B + Additional Options
+    const totalQuote = talentFees + usageBuyoutTotal + additionalFees;
     
     // Update display
-    document.getElementById('talent-total').textContent = `R ${talentTotal.toLocaleString()}.00`;
-    document.getElementById('rehearsal-travel-total').textContent = `R ${rehearsalTravelCost.toLocaleString()}.00`;
+    document.getElementById('talent-total').textContent = `R ${talentFees.toLocaleString()}.00`;
     document.getElementById('territory-multiplier').textContent = `${territoryMultiplier.toFixed(2)}x`;
-    document.getElementById('exclusivity-multiplier').textContent = `${exclusivityMultiplier.toFixed(2)}x`;
-    document.getElementById('usage-fees').textContent = `R ${usageFees.toLocaleString()}.00`;
+    document.getElementById('media-display-multiplier').textContent = `${mediaMultiplier.toFixed(2)}x`;
+    document.getElementById('duration-multiplier').textContent = `${durationMultiplier.toFixed(2)}x`;
+    document.getElementById('exclusivity-multiplier').textContent = exclusivityMultiplier > 1 ? `+${Math.round((exclusivityMultiplier - 1) * 100)}%` : '+0%';
+    document.getElementById('usage-buyout-total').textContent = `R ${Math.round(usageBuyoutTotal).toLocaleString()}.00`;
+    document.getElementById('usage-buyout-breakdown').innerHTML = usageBreakdownHtml.join('');
     document.getElementById('additional-fees').textContent = `R ${additionalFees.toLocaleString()}.00`;
-    document.getElementById('total-quote').textContent = `R ${totalQuote.toLocaleString()}.00`;
-    document.getElementById('current-total').textContent = `R ${totalQuote.toLocaleString()}.00`;
+    document.getElementById('total-quote').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
+    document.getElementById('current-total').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
   }
   
   // Update preview when form values change

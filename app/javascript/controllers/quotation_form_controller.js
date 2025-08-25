@@ -248,6 +248,11 @@ export default class extends Controller {
     section.querySelector(`#standby-cost-${categoryId}`).textContent = `R${this.formatNumber(standbyCost)}`
     section.querySelector(`#overtime-cost-${categoryId}`).textContent = `R${this.formatNumber(overtimeCost)}`
     section.querySelector(`#category-total-${categoryId}`).textContent = `R${this.formatNumber(categoryTotal + standbyCost + overtimeCost)}`
+    
+    // Trigger global quote preview update
+    if (typeof updateQuotePreview === 'function') {
+      updateQuotePreview()
+    }
   }
 
   removeCombination(categoryId, index) {
@@ -261,13 +266,12 @@ export default class extends Controller {
   setupMediaTypeLogic() {
     const mediaCheckboxes = document.querySelectorAll('input[name="media_types[]"]')
     const allMediaCheckbox = document.querySelector('input[value="all_media"]')
-    const otherMediaCheckboxes = document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])')
     
     mediaCheckboxes.forEach(checkbox => {
       checkbox.addEventListener('change', () => {
         // If "All Media" is selected, uncheck and disable all others
         if (checkbox.value === 'all_media' && checkbox.checked) {
-          otherMediaCheckboxes.forEach(otherCheckbox => {
+          document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
             otherCheckbox.checked = false
             otherCheckbox.disabled = true
             otherCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
@@ -275,7 +279,7 @@ export default class extends Controller {
         }
         // If "All Media" is unchecked, enable all others
         else if (checkbox.value === 'all_media' && !checkbox.checked) {
-          otherMediaCheckboxes.forEach(otherCheckbox => {
+          document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
             otherCheckbox.disabled = false
             otherCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
           })
@@ -292,9 +296,9 @@ export default class extends Controller {
     // Initialize multiplier on page load and set initial state
     this.calculateMediaMultiplier()
     
-    // Check if All Media is already selected on page load
+    // Check initial state on page load - only "All Media" is exclusive
     if (allMediaCheckbox && allMediaCheckbox.checked) {
-      otherMediaCheckboxes.forEach(otherCheckbox => {
+      document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
         otherCheckbox.disabled = true
         otherCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
       })
@@ -304,16 +308,19 @@ export default class extends Controller {
   calculateMediaMultiplier() {
     const selected = document.querySelectorAll('input[name="media_types[]"]:checked')
     const allMediaSelected = document.querySelector('input[value="all_media"]:checked')
+    const allMovingSelected = document.querySelector('input[value="all_moving"]:checked')
     let multiplier = 1.0
     
     if (allMediaSelected) {
       multiplier = 1.0 // All Media = 100%
+    } else if (selected.length === 1 && allMovingSelected) {
+      multiplier = 0.75 // All Moving Media alone = 75%
     } else if (selected.length === 1) {
-      multiplier = 0.5 // One media = 50%
+      multiplier = 0.5 // One other media = 50%
     } else if (selected.length === 2) {
-      multiplier = 0.75 // Two media = 75%
+      multiplier = 0.75 // Two media (including All Moving Media + other) = 75%
     } else if (selected.length >= 3) {
-      multiplier = 1.0 // Three or more = 100%
+      multiplier = 1.0 // Three or more media = 100%
     } else {
       multiplier = 1.0 // No selection defaults to 100%
     }

@@ -33,6 +33,11 @@ class QuotationsController < ApplicationController
     end
 
     if @quotation.save
+      # Store media types from form
+      if params[:media_types].present?
+        @quotation.quotation_detail.update(selected_media_types: params[:media_types])
+      end
+      
       process_talent_categories
       process_territories
       
@@ -62,6 +67,11 @@ class QuotationsController < ApplicationController
 
   def update
     if @quotation.update(quotation_params)
+      # Store media types from form
+      if params[:media_types].present?
+        @quotation.quotation_detail.update(selected_media_types: params[:media_types])
+      end
+      
       # Process territories (still needed as it's not nested attributes)
       process_territories
 
@@ -148,7 +158,7 @@ class QuotationsController < ApplicationController
         :id, :shoot_days, :rehearsal_days, :travel_days, :down_days,
         :exclusivity_type, :exclusivity_level, :pharmaceutical,
         :duration, :media_type, :unlimited_stills, :unlimited_versions,
-        :overtime_hours
+        :overtime_hours, { selected_media_types: [] }
       ],
       talent_categories_attributes: [
         :id, :category_type, :initial_count, :daily_rate,
