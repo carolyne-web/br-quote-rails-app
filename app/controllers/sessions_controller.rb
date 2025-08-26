@@ -30,12 +30,18 @@ class SessionsController < ApplicationController
   def admin_create
     if params[:admin_password] == ENV["ADMIN_PASSWORD"]
       session[:admin_authenticated] = true
+      session[:show_admin_welcome] = true
       flash[:notice] = "Admin access granted"
       redirect_to admin_dashboard_path
     else
       flash.now[:alert] = "Invalid admin password"
       render :admin_new
     end
+  end
+
+  def admin_dismiss_welcome
+    session[:show_admin_welcome] = false
+    head :ok
   end
 
   def admin_destroy

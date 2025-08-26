@@ -1,0 +1,86 @@
+<div class="max-w-2xl mx-auto">
+  <div class="bg-white shadow rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+      <div class="flex items-center">
+        <div class="flex-shrink-0">
+          <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path>
+          </svg>
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">Contact Support</h3>
+          <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            Need help? Send us a message and we'll get back to you as soon as possible.
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+      <%= form_with model: @support_request, local: true do |form| %>
+        <% if @support_request.errors.any? %>
+          <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">Please correct the following errors:</h3>
+                <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
+                  <% @support_request.errors.full_messages.each do |message| %>
+                    <li><%= message %></li>
+                  <% end %>
+                </ul>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <div class="space-y-6">
+          <div>
+            <%= form.label :priority, "Priority Level", class: "block text-sm font-medium text-gray-700" %>
+            <%= form.select :priority, 
+                [
+                  ['Low - General inquiry', 0],
+                  ['Medium - Issue affecting work', 1], 
+                  ['High - Urgent issue', 2],
+                  ['Urgent - System down/critical', 3]
+                ], 
+                { selected: 1 },
+                { class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" } %>
+          </div>
+
+          <div>
+            <%= form.label :subject, "Subject", class: "block text-sm font-medium text-gray-700" %>
+            <%= form.text_field :subject, 
+                placeholder: "Brief description of your issue...",
+                class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+          </div>
+
+          <div>
+            <%= form.label :message, "Message", class: "block text-sm font-medium text-gray-700" %>
+            <%= form.text_area :message, 
+                rows: 6,
+                placeholder: "Please provide details about your issue, including any error messages, steps to reproduce, or other relevant information...",
+                class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <%= link_to quotations_path, 
+                class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" do %>
+              <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+              </svg>
+              Cancel
+            <% end %>
+            
+            <%= form.submit "Submit Support Request", 
+                class: "inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_25_203946) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_26_084559) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -113,6 +113,18 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_203946) do
     t.index ["key"], name: "index_settings_on_key", unique: true
   end
 
+  create_table "support_requests", force: :cascade do |t|
+    t.bigint "production_house_id", null: false
+    t.string "subject"
+    t.text "message"
+    t.integer "priority"
+    t.integer "status"
+    t.text "admin_response"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["production_house_id"], name: "index_support_requests_on_production_house_id"
+  end
+
   create_table "talent_categories", force: :cascade do |t|
     t.bigint "quotation_id", null: false
     t.integer "category_type", null: false
@@ -147,5 +159,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_203946) do
   add_foreign_key "quotation_territories", "quotations"
   add_foreign_key "quotation_territories", "territories"
   add_foreign_key "quotations", "production_houses"
+  add_foreign_key "support_requests", "production_houses"
   add_foreign_key "talent_categories", "quotations"
 end

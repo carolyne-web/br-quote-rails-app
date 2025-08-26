@@ -11,6 +11,7 @@ Rails.application.routes.draw do
   get "admin/login", to: "sessions#admin_new"
   post "admin/login", to: "sessions#admin_create"
   delete "admin/logout", to: "sessions#admin_destroy"
+  post "admin/dismiss_welcome", to: "sessions#admin_dismiss_welcome"
 
   # Admin Routes
   namespace :admin do
@@ -21,6 +22,11 @@ Rails.application.routes.draw do
     get "territories/update"
     get "territories/destroy"
     get "dashboard", to: "dashboard#index"
+    get "profile", to: "profile#show"
+    patch "profile/update_password", to: "profile#update_password"
+    patch "profile/update_email", to: "profile#update_email"
+    patch "profile/update_banking", to: "profile#update_banking"
+    resources :support_requests, only: [:index, :show, :update]
     resources :settings, only: [ :index, :edit, :update, :create, :destroy ] do
       collection do
         patch :bulk_update
@@ -32,7 +38,11 @@ Rails.application.routes.draw do
         patch :bulk_update
       end
     end
-    resources :quotations, only: [ :index, :show ]
+    resources :quotations, only: [ :index, :show ] do
+      member do
+        get :pdf
+      end
+    end
   end
 
   # Production House Routes (to be added in next steps)
@@ -45,6 +55,7 @@ Rails.application.routes.draw do
     resources :quotation_territories
     resources :quotation_adjustments
   end
+  resources :support_requests, only: [:create, :new]
 
   # API endpoints for dynamic forms (to be added)
   namespace :api do

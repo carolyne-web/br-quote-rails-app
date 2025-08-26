@@ -19,12 +19,35 @@ class Admin::SettingsController < ApplicationController
       all_talent_settings.find { |setting| setting.key == key } 
     }.compact
     
-    @duration_settings = Setting.where(category: "duration").order(:key)
+    # Order duration settings chronologically
+    duration_order = [
+      "duration_3_months",
+      "duration_6_months", 
+      "duration_12_months",
+      "duration_18_months",
+      "duration_24_months",
+      "duration_36_months"
+    ]
+    
+    all_duration_settings = Setting.where(category: "duration").to_a
+    @duration_settings = duration_order.map { |key| 
+      all_duration_settings.find { |setting| setting.key == key } 
+    }.compact
     @exclusivity_settings = Setting.where(category: "exclusivity").order(:key)
     @general_settings = Setting.where(category: "general").order(:key)
     
     # New settings categories for BR Quotation System
-    @media_settings = Setting.where(category: "media").order(:key)
+    # Order media settings chronologically 
+    media_order = [
+      "media_one_type",
+      "media_two_types",
+      "media_three_or_more"
+    ]
+    
+    all_media_settings = Setting.where(category: "media").to_a
+    @media_settings = media_order.map { |key| 
+      all_media_settings.find { |setting| setting.key == key } 
+    }.compact
     @product_type_settings = Setting.where(category: "product_type").order(:key)
     
     # Create default media settings if they don't exist
@@ -36,10 +59,18 @@ class Admin::SettingsController < ApplicationController
     # Create default duration multiplier settings if they don't exist
     create_default_duration_settings if @duration_settings.empty?
     
-    # Reload after creation
-    @media_settings = Setting.where(category: "media").order(:key)
+    # Reload after creation with chronological ordering
+    all_media_settings = Setting.where(category: "media").to_a
+    @media_settings = media_order.map { |key| 
+      all_media_settings.find { |setting| setting.key == key } 
+    }.compact
     @product_type_settings = Setting.where(category: "product_type").order(:key)
-    @duration_settings = Setting.where(category: "duration").order(:key)
+    
+    # Apply chronological ordering to reloaded duration settings as well
+    all_duration_settings = Setting.where(category: "duration").to_a
+    @duration_settings = duration_order.map { |key| 
+      all_duration_settings.find { |setting| setting.key == key } 
+    }.compact
   end
 
   def edit

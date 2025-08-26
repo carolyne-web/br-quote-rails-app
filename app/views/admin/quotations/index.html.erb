@@ -108,9 +108,9 @@
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <%= link_to "View", admin_quotation_path(quotation), 
                     class: "text-indigo-600 hover:text-indigo-900 mr-3" %>
-                <%= link_to "PDF", quotation_path(quotation, format: :pdf), 
+                <%= link_to "PDF", pdf_admin_quotation_path(quotation), 
                     class: "text-gray-600 hover:text-gray-900", 
-                    target: "_blank" if defined?(quotation_path) %>
+                    target: "_blank" %>
               </td>
             </tr>
           <% end %>

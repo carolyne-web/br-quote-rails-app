@@ -29,5 +29,17 @@ class Admin::QuotationsController < ApplicationController
     @quotation_detail = @quotation.quotation_detail
     @talent_categories = @quotation.talent_categories
     @territories = @quotation.quotation_territories.includes(:territory)
+    
+    # Calculate totals for the breakdown
+    @calculation = QuotationCalculator.new(@quotation).calculate
+  end
+
+  def pdf
+    @quotation = Quotation.find(params[:id])
+    pdf = QuotationPdf.new(@quotation)
+    send_data pdf.render,
+              filename: "quotation_#{@quotation.project_number}.pdf",
+              type: "application/pdf",
+              disposition: "inline"
   end
 end

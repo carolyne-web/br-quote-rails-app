@@ -40,15 +40,14 @@ class QuotationPdf
     move_down 10
     
     project_data = [
-      ["Project Name:", @quotation.project_name],
       ["Production House:", @quotation.production_house.name],
       ["Date:", @quotation.created_at.strftime('%B %d, %Y')],
       ["Status:", @quotation.status.capitalize]
     ]
     
-    # Add campaign name and product type if available
+    # Add campaign name (keep only this, remove project name duplication)
     if @quotation.campaign_name.present?
-      project_data.insert(1, ["Campaign Name:", @quotation.campaign_name])
+      project_data.insert(0, ["Campaign Name:", @quotation.campaign_name])
     end
     
     if @quotation.product_type.present?

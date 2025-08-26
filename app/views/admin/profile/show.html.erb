@@ -1,0 +1,130 @@
+<div class="max-w-4xl mx-auto">
+  <!-- Header -->
+  <div class="bg-white shadow rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">Admin Profile</h3>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500">Manage your admin account settings and preferences.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Password Change Section -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Change Password</h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">Update your admin password</p>
+      </div>
+      <div class="px-4 py-5 sm:px-6">
+        <%= form_with url: admin_profile_update_password_path, method: :patch, local: true do |form| %>
+          <div class="space-y-4">
+            <div>
+              <%= form.label :current_password, "Current Password", class: "block text-sm font-medium text-gray-700" %>
+              <%= form.password_field :current_password, required: true, 
+                  class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+            </div>
+            
+            <div>
+              <%= form.label :new_password, "New Password", class: "block text-sm font-medium text-gray-700" %>
+              <%= form.password_field :new_password, required: true, minlength: 6,
+                  class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+            </div>
+            
+            <div>
+              <%= form.label :confirm_password, "Confirm New Password", class: "block text-sm font-medium text-gray-700" %>
+              <%= form.password_field :confirm_password, required: true, minlength: 6,
+                  class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+            </div>
+            
+            <div>
+              <%= form.submit "Update Password", 
+                  class: "w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Email Settings -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Email Settings</h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">Update your email address for notifications</p>
+      </div>
+      <div class="px-4 py-5 sm:px-6">
+        <%= form_with url: admin_profile_update_email_path, method: :patch, local: true do |form| %>
+          <div class="space-y-4">
+            <div>
+              <%= form.label :email, "Email Address", class: "block text-sm font-medium text-gray-700" %>
+              <%= form.email_field :email, 
+                  value: session[:admin_email] || @admin_settings[:email],
+                  required: true,
+                  class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+            </div>
+            
+            <div>
+              <%= form.submit "Update Email", 
+                  class: "w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500" %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Banking Details Section -->
+  <div class="mt-6 bg-white shadow rounded-lg">
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">Banking Details</h3>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500">Update banking information for payments</p>
+    </div>
+    <div class="px-4 py-5 sm:px-6">
+      <%= form_with url: admin_profile_update_banking_path, method: :patch, local: true do |form| %>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <%= form.label "banking[bank_name]", "Bank Name", class: "block text-sm font-medium text-gray-700" %>
+            <%= form.text_field "banking[bank_name]", 
+                value: (session[:banking_details] && session[:banking_details]['bank_name']) || @admin_settings[:banking_details][:bank_name],
+                class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+          </div>
+          
+          <div>
+            <%= form.label "banking[account_number]", "Account Number", class: "block text-sm font-medium text-gray-700" %>
+            <%= form.text_field "banking[account_number]", 
+                value: (session[:banking_details] && session[:banking_details]['account_number']) || @admin_settings[:banking_details][:account_number],
+                class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+          </div>
+          
+          <div>
+            <%= form.label "banking[branch_code]", "Branch Code", class: "block text-sm font-medium text-gray-700" %>
+            <%= form.text_field "banking[branch_code]", 
+                value: (session[:banking_details] && session[:banking_details]['branch_code']) || @admin_settings[:banking_details][:branch_code],
+                class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+          </div>
+          
+          <div>
+            <%= form.label "banking[account_holder]", "Account Holder Name", class: "block text-sm font-medium text-gray-700" %>
+            <%= form.text_field "banking[account_holder]", 
+                value: (session[:banking_details] && session[:banking_details]['account_holder']) || @admin_settings[:banking_details][:account_holder],
+                class: "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" %>
+          </div>
+        </div>
+        
+        <div class="mt-6">
+          <%= form.submit "Update Banking Details", 
+              class: "w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Navigation Back -->
+  <div class="mt-6 text-center">
+    <%= link_to admin_dashboard_path, 
+        class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" do %>
+      <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+      </svg>
+      Back to Dashboard
+    <% end %>
+  </div>
+</div>

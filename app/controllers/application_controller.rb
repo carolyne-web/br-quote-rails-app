@@ -4,7 +4,7 @@ class ApplicationController < ActionController::Base
 
   protect_from_forgery with: :exception
 
-  helper_method :current_user, :logged_in?, :admin_logged_in?, :current_production_house
+  helper_method :current_user, :logged_in?, :admin_logged_in?, :current_production_house, :admin_notification_count
 
   def current_user
     @current_user ||= ProductionHouse.find(session[:production_house_id]) if session[:production_house_id]
@@ -37,5 +37,14 @@ class ApplicationController < ActionController::Base
       flash[:alert] = "Admin access required"
       redirect_to admin_login_path
     end
+  end
+
+  def admin_notification_count
+    return 0 unless admin_logged_in?
+    
+    new_quotations = Quotation.where('created_at > ?', 24.hours.ago).count
+    pending_quotations = Quotation.where(status: 'pending').count
+    
+    new_quotations + pending_quotations
   end
 end
