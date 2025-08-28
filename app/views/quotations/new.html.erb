@@ -1047,27 +1047,4 @@ function updateAdjustedRate(categoryId) {
   return adjustedRate;
 }
 
-// Handle night premium toggle
-document.querySelectorAll('.night-btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    const categoryId = this.dataset.category;
-    const isActive = this.dataset.active === 'true';
-    const hiddenField = document.querySelector(`[data-night-field="${categoryId}"]`);
-    
-    if (isActive) {
-      // Deactivate night premium
-      this.dataset.active = 'false';
-      this.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800');
-      hiddenField.value = 'false';
-    } else {
-      // Activate night premium
-      this.dataset.active = 'true';
-      this.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800');
-      hiddenField.value = 'true';
-    }
-    
-    updateCategoryTotal(categoryId);
-    updateQuotePreview();
-  });
-});
 </script>

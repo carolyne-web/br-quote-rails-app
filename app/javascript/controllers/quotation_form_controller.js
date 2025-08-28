@@ -55,9 +55,8 @@ export default class extends Controller {
           })
         }
         
-        // Night button listener
+        // Night button listener - simple toggle (no input field)
         const nightBtn = row.querySelector('.night-btn')
-        const nightsInput = row.querySelector('.nights-input')
         if (nightBtn) {
           nightBtn.addEventListener('click', () => {
             const isActive = nightBtn.dataset.active === 'true'
@@ -66,15 +65,9 @@ export default class extends Controller {
             if (nightBtn.dataset.active === 'true') {
               nightBtn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
               nightBtn.classList.remove('border-gray-300')
-              if (nightsInput) {
-                nightsInput.classList.remove('hidden')
-              }
             } else {
               nightBtn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
               nightBtn.classList.add('border-gray-300')
-              if (nightsInput) {
-                nightsInput.classList.add('hidden')
-              }
             }
             
             const hiddenField = row.querySelector('[name*="night_premium"]')
@@ -82,13 +75,6 @@ export default class extends Controller {
               hiddenField.value = nightBtn.dataset.active
             }
             
-            this.calculateCategoryTotal(categoryId)
-          })
-        }
-        
-        // Nights input listener
-        if (nightsInput) {
-          nightsInput.addEventListener('input', () => {
             this.calculateCategoryTotal(categoryId)
           })
         }
@@ -228,7 +214,7 @@ export default class extends Controller {
       }
       
       // Handle night button toggle for additional lines
-      if (e.target.closest('.night-btn') && e.target.dataset.line !== undefined) {
+      if (e.target.closest('.night-btn') && e.target.closest('.night-btn').dataset.line !== undefined) {
         const btn = e.target.closest('.night-btn')
         const categoryId = btn.dataset.category
         const lineIndex = btn.dataset.line
@@ -319,13 +305,10 @@ export default class extends Controller {
         
         <!-- Night Button -->
         <div class="flex flex-col items-center">
-          <button type="button" class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium mb-1"
+          <button type="button" class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
                   data-active="false" data-category="${categoryId}" data-line="${lineIndex}">
             + Night
           </button>
-          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][night_count]" min="1" value="1"
-                 class="nights-input w-full px-1 py-1 text-xs border border-gray-300 rounded text-center hidden"
-                 data-category="${categoryId}" data-line="${lineIndex}" placeholder="Nights">
           <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][night_premium]" value="false"
                  class="night-premium" data-category="${categoryId}" data-line="${lineIndex}">
         </div>
@@ -377,9 +360,8 @@ export default class extends Controller {
       })
     }
     
-    // Night button for additional lines
+    // Night button for additional lines - simple toggle (no input field)
     const nightBtn = lineRow.querySelector('.night-btn')
-    const nightsInput = lineRow.querySelector('.nights-input')
     if (nightBtn) {
       nightBtn.addEventListener('click', () => {
         const isActive = nightBtn.dataset.active === 'true'
@@ -388,15 +370,9 @@ export default class extends Controller {
         if (nightBtn.dataset.active === 'true') {
           nightBtn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
           nightBtn.classList.remove('border-gray-300')
-          if (nightsInput) {
-            nightsInput.classList.remove('hidden')
-          }
         } else {
           nightBtn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
           nightBtn.classList.add('border-gray-300')
-          if (nightsInput) {
-            nightsInput.classList.add('hidden')
-          }
         }
         
         const hiddenField = lineRow.querySelector('.night-premium')
@@ -589,10 +565,9 @@ export default class extends Controller {
     const travelDays = parseInt(lineRow.querySelector('[name*="travel_days"], .travel-days')?.value) || 0
     const overtimeHours = parseFloat(lineRow.querySelector('[name*="overtime_hours"], .overtime-hours')?.value) || 0
     
-    // Check if night is active and get nights count
+    // Check if night is active (simple toggle, no input count needed)
     const nightBtn = lineRow.querySelector('.night-btn')
     const isNightActive = nightBtn && nightBtn.dataset.active === 'true'
-    const nightsCount = parseInt(lineRow.querySelector('[name*="night_count"], .nights-input')?.value) || 1
     
     let lineTotal = 0
     
@@ -611,14 +586,14 @@ export default class extends Controller {
     // Overtime at 10% rate per hour
     lineTotal += talentCount * adjustedRate * 0.1 * overtimeHours
     
-    // Night calculation: rate × talent × (nights - 1) + (rate × 1.5)
-    if (isNightActive && nightsCount > 0) {
-      const nightCost = (adjustedRate * talentCount * (nightsCount - 1)) + (adjustedRate * 1.5)
+    // Night calculation: 1 × rate × talent × 1.5 (applies to first shoot day only)
+    if (isNightActive) {
+      const nightCost = 1 * adjustedRate * talentCount * 0.5
       lineTotal += nightCost
-      console.log(`Night calculation: ${adjustedRate} × ${talentCount} × (${nightsCount} - 1) + (${adjustedRate} × 1.5) = ${nightCost}`)
+      console.log(`Night calculation: 1 × ${adjustedRate} × ${talentCount} × 1.5 = ${nightCost}`)
     }
     
-    console.log(`Line total: Talent=${talentCount}, Rate=${adjustedRate}, Shoot=${shootDays}, Rehearsal=${rehearsalDays}, Down=${downDays}, Travel=${travelDays}, Overtime=${overtimeHours}, Night=${isNightActive ? nightsCount : 'off'}, Total=${lineTotal}`)
+    console.log(`Line total: Talent=${talentCount}, Rate=${adjustedRate}, Shoot=${shootDays}, Rehearsal=${rehearsalDays}, Down=${downDays}, Travel=${travelDays}, Overtime=${overtimeHours}, Night=${isNightActive ? 'on' : 'off'}, Total=${lineTotal}`)
     
     return lineTotal
   }
