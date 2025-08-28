@@ -5,10 +5,12 @@ export default class extends Controller {
   static targets = ["territorySearch", "territoryList", "durationWarning", "mediaMultiplier"]
 
   connect() {
+    console.log('Quotation form controller connected')
     this.setupTalentButtons()
     this.setupMediaTypeLogic()
     this.watchDurationWarning()
     this.setupManualAdjustments()
+    this.setupMainRowEventListeners()
     
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
@@ -17,6 +19,77 @@ export default class extends Controller {
     // Store base rates for each category
     this.baseRates = {}
     this.loadBaseRates()
+  }
+
+  setupMainRowEventListeners() {
+    // Add event listeners to the main input rows (not additional lines)
+    document.querySelectorAll('.talent-input-row').forEach(row => {
+      const categoryId = this.getCategoryIdFromRow(row)
+      if (categoryId) {
+        // Add input event listeners
+        row.querySelectorAll('input[type="number"]').forEach(input => {
+          input.addEventListener('input', () => {
+            console.log('Input changed, calculating total for category:', categoryId)
+            this.calculateCategoryTotal(categoryId)
+          })
+        })
+        
+        // Add rate adjustment button listeners
+        const minusBtn = row.querySelector('.rate-minus-btn')
+        const plusBtn = row.querySelector('.rate-plus-btn')
+        const rateInput = row.querySelector('[name*="rate_adjustment"]')
+        
+        if (minusBtn && rateInput) {
+          minusBtn.addEventListener('click', () => {
+            const currentValue = parseInt(rateInput.value) || 0
+            rateInput.value = currentValue - 100
+            this.calculateCategoryTotal(categoryId)
+          })
+        }
+        
+        if (plusBtn && rateInput) {
+          plusBtn.addEventListener('click', () => {
+            const currentValue = parseInt(rateInput.value) || 0
+            rateInput.value = currentValue + 100
+            this.calculateCategoryTotal(categoryId)
+          })
+        }
+        
+        // Night button listener
+        const nightBtn = row.querySelector('.night-btn')
+        if (nightBtn) {
+          nightBtn.addEventListener('click', () => {
+            const isActive = nightBtn.dataset.active === 'true'
+            nightBtn.dataset.active = isActive ? 'false' : 'true'
+            
+            if (nightBtn.dataset.active === 'true') {
+              nightBtn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+              nightBtn.classList.remove('border-gray-300')
+            } else {
+              nightBtn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+              nightBtn.classList.add('border-gray-300')
+            }
+            
+            const hiddenField = row.querySelector('[name*="night_premium"]')
+            if (hiddenField) {
+              hiddenField.value = nightBtn.dataset.active
+            }
+            
+            this.calculateCategoryTotal(categoryId)
+          })
+        }
+      }
+    })
+  }
+
+  getCategoryIdFromRow(row) {
+    // Try to find category ID from various data attributes or input names
+    const inputWithName = row.querySelector('input[name*="talent["]')
+    if (inputWithName) {
+      const match = inputWithName.name.match(/talent\[(\d+)\]/)
+      return match ? match[1] : null
+    }
+    return null
   }
 
   loadBaseRates() {
@@ -82,7 +155,173 @@ export default class extends Controller {
         const categoryId = btn.dataset.category
         this.addCombination(categoryId)
       }
+      
+      // Setup + Line button functionality
+      if (e.target.closest('.add-line-btn')) {
+        const btn = e.target.closest('.add-line-btn')
+        const categoryId = btn.dataset.category
+        this.addTalentLine(categoryId)
+      }
+      
+      // Setup Remove Line button functionality
+      if (e.target.closest('.remove-line-btn')) {
+        const btn = e.target.closest('.remove-line-btn')
+        const lineRow = btn.closest('.talent-input-row')
+        const categoryId = btn.dataset.category
+        if (lineRow) {
+          lineRow.remove()
+          if (categoryId) {
+            this.calculateCategoryTotal(categoryId)
+          }
+        }
+      }
+      
+      // Handle night button toggle for additional lines
+      if (e.target.closest('.night-btn') && e.target.dataset.line !== undefined) {
+        const btn = e.target.closest('.night-btn')
+        const categoryId = btn.dataset.category
+        const lineIndex = btn.dataset.line
+        const isActive = btn.dataset.active === 'true'
+        
+        if (isActive) {
+          btn.dataset.active = 'false'
+          btn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+          btn.classList.add('border-gray-300', 'hover:bg-yellow-50')
+        } else {
+          btn.dataset.active = 'true'
+          btn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+          btn.classList.remove('border-gray-300', 'hover:bg-yellow-50')
+        }
+        
+        const hiddenField = btn.parentElement.querySelector('.night-premium')
+        if (hiddenField) {
+          hiddenField.value = btn.dataset.active
+        }
+        
+        this.calculateCategoryTotal(categoryId)
+      }
     })
+  }
+
+  addTalentLine(categoryId) {
+    const additionalLinesContainer = document.querySelector(`[data-category="${categoryId}"].additional-lines`)
+    if (!additionalLinesContainer) {
+      console.error(`Could not find additional lines container for category ${categoryId}`)
+      return
+    }
+    
+    const lineIndex = additionalLinesContainer.children.length
+    const lineHtml = `
+      <div class="talent-input-row grid grid-cols-9 gap-2 mb-2" data-line-index="${lineIndex}">
+        <!-- Talent Count -->
+        <div>
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][talent_count]" min="0" max="99" value="0"
+                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center talent-count"
+                 data-category="${categoryId}" data-line="${lineIndex}">
+        </div>
+        
+        <!-- Rate Adjustment -->
+        <div class="flex items-center gap-1 justify-center">
+          <button type="button" class="rate-minus-btn px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-sm font-bold"
+                  data-category="${categoryId}" data-line="${lineIndex}">-</button>
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][rate_adjustment]" value="0"
+                 class="w-16 px-1 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-center rate-adjustment"
+                 data-category="${categoryId}" data-line="${lineIndex}">
+          <button type="button" class="rate-plus-btn px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-sm font-bold"
+                  data-category="${categoryId}" data-line="${lineIndex}">+</button>
+        </div>
+        
+        <!-- Shoot Days -->
+        <div>
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][shoot_days]" min="1" value="1"
+                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center shoot-days"
+                 data-category="${categoryId}" data-line="${lineIndex}">
+        </div>
+        
+        <!-- Rehearsal Days -->
+        <div>
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][rehearsal_days]" min="0" value="0"
+                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center rehearsal-days"
+                 data-category="${categoryId}" data-line="${lineIndex}">
+        </div>
+        
+        <!-- Down Days -->
+        <div>
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][down_days]" min="0" value="0"
+                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center down-days"
+                 data-category="${categoryId}" data-line="${lineIndex}">
+        </div>
+        
+        <!-- Travel Days -->
+        <div>
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][travel_days]" min="0" value="0"
+                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center travel-days"
+                 data-category="${categoryId}" data-line="${lineIndex}">
+        </div>
+        
+        <!-- Overtime Hours -->
+        <div>
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][overtime_hours]" min="0" step="0.5" value="0"
+                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center overtime-hours"
+                 data-category="${categoryId}" data-line="${lineIndex}">
+        </div>
+        
+        <!-- Night Button -->
+        <div>
+          <button type="button" class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
+                  data-active="false" data-category="${categoryId}" data-line="${lineIndex}">
+            + Night
+          </button>
+          <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][night_premium]" value="false"
+                 class="night-premium" data-category="${categoryId}" data-line="${lineIndex}">
+        </div>
+        
+        <!-- Remove Line Button -->
+        <div>
+          <button type="button" class="remove-line-btn w-full text-xs text-red-600 font-medium"
+                  data-category="${categoryId}" data-line="${lineIndex}">
+            -
+          </button>
+        </div>
+      </div>
+    `
+    
+    additionalLinesContainer.insertAdjacentHTML('beforeend', lineHtml)
+    this.setupLineEventListeners(categoryId, lineIndex)
+    this.calculateCategoryTotal(categoryId)
+  }
+
+  setupLineEventListeners(categoryId, lineIndex) {
+    const lineRow = document.querySelector(`[data-line-index="${lineIndex}"]`)
+    if (!lineRow) return
+    
+    // Add event listeners to all inputs in this line
+    lineRow.querySelectorAll('input').forEach(input => {
+      input.addEventListener('input', () => {
+        this.calculateCategoryTotal(categoryId)
+      })
+    })
+    
+    // Rate adjustment buttons
+    const decreaseBtn = lineRow.querySelector('.rate-minus-btn')
+    const increaseBtn = lineRow.querySelector('.rate-plus-btn')
+    const rateInput = lineRow.querySelector('.rate-adjustment')
+    
+    if (decreaseBtn) {
+      decreaseBtn.addEventListener('click', () => {
+        const currentValue = parseInt(rateInput.value) || 0
+        rateInput.value = currentValue - 100
+        this.calculateCategoryTotal(categoryId)
+      })
+    }
+    
+    if (increaseBtn) {
+      increaseBtn.addEventListener('click', () => {
+        const currentValue = parseInt(rateInput.value) || 0
+        rateInput.value = currentValue + 100
+        this.calculateCategoryTotal(categoryId)
+      })
+    }
   }
 
   addCombination(categoryId) {
@@ -208,51 +447,97 @@ export default class extends Controller {
   }
 
   calculateCategoryTotal(categoryId) {
+    console.log('Calculating total for category:', categoryId)
     const section = document.getElementById(`talent-category-${categoryId}`)
+    if (!section) {
+      console.log('Section not found for category:', categoryId)
+      return
+    }
+    
+    const baseRate = this.baseRates[categoryId] || 5000
+    console.log('Base rate for category', categoryId, ':', baseRate)
     let categoryTotal = 0
     
-    // Sum all combinations
-    section.querySelectorAll('.combination-total').forEach(totalEl => {
-      const value = totalEl.textContent.replace(/[R,]/g, '')
-      categoryTotal += parseInt(value) || 0
+    // Calculate first row (main row)
+    const firstRow = section.querySelector('.talent-input-row')
+    if (firstRow) {
+      const lineTotal = this.calculateLineTotal(firstRow, baseRate)
+      console.log('First row total:', lineTotal)
+      categoryTotal += lineTotal
+    }
+    
+    // Calculate additional lines
+    const additionalLines = section.querySelectorAll('.additional-lines .talent-input-row')
+    additionalLines.forEach((line, index) => {
+      const lineTotal = this.calculateLineTotal(line, baseRate)
+      console.log(`Additional line ${index} total:`, lineTotal)
+      categoryTotal += lineTotal
     })
     
-    // Add standby costs
-    const standbyInputs = section.querySelectorAll('[data-standby-input]')
-    let standbyDays = 0
-    standbyInputs.forEach(input => {
-      standbyDays += parseInt(input.value) || 0
-    })
+    console.log('Category total:', categoryTotal)
     
-    // Calculate average rate for standby calculation
-    const combinations = section.querySelectorAll('.combination-row')
-    let totalTalent = 0
-    let weightedRate = 0
-    
-    combinations.forEach(combo => {
-      const rate = parseInt(combo.querySelector('.rate-input').value) || 0
-      const count = parseInt(combo.querySelector('.talent-count').value) || 0
-      totalTalent += count
-      weightedRate += (rate * count)
-    })
-    
-    const avgRate = totalTalent > 0 ? weightedRate / totalTalent : 0
-    const standbyCost = totalTalent * avgRate * standbyDays * 0.5
-    
-    // Add overtime costs
-    const overtimeInput = section.querySelector('[data-overtime-input]')
-    const overtimeHours = parseFloat(overtimeInput?.value) || 0
-    const overtimeCost = totalTalent * (avgRate * 0.1) * overtimeHours
-    
-    // Update displays
-    section.querySelector(`#standby-cost-${categoryId}`).textContent = `R${this.formatNumber(standbyCost)}`
-    section.querySelector(`#overtime-cost-${categoryId}`).textContent = `R${this.formatNumber(overtimeCost)}`
-    section.querySelector(`#category-total-${categoryId}`).textContent = `R${this.formatNumber(categoryTotal + standbyCost + overtimeCost)}`
+    // Update display
+    const totalDisplay = section.querySelector(`#category-total-${categoryId}`)
+    if (totalDisplay) {
+      totalDisplay.textContent = `R${this.formatNumber(categoryTotal)}`
+      console.log('Updated display with:', `R${this.formatNumber(categoryTotal)}`)
+    } else {
+      console.log('Total display element not found')
+    }
     
     // Trigger global quote preview update
     if (typeof updateQuotePreview === 'function') {
       updateQuotePreview()
     }
+  }
+
+  calculateLineTotal(lineRow, baseRate) {
+    // Get values from the row
+    const talentCount = parseInt(lineRow.querySelector('[name*="talent_count"], .talent-count')?.value) || 0
+    const rateAdjustment = parseInt(lineRow.querySelector('[name*="rate_adjustment"], .rate-adjustment')?.value) || 0
+    const shootDays = parseInt(lineRow.querySelector('[name*="days_count"], [name*="shoot_days"], .shoot-days')?.value) || 0
+    const rehearsalDays = parseInt(lineRow.querySelector('[name*="rehearsal_days"], .rehearsal-days')?.value) || 0
+    const downDays = parseInt(lineRow.querySelector('[name*="down_days"], .down-days')?.value) || 0
+    const travelDays = parseInt(lineRow.querySelector('[name*="travel_days"], .travel-days')?.value) || 0
+    const overtimeHours = parseFloat(lineRow.querySelector('[name*="overtime_hours"], .overtime-hours')?.value) || 0
+    
+    // Check if night premium is active
+    const nightBtn = lineRow.querySelector('.night-btn')
+    const nightPremium = nightBtn && nightBtn.dataset.active === 'true' ? 0.25 : 0
+    
+    // Calculate adjusted rate
+    const adjustedRate = baseRate + rateAdjustment
+    
+    // Apply your formula:
+    // (talent × adjustedRate × shootDays) + 
+    // (talent × adjustedRate × 0.5 × rehearsalDays) + 
+    // (talent × adjustedRate × downDays) + 
+    // (talent × adjustedRate × 0.5 × travelDays) + 
+    // (talent × adjustedRate × 0.1 × overtimeHours)
+    
+    let lineTotal = 0
+    
+    // Base shoot days cost
+    lineTotal += talentCount * adjustedRate * shootDays
+    
+    // Rehearsal at 50% rate
+    lineTotal += talentCount * adjustedRate * 0.5 * rehearsalDays
+    
+    // Down days at full rate  
+    lineTotal += talentCount * adjustedRate * 0.5 * downDays
+    
+    // Travel days at 50% rate
+    lineTotal += talentCount * adjustedRate * 0.5 * travelDays
+    
+    // Overtime at 10% rate per hour
+    lineTotal += talentCount * adjustedRate * 0.1 * overtimeHours
+    
+    // Apply night premium (25% to the total)
+    if (nightPremium > 0) {
+      lineTotal = lineTotal * (1 + nightPremium)
+    }
+    
+    return lineTotal
   }
 
   removeCombination(categoryId, index) {

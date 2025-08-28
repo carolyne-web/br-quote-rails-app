@@ -4,7 +4,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  // font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   background-color: #f8f9fa;
   min-height: 100vh;
 }
@@ -31,6 +31,7 @@
 }
 
 .system-title {
+  font-family: "Clash Grotesk", sans-serif;
   font-size: 18px;
   font-weight: 600;
   color: #111827;
@@ -73,6 +74,7 @@
   margin-bottom: 20px;
   
   h3 {
+    font-family: "Clash Grotesk", sans-serif;
     font-weight: 600;
     margin: 0 0 8px 0;
     font-size: 14px;
@@ -100,6 +102,7 @@
 }
 
 .section-title {
+  font-family: "Clash Grotesk", sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: #111827;
@@ -152,6 +155,7 @@
 }
 
 .form-label {
+  font-family: "Clash Grotesk", sans-serif;
   font-size: 11px;
   font-weight: 500;
   color: #374151;
@@ -161,6 +165,7 @@
 }
 
 .form-label-small {
+  font-family: "Clash Grotesk", sans-serif;
   font-size: 10px;
   font-weight: 500;
   color: #6b7280;
@@ -253,6 +258,7 @@
 }
 
 .category-name {
+  font-family: "Clash Grotesk", sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: #111827;
@@ -305,6 +311,7 @@
 }
 
 .days-title {
+  font-family: "Clash Grotesk", sans-serif;
   font-size: 11px;
   font-weight: 500;
   color: #374151;
@@ -403,6 +410,7 @@
 }
 
 .subsection-title {
+  font-family: "Clash Grotesk", sans-serif;
   font-size: 11px;
   font-weight: 500;
   color: #374151;
@@ -499,6 +507,7 @@
 }
 
 .summary-title {
+  font-family: "Clash Grotesk", sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: #111827;
@@ -515,6 +524,7 @@
 }
 
 .amount {
+  font-family: "Clash Grotesk", sans-serif;
   font-size: 24px;
   font-weight: 700;
   color: #111827;

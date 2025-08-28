@@ -8,3 +8,74 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+/* Night button active state */
+.night-btn[data-active="true"] {
+  background-color: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.night-line-btn[data-active="true"] {
+  background-color: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+/* Keep 9-column layout on all screen sizes */
+.talent-input-grid .grid-cols-9 {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+}
+
+/* Responsive adjustments for very small screens only */
+@media (max-width: 480px) {
+  .talent-input-grid .grid-cols-9 {
+    grid-template-columns: repeat(9, minmax(60px, 1fr));
+    font-size: 0.75rem;
+  }
+  
+  .talent-input-grid input {
+    padding: 0.25rem;
+    font-size: 0.75rem;
+  }
+  
+  .talent-input-grid button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.625rem;
+  }
+}
+
+/* Rate adjustment button styling */
+.rate-plus-btn:hover {
+  background-color: #dcfce7;
+}
+
+.rate-minus-btn:hover {
+  background-color: #fecaca;
+}
+
+/* Talent category button selected state */
+.talent-btn.border-blue-500 {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+}
+
+/* Additional lines styling */
+.additional-lines .talent-line {
+  border-left: 3px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.additional-lines .talent-line:hover {
+  background-color: #f3f4f6;
+}
+
+/* Compact input styling for additional lines */
+.talent-line input[type="number"] {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.talent-line button {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}

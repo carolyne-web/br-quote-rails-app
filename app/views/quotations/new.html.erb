@@ -90,81 +90,155 @@
         </div>
         
         <!-- Selected Talent Categories -->
-        <div class="selected-talent-categories">
-          <% TalentCategory::TYPES.each do |type_id, type_name| %>
-            <div class="talent-category-section hidden mb-6 p-6 bg-gray-50 rounded-lg border-l-4 border-blue-500" id="talent-category-<%= type_id %>">
-              <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center">
-                  <span class="text-2xl mr-3"><%= TalentCategory.new(category_type: type_id).icon %></span>
-                  <div>
-                    <h4 class="font-bold text-xl text-gray-900"><%= type_name %></h4>
-                    <div class="text-sm text-gray-600">
-                      Default Rate: R<%= number_with_delimiter(TalentCategory.new(category_type: type_id).default_daily_rate) %>
-                    </div>
-                  </div>
-                </div>
-                <button type="button" class="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors" onclick="removeTalentCategory(<%= type_id %>)">
-                  Remove Category
-                </button>
-              </div>
-              
-              <!-- Talent Combinations -->
-              <div class="talent-combinations mb-6" id="talent-combinations-<%= type_id %>">
-                <h5 class="text-sm font-semibold text-gray-700 mb-3">Talent Combinations</h5>
-                <div class="combinations-list" data-category="<%= type_id %>">
-                  <!-- Combinations will be added here -->
-                </div>
-                <button type="button" class="mt-3 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors add-combination-btn flex items-center gap-1" data-category="<%= type_id %>">
-                  <span class="text-lg leading-none">+</span>
-                  <span>Add Line</span>
-                </button>
-              </div>
-              
-              <!-- Standby Days Section -->
-              <div class="standby-section mb-6 p-4 bg-white rounded-lg border">
-                <h5 class="text-sm font-semibold text-gray-700 mb-3">Standby Days (50% of day rate)</h5>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Rehearsal Days</label>
-                    <%= number_field_tag "talent[#{type_id}][rehearsal_days]", 0, min: 0, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { standby_input: type_id } %>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Down Days</label>
-                    <%= number_field_tag "talent[#{type_id}][down_days]", 0, min: 0, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { standby_input: type_id } %>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Travel Days</label>
-                    <%= number_field_tag "talent[#{type_id}][travel_days]", 0, min: 0, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { standby_input: type_id } %>
-                  </div>
-                </div>
-                <div class="mt-3 text-sm text-gray-600">
-                  Standby Rate: <span class="font-medium" id="standby-cost-<%= type_id %>">R0</span>
-                </div>
-              </div>
-              
-              <!-- Overtime Section -->
-              <div class="overtime-section p-4 bg-white rounded-lg border">
-                <h5 class="text-sm font-semibold text-gray-700 mb-3">Overtime (10% of day rate per hour)</h5>
-                <div>
-                  <label class="block text-sm font-medium text-gray-600 mb-1">Overtime Hours</label>
-                  <%= number_field_tag "talent[#{type_id}][overtime_hours]", 0, min: 0, step: 0.5, class: "w-full md:w-48 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500", data: { overtime_input: type_id } %>
-                </div>
-                <div class="mt-3 text-sm text-gray-600">
-                  Overtime Rate: <span class="font-medium" id="overtime-cost-<%= type_id %>">R0</span>
-                </div>
-              </div>
-              
-              <!-- Category Total -->
-              <div class="mt-6 p-4 bg-blue-50 rounded-lg">
-                <div class="flex justify-between items-center">
-                  <span class="font-semibold text-gray-900">Category Total:</span>
-                  <span class="text-lg font-bold text-blue-600" id="category-total-<%= type_id %>">R0</span>
-                </div>
+
+  
+  <!-- Selected Talent Categories -->
+  <div class="selected-talent-categories">
+    <% TalentCategory::TYPES.each do |type_id, type_name| %>
+      <div class="talent-category-section hidden mb-8 p-6 bg-gray-50 rounded-lg border-l-4 border-blue-500" id="talent-category-<%= type_id %>">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center">
+            <span class="text-2xl mr-3"><%= TalentCategory.new(category_type: type_id).icon %></span>
+            <div>
+              <h4 class="font-bold text-xl text-gray-900"><%= type_name %></h4>
+              <div class="text-sm text-gray-600">
+                Default Rate: R<%= number_with_delimiter(TalentCategory.new(category_type: type_id).default_daily_rate) %>
               </div>
             </div>
-          <% end %>
+          </div>
+          <button type="button" class="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors" onclick="removeTalentCategory(<%= type_id %>)">
+            Remove Category
+          </button>
         </div>
-      </section>
+        
+        <!-- Horizontal Input Layout -->
+        <div class="talent-input-grid mb-6">
+          <!-- Column Headers -->
+          <div class="grid grid-cols-9 gap-2 mb-3">
+            <div class="text-xs font-semibold text-gray-700 text-center">Talent</div>
+            <div class="text-xs font-semibold text-gray-700 text-center">Rate +/-</div>
+            <div class="text-xs font-semibold text-gray-700 text-center">Shoot Days</div>
+            <div class="text-xs font-semibold text-gray-700 text-center">Rehearsal</div>
+            <div class="text-xs font-semibold text-gray-700 text-center">Down Days</div>
+            <div class="text-xs font-semibold text-gray-700 text-center">Travel Days</div>
+            <div class="text-xs font-semibold text-gray-700 text-center">Overtime</div>
+            <div class="text-xs font-semibold text-gray-700 text-center">Night</div>
+            <div class="text-xs font-semibold text-gray-700 text-center"></div>
+          </div>
+          
+          <!-- First Input Row -->
+          <div class="talent-input-row grid grid-cols-9 gap-2 mb-2">
+            <!-- Talent Count -->
+            <div>
+              <%= number_field_tag "talent[#{type_id}][talent_count]", 0, 
+                  min: 0, max: 99,
+                  class: "w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center",
+                  data: { talent_input: type_id } %>
+            </div>
+
+              <!-- Rate Adjustment -->
+            <div class="flex items-center gap-1 justify-center">
+              <button type="button" class="rate-minus-btn px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-sm font-bold"
+                      data-category="<%= type_id %>" title="Decrease rate by R100">-</button>
+              <%= number_field_tag "talent[#{type_id}][rate_adjustment]", 0,
+                  class: "w-16 px-1 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-center",
+                  data: { rate_adjustment_input: type_id },
+                  title: "Rate adjustment amount" %>
+              <button type="button" class="rate-plus-btn px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-sm font-bold"
+                      data-category="<%= type_id %>" title="Increase rate by R100">+</button>
+            </div>
+            
+            <!-- Days Count -->
+            <div>
+              <%= number_field_tag "talent[#{type_id}][days_count]", 1, 
+                  min: 1,
+                  class: "w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center",
+                  data: { days_input: type_id } %>
+            </div>
+            
+            <!-- Rehearsal Days (50% rate) -->
+            <div>
+              <%= number_field_tag "talent[#{type_id}][rehearsal_days]", 0, 
+                  min: 0,
+                  class: "w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center",
+                  data: { rehearsal_input: type_id },
+                  title: "50% of day rate" %>
+            </div>
+            
+            <!-- Down Days (50% rate) -->
+            <div>
+              <%= number_field_tag "talent[#{type_id}][down_days]", 0, 
+                  min: 0,
+                  class: "w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center",
+                  data: { down_input: type_id },
+                  title: "50% of day rate" %>
+            </div>
+            
+            <!-- Travel Days (50% rate) -->
+            <div>
+              <%= number_field_tag "talent[#{type_id}][travel_days]", 0, 
+                  min: 0,
+                  class: "w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center",
+                  data: { travel_input: type_id },
+                  title: "50% of day rate" %>
+            </div>
+            
+            <!-- Overtime Hours (10% per hour) -->
+            <div>
+              <%= number_field_tag "talent[#{type_id}][overtime_hours]", 0, 
+                  min: 0, step: 0.5,
+                  class: "w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center",
+                  data: { overtime_input: type_id },
+                  title: "10% of day rate per hour" %>
+            </div>
+            
+            <!-- Night Button -->
+            <div>
+              <button type="button" 
+                      class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
+                      data-category="<%= type_id %>"
+                      data-active="false"
+                      title="25% premium for night shoots">
+                + Night
+              </button>
+              <%= hidden_field_tag "talent[#{type_id}][night_premium]", "false", data: { night_field: type_id } %>
+            </div>
+            
+            <!-- Action Button - Add Line -->
+            <div>
+              <button type="button" 
+                      class="add-line-btn w-full text-xs text-blue-600 rounded-lg font-medium"
+                      data-category="<%= type_id %>"
+                      title="Add another talent line">
+                +
+              </button>
+            </div>
+          </div>
+          
+          <!-- Additional Lines Container -->
+          <div class="additional-lines" data-category="<%= type_id %>">
+            <!-- Additional talent lines will be added here -->
+          </div>
+        </div>
+        <!-- Category Total Display -->
+        <div class="category-total p-4 bg-blue-50 rounded-lg">
+          <div class="flex justify-between items-center">
+            <span class="font-semibold text-gray-900">Category Total:</span>
+            <span class="text-lg font-bold text-blue-600" id="category-total-<%= type_id %>">R0</span>
+          </div>
+          <div class="text-xs text-gray-600 mt-1">
+            <div id="category-breakdown-<%= type_id %>">Base + Standby + Overtime + Night</div>
+            <div class="flex justify-between mt-1">
+              <span>Rate: R<%= number_with_delimiter(TalentCategory.new(category_type: type_id).default_daily_rate) %></span>
+              <span id="adjusted-rate-<%= type_id %>">+R0 = R<%= number_with_delimiter(TalentCategory.new(category_type: type_id).default_daily_rate) %></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</section>
+
 
 
       <!-- Territories -->
@@ -893,4 +967,92 @@ function previewQuote() {
   // Or redirect to preview page
   // window.open('/quotations/preview?' + new URLSearchParams(formData).toString(), '_blank');
 }
+
+// Handle talent category selection
+document.querySelectorAll('.talent-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const categoryId = this.dataset.category;
+    const section = document.getElementById(`talent-category-${categoryId}`);
+    
+    if (this.classList.contains('border-blue-500')) {
+      // Remove category
+      section.classList.add('hidden');
+      this.classList.remove('border-blue-500', 'bg-blue-50');
+      this.classList.add('border-gray-300');
+    } else {
+      // Add category
+      section.classList.remove('hidden');
+      this.classList.add('border-blue-500', 'bg-blue-50');
+      this.classList.remove('border-gray-300');
+    }
+    
+    updateQuotePreview();
+  });
+});
+
+// Handle rate adjustment plus/minus buttons
+document.querySelectorAll('.rate-plus-btn, .rate-minus-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const categoryId = this.dataset.category;
+    const adjustmentInput = document.querySelector(`[data-rate-adjustment-input="${categoryId}"]`);
+    const currentValue = parseInt(adjustmentInput.value) || 0;
+    const isPlus = this.classList.contains('rate-plus-btn');
+    const increment = 100; // R100 increments
+    
+    const newValue = isPlus ? currentValue + increment : currentValue - increment;
+    adjustmentInput.value = newValue;
+    
+    updateAdjustedRate(categoryId);
+    updateCategoryTotal(categoryId);
+    updateQuotePreview();
+  });
+});
+
+function updateAdjustedRate(categoryId) {
+  const baseRates = {
+    1: <%= Setting.find_by(key: 'lead_base_rate')&.typed_value || 0 %>,
+    2: <%= Setting.find_by(key: 'second_lead_base_rate')&.typed_value || 0 %>,
+    3: <%= Setting.find_by(key: 'featured_extra_base_rate')&.typed_value || 0 %>,
+    4: <%= Setting.find_by(key: 'teenager_base_rate')&.typed_value || 0 %>,
+    5: <%= Setting.find_by(key: 'kid_base_rate')&.typed_value || 0 %>,
+    6: <%= Setting.find_by(key: 'walk_on_base_rate')&.typed_value || 0 %>
+  };
+  
+  const adjustmentInput = document.querySelector(`[data-rate-adjustment-input="${categoryId}"]`);
+  const adjustment = parseInt(adjustmentInput.value) || 0;
+  const baseRate = baseRates[categoryId] || 0;
+  const adjustedRate = baseRate + adjustment;
+  
+  const adjustedRateElement = document.getElementById(`adjusted-rate-${categoryId}`);
+  if (adjustedRateElement) {
+    const adjustmentText = adjustment >= 0 ? `+R${adjustment}` : `-R${Math.abs(adjustment)}`;
+    adjustedRateElement.textContent = `${adjustmentText} = R${adjustedRate.toLocaleString()}`;
+  }
+  
+  return adjustedRate;
+}
+
+// Handle night premium toggle
+document.querySelectorAll('.night-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const categoryId = this.dataset.category;
+    const isActive = this.dataset.active === 'true';
+    const hiddenField = document.querySelector(`[data-night-field="${categoryId}"]`);
+    
+    if (isActive) {
+      // Deactivate night premium
+      this.dataset.active = 'false';
+      this.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800');
+      hiddenField.value = 'false';
+    } else {
+      // Activate night premium
+      this.dataset.active = 'true';
+      this.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800');
+      hiddenField.value = 'true';
+    }
+    
+    updateCategoryTotal(categoryId);
+    updateQuotePreview();
+  });
+});
 </script>

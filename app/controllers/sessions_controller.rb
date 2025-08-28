@@ -31,7 +31,7 @@ class SessionsController < ApplicationController
     if params[:admin_password] == ENV["ADMIN_PASSWORD"]
       session[:admin_authenticated] = true
       session[:show_admin_welcome] = true
-      flash[:notice] = "Admin access granted"
+      flash[:notice] = "Welcome back, Admin!"
       redirect_to admin_dashboard_path
     else
       flash.now[:alert] = "Invalid admin password"
