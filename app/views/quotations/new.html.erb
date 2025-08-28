@@ -2,7 +2,7 @@
 <div class="min-h-screen bg-gray-50 flex" data-controller="quotation-form">
   <%= form_with model: @quotation, local: true, class: "w-full flex" do |f| %>
     <!-- Sidebar -->
-    <aside class="w-64 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between">
+    <aside class="w-64 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between shadow rounded-2xl">
       <div class="flex-1 overflow-y-auto">
         <h2 class="text-lg font-semibold mb-4">Quote Sections</h2>
         <ul class="space-y-2 text-sm text-gray-700">
@@ -20,7 +20,7 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 p-6 space-y-6">
+    <main class="flex-1 space-y-4 px-4">
       
       <!-- Error Messages -->
       <% if @quotation.errors.any? %>
@@ -35,7 +35,7 @@
       <% end %>
       
       <!-- Project Information -->
-      <section id="project-info" class="bg-white shadow rounded-2xl p-6">
+      <section id="project-info" class="bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Campaign Information</h3>
           <span class="text-sm text-gray-400">Step 1 of 6</span>
@@ -71,7 +71,7 @@
       </section>
 
       <!-- Talent Categories -->
-      <section id="talent-categories" class="bg-white shadow rounded-2xl p-6">
+      <section id="talent-categories" class="bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Select Talent Categories</h3>
           <span class="text-sm text-gray-400">Step 2 of 6</span>
@@ -90,10 +90,7 @@
         </div>
         
         <!-- Selected Talent Categories -->
-
-  
-  <!-- Selected Talent Categories -->
-  <div class="selected-talent-categories">
+    <div class="selected-talent-categories">
     <% TalentCategory::TYPES.each do |type_id, type_name| %>
       <div class="talent-category-section hidden mb-8 p-6 bg-gray-50 rounded-lg border-l-4 border-blue-500" id="talent-category-<%= type_id %>">
         <div class="flex items-center justify-between mb-6">
@@ -101,9 +98,7 @@
             <span class="text-2xl mr-3"><%= TalentCategory.new(category_type: type_id).icon %></span>
             <div>
               <h4 class="font-bold text-xl text-gray-900"><%= type_name %></h4>
-              <div class="text-sm text-gray-600">
-                Default Rate: R<%= number_with_delimiter(TalentCategory.new(category_type: type_id).default_daily_rate) %>
-              </div>
+              
             </div>
           </div>
           <button type="button" class="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors" onclick="removeTalentCategory(<%= type_id %>)">
@@ -140,10 +135,11 @@
             <div class="flex items-center gap-1 justify-center">
               <button type="button" class="rate-minus-btn px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-sm font-bold"
                       data-category="<%= type_id %>" title="Decrease rate by R100">-</button>
-              <%= number_field_tag "talent[#{type_id}][rate_adjustment]", 0,
-                  class: "w-16 px-1 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-center",
-                  data: { rate_adjustment_input: type_id },
-                  title: "Rate adjustment amount" %>
+              <%= number_field_tag "talent[#{type_id}][adjusted_rate]", 
+                      TalentCategory.new(category_type: type_id).default_daily_rate,
+                  class: "w-20 px-1 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-center",
+                  data: { adjusted_rate_input: type_id },
+                  title: "Full adjusted rate" %>
               <button type="button" class="rate-plus-btn px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-sm font-bold"
                       data-category="<%= type_id %>" title="Increase rate by R100">+</button>
             </div>
@@ -193,14 +189,21 @@
             </div>
             
             <!-- Night Button -->
-            <div>
+            <div class="flex flex-col items-center">
               <button type="button" 
-                      class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
+                      class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium mb-1"
                       data-category="<%= type_id %>"
                       data-active="false"
-                      title="25% premium for night shoots">
+                      title="Night shoot calculation">
                 + Night
               </button>
+              <input type="number" 
+                     name="talent[<%= type_id %>][night_count]" 
+                     min="1" 
+                     value="1" 
+                     class="nights-input w-full px-1 py-1 text-xs border border-gray-300 rounded text-center hidden"
+                     data-category="<%= type_id %>"
+                     placeholder="Nights">
               <%= hidden_field_tag "talent[#{type_id}][night_premium]", "false", data: { night_field: type_id } %>
             </div>
             
@@ -226,23 +229,35 @@
             <span class="font-semibold text-gray-900">Category Total:</span>
             <span class="text-lg font-bold text-blue-600" id="category-total-<%= type_id %>">R0</span>
           </div>
-          <div class="text-xs text-gray-600 mt-1">
-            <div id="category-breakdown-<%= type_id %>">Base + Standby + Overtime + Night</div>
-            <div class="flex justify-between mt-1">
-              <span>Rate: R<%= number_with_delimiter(TalentCategory.new(category_type: type_id).default_daily_rate) %></span>
-              <span id="adjusted-rate-<%= type_id %>">+R0 = R<%= number_with_delimiter(TalentCategory.new(category_type: type_id).default_daily_rate) %></span>
-            </div>
-          </div>
+          
         </div>
       </div>
     <% end %>
+  </div>
+  
+  <!-- Talent Category Totals -->
+  <div id="category-totals" class="mt-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+    <h4 class="text-lg font-semibold mb-3 text-gray-800">Category Summary</h4>
+    <div id="category-totals-list" class="space-y-2">
+      <!-- Category totals will be populated by JavaScript -->
+    </div>
+    <div class="border-t border-blue-200 mt-4 pt-4">
+      <div class="flex justify-between items-center">
+        <span class="font-semibold text-gray-800">Total (without days):</span>
+        <span class="text-xl font-bold text-blue-600" id="talent-base-total">R0</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="font-semibold text-gray-800">Total (before territories & licensing):</span>
+        <span class="text-xl font-bold text-blue-600" id="talent-grand-total">R0</span>
+      </div>
+    </div>
   </div>
 </section>
 
 
 
       <!-- Territories -->
-      <section id="territories" class="bg-white shadow rounded-2xl p-6">
+      <section id="territories" class="bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Territories</h3>
           <span class="text-sm text-gray-400">Step 3 of 5</span>
@@ -290,7 +305,7 @@
       <%= fields_for :quotation_detail, @quotation.quotation_detail || @quotation.build_quotation_detail do |detail_fields| %>
         <!-- Hidden field to maintain form compatibility -->
         <%= detail_fields.hidden_field :shoot_days, value: 1 %>
-        <section id="licensing" class="bg-white shadow rounded-2xl p-6">
+        <section id="licensing" class="bg-white shadow rounded-2xl p-4">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold">Usage & Licensing</h3>
             <span class="text-sm text-gray-400">Step 4 of 5</span>
@@ -378,7 +393,7 @@
       <% end %>
 
       <!-- Guarantee & Manual Adjustments -->
-      <section id="guarantee" class="bg-white shadow rounded-2xl p-6">
+      <section id="guarantee" class="bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Guarantee & Manual Adjustments</h3>
           <span class="text-sm text-gray-400">Step 5 of 5</span>
@@ -410,7 +425,7 @@
       </section>
 
       <!-- Quote Preview -->
-      <section class="bg-white shadow rounded-2xl p-6">
+      <section class="bg-white shadow rounded-2xl p-4">
         <h3 class="text-lg font-semibold mb-4">Quote Preview</h3>
         
         <div class="bg-gray-50 rounded-lg p-4 mb-6">
@@ -494,7 +509,7 @@
       </section>
 
       <!-- Form Actions -->
-      <div class="bg-white rounded-2xl p-6 shadow">
+      <div class="bg-white rounded-2xl p-4 shadow">
         <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3 sm:justify-end">
           <%= link_to "Cancel", quotations_path, 
               class: "px-6 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition text-center" %>

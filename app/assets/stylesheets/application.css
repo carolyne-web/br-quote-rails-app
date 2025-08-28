@@ -44,6 +44,17 @@
   }
 }
 
+/* Hide number input arrows for rate inputs */
+input[name*="adjusted_rate"]::-webkit-outer-spin-button,
+input[name*="adjusted_rate"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[name*="adjusted_rate"] {
+  -moz-appearance: textfield;
+}
+
 /* Rate adjustment button styling */
 .rate-plus-btn:hover {
   background-color: #dcfce7;

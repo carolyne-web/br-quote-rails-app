@@ -37,12 +37,12 @@ export default class extends Controller {
         // Add rate adjustment button listeners
         const minusBtn = row.querySelector('.rate-minus-btn')
         const plusBtn = row.querySelector('.rate-plus-btn')
-        const rateInput = row.querySelector('[name*="rate_adjustment"]')
+        const rateInput = row.querySelector('[name*="adjusted_rate"]')
         
         if (minusBtn && rateInput) {
           minusBtn.addEventListener('click', () => {
             const currentValue = parseInt(rateInput.value) || 0
-            rateInput.value = currentValue - 100
+            rateInput.value = Math.max(0, currentValue - 500)
             this.calculateCategoryTotal(categoryId)
           })
         }
@@ -50,13 +50,14 @@ export default class extends Controller {
         if (plusBtn && rateInput) {
           plusBtn.addEventListener('click', () => {
             const currentValue = parseInt(rateInput.value) || 0
-            rateInput.value = currentValue + 100
+            rateInput.value = currentValue + 500
             this.calculateCategoryTotal(categoryId)
           })
         }
         
         // Night button listener
         const nightBtn = row.querySelector('.night-btn')
+        const nightsInput = row.querySelector('.nights-input')
         if (nightBtn) {
           nightBtn.addEventListener('click', () => {
             const isActive = nightBtn.dataset.active === 'true'
@@ -65,9 +66,15 @@ export default class extends Controller {
             if (nightBtn.dataset.active === 'true') {
               nightBtn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
               nightBtn.classList.remove('border-gray-300')
+              if (nightsInput) {
+                nightsInput.classList.remove('hidden')
+              }
             } else {
               nightBtn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
               nightBtn.classList.add('border-gray-300')
+              if (nightsInput) {
+                nightsInput.classList.add('hidden')
+              }
             }
             
             const hiddenField = row.querySelector('[name*="night_premium"]')
@@ -75,6 +82,13 @@ export default class extends Controller {
               hiddenField.value = nightBtn.dataset.active
             }
             
+            this.calculateCategoryTotal(categoryId)
+          })
+        }
+        
+        // Nights input listener
+        if (nightsInput) {
+          nightsInput.addEventListener('input', () => {
             this.calculateCategoryTotal(categoryId)
           })
         }
@@ -93,13 +107,19 @@ export default class extends Controller {
   }
 
   loadBaseRates() {
-    // Load base rates from the DOM for each category
-    document.querySelectorAll('[id^="talent-category-"]').forEach(section => {
-      const categoryId = section.id.replace('talent-category-', '')
-      const defaultRateText = section.querySelector('.text-gray-600').textContent
-      const match = defaultRateText.match(/R([\d,]+)/)
-      if (match) {
-        this.baseRates[categoryId] = parseInt(match[1].replace(/,/g, ''))
+    // Load base rates directly from the form input values (which are set from Rails Settings)
+    document.querySelectorAll('[data-adjusted-rate-input]').forEach(input => {
+      const categoryId = input.dataset.adjustedRateInput
+      const baseRate = parseInt(input.value) || 0
+      if (baseRate > 0) {
+        this.baseRates[categoryId] = baseRate
+      }
+    })
+    
+    // Fallback to default 5000 if no base rate is found
+    Object.keys(this.baseRates).forEach(categoryId => {
+      if (!this.baseRates[categoryId] || this.baseRates[categoryId] === 0) {
+        this.baseRates[categoryId] = 5000
       }
     })
   }
@@ -121,19 +141,50 @@ export default class extends Controller {
             clickedBtn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500')
             clickedBtn.classList.add('border-gray-300', 'hover:bg-blue-50')
             
-            // Clear combinations when deactivating
+            // Clear combinations when deactivating but preserve main form inputs
             const combinationsList = categorySection.querySelector('.combinations-list')
             if (combinationsList) {
               combinationsList.innerHTML = ''
             }
+            
+            // Reset main rate input to base rate (don't leave it at 0)
+            const mainRateInput = categorySection.querySelector('[data-adjusted-rate-input]')
+            if (mainRateInput && mainRateInput.value === '0') {
+              const baseRate = this.baseRates[categoryId] || 5000
+              mainRateInput.value = baseRate
+            }
             this.calculateCategoryTotal(categoryId)
           } else {
-            // Activate tab - show section and update button
+            // First, deactivate all other tabs (but preserve their data)
+            document.querySelectorAll('.talent-btn').forEach(otherBtn => {
+              const otherCategoryId = otherBtn.dataset.category
+              const otherCategorySection = document.getElementById(`talent-category-${otherCategoryId}`)
+              
+              if (otherCategoryId !== categoryId) {
+                // Hide other category sections (but keep their data)
+                if (otherCategorySection) {
+                  otherCategorySection.classList.add('hidden')
+                }
+                
+                // Reset other button appearances
+                otherBtn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500')
+                otherBtn.classList.add('border-gray-300', 'hover:bg-blue-50')
+              }
+            })
+            
+            // Activate clicked tab - show section and update button
             categorySection.classList.remove('hidden')
             
             // Update button appearance to active tab style
             clickedBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500')
             clickedBtn.classList.remove('border-gray-300', 'hover:bg-blue-50')
+            
+            // Ensure rate input has base rate if it's 0 or empty
+            const mainRateInput = categorySection.querySelector('[data-adjusted-rate-input]')
+            if (mainRateInput && (!mainRateInput.value || mainRateInput.value === '0')) {
+              const baseRate = this.baseRates[categoryId] || 5000
+              mainRateInput.value = baseRate
+            }
             
             // Add first combination if none exist
             const combinationsList = categorySection.querySelector('.combinations-list')
@@ -224,8 +275,8 @@ export default class extends Controller {
         <div class="flex items-center gap-1 justify-center">
           <button type="button" class="rate-minus-btn px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-sm font-bold"
                   data-category="${categoryId}" data-line="${lineIndex}">-</button>
-          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][rate_adjustment]" value="0"
-                 class="w-16 px-1 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-center rate-adjustment"
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][adjusted_rate]" value="${this.baseRates[categoryId] || 5000}"
+                 class="w-20 px-1 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-center rate-adjustment"
                  data-category="${categoryId}" data-line="${lineIndex}">
           <button type="button" class="rate-plus-btn px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-sm font-bold"
                   data-category="${categoryId}" data-line="${lineIndex}">+</button>
@@ -267,11 +318,14 @@ export default class extends Controller {
         </div>
         
         <!-- Night Button -->
-        <div>
-          <button type="button" class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
+        <div class="flex flex-col items-center">
+          <button type="button" class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium mb-1"
                   data-active="false" data-category="${categoryId}" data-line="${lineIndex}">
             + Night
           </button>
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][night_count]" min="1" value="1"
+                 class="nights-input w-full px-1 py-1 text-xs border border-gray-300 rounded text-center hidden"
+                 data-category="${categoryId}" data-line="${lineIndex}" placeholder="Nights">
           <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][night_premium]" value="false"
                  class="night-premium" data-category="${categoryId}" data-line="${lineIndex}">
         </div>
@@ -310,7 +364,7 @@ export default class extends Controller {
     if (decreaseBtn) {
       decreaseBtn.addEventListener('click', () => {
         const currentValue = parseInt(rateInput.value) || 0
-        rateInput.value = currentValue - 100
+        rateInput.value = Math.max(0, currentValue - 500)
         this.calculateCategoryTotal(categoryId)
       })
     }
@@ -318,7 +372,38 @@ export default class extends Controller {
     if (increaseBtn) {
       increaseBtn.addEventListener('click', () => {
         const currentValue = parseInt(rateInput.value) || 0
-        rateInput.value = currentValue + 100
+        rateInput.value = currentValue + 500
+        this.calculateCategoryTotal(categoryId)
+      })
+    }
+    
+    // Night button for additional lines
+    const nightBtn = lineRow.querySelector('.night-btn')
+    const nightsInput = lineRow.querySelector('.nights-input')
+    if (nightBtn) {
+      nightBtn.addEventListener('click', () => {
+        const isActive = nightBtn.dataset.active === 'true'
+        nightBtn.dataset.active = isActive ? 'false' : 'true'
+        
+        if (nightBtn.dataset.active === 'true') {
+          nightBtn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+          nightBtn.classList.remove('border-gray-300')
+          if (nightsInput) {
+            nightsInput.classList.remove('hidden')
+          }
+        } else {
+          nightBtn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+          nightBtn.classList.add('border-gray-300')
+          if (nightsInput) {
+            nightsInput.classList.add('hidden')
+          }
+        }
+        
+        const hiddenField = lineRow.querySelector('.night-premium')
+        if (hiddenField) {
+          hiddenField.value = nightBtn.dataset.active
+        }
+        
         this.calculateCategoryTotal(categoryId)
       })
     }
@@ -485,6 +570,9 @@ export default class extends Controller {
       console.log('Total display element not found')
     }
     
+    // Update category totals display
+    this.updateCategoryTotalsDisplay()
+    
     // Trigger global quote preview update
     if (typeof updateQuotePreview === 'function') {
       updateQuotePreview()
@@ -494,26 +582,17 @@ export default class extends Controller {
   calculateLineTotal(lineRow, baseRate) {
     // Get values from the row
     const talentCount = parseInt(lineRow.querySelector('[name*="talent_count"], .talent-count')?.value) || 0
-    const rateAdjustment = parseInt(lineRow.querySelector('[name*="rate_adjustment"], .rate-adjustment')?.value) || 0
+    const adjustedRate = parseInt(lineRow.querySelector('[name*="adjusted_rate"], .rate-adjustment')?.value) || baseRate
     const shootDays = parseInt(lineRow.querySelector('[name*="days_count"], [name*="shoot_days"], .shoot-days')?.value) || 0
     const rehearsalDays = parseInt(lineRow.querySelector('[name*="rehearsal_days"], .rehearsal-days')?.value) || 0
     const downDays = parseInt(lineRow.querySelector('[name*="down_days"], .down-days')?.value) || 0
     const travelDays = parseInt(lineRow.querySelector('[name*="travel_days"], .travel-days')?.value) || 0
     const overtimeHours = parseFloat(lineRow.querySelector('[name*="overtime_hours"], .overtime-hours')?.value) || 0
     
-    // Check if night premium is active
+    // Check if night is active and get nights count
     const nightBtn = lineRow.querySelector('.night-btn')
-    const nightPremium = nightBtn && nightBtn.dataset.active === 'true' ? 0.25 : 0
-    
-    // Calculate adjusted rate
-    const adjustedRate = baseRate + rateAdjustment
-    
-    // Apply your formula:
-    // (talent × adjustedRate × shootDays) + 
-    // (talent × adjustedRate × 0.5 × rehearsalDays) + 
-    // (talent × adjustedRate × downDays) + 
-    // (talent × adjustedRate × 0.5 × travelDays) + 
-    // (talent × adjustedRate × 0.1 × overtimeHours)
+    const isNightActive = nightBtn && nightBtn.dataset.active === 'true'
+    const nightsCount = parseInt(lineRow.querySelector('[name*="night_count"], .nights-input')?.value) || 1
     
     let lineTotal = 0
     
@@ -523,7 +602,7 @@ export default class extends Controller {
     // Rehearsal at 50% rate
     lineTotal += talentCount * adjustedRate * 0.5 * rehearsalDays
     
-    // Down days at full rate  
+    // Down days at 50% rate  
     lineTotal += talentCount * adjustedRate * 0.5 * downDays
     
     // Travel days at 50% rate
@@ -532,10 +611,14 @@ export default class extends Controller {
     // Overtime at 10% rate per hour
     lineTotal += talentCount * adjustedRate * 0.1 * overtimeHours
     
-    // Apply night premium (25% to the total)
-    if (nightPremium > 0) {
-      lineTotal = lineTotal * (1 + nightPremium)
+    // Night calculation: rate × talent × (nights - 1) + (rate × 1.5)
+    if (isNightActive && nightsCount > 0) {
+      const nightCost = (adjustedRate * talentCount * (nightsCount - 1)) + (adjustedRate * 1.5)
+      lineTotal += nightCost
+      console.log(`Night calculation: ${adjustedRate} × ${talentCount} × (${nightsCount} - 1) + (${adjustedRate} × 1.5) = ${nightCost}`)
     }
+    
+    console.log(`Line total: Talent=${talentCount}, Rate=${adjustedRate}, Shoot=${shootDays}, Rehearsal=${rehearsalDays}, Down=${downDays}, Travel=${travelDays}, Overtime=${overtimeHours}, Night=${isNightActive ? nightsCount : 'off'}, Total=${lineTotal}`)
     
     return lineTotal
   }
@@ -709,6 +792,83 @@ export default class extends Controller {
   // Utility method to format numbers with commas
   formatNumber(number) {
     return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  }
+
+  updateCategoryTotalsDisplay() {
+    const categoryTotalsList = document.getElementById('category-totals-list')
+    const talentBaseTotal = document.getElementById('talent-base-total')
+    const talentGrandTotal = document.getElementById('talent-grand-total')
+    
+    if (!categoryTotalsList || !talentBaseTotal || !talentGrandTotal) return
+    
+    let totalAmount = 0
+    let baseTotalAmount = 0
+    let categoryTotalsHtml = ''
+    
+    // Get all talent buttons to find available categories
+    document.querySelectorAll('.talent-btn').forEach(btn => {
+      const categoryId = btn.dataset.category
+      const categoryName = btn.textContent.trim()
+      const categorySection = document.getElementById(`talent-category-${categoryId}`)
+      const categoryTotalDisplay = document.getElementById(`category-total-${categoryId}`)
+      
+      if (categorySection && categoryTotalDisplay) {
+        const totalText = categoryTotalDisplay.textContent || 'R0'
+        const totalValue = parseInt(totalText.replace(/[R,]/g, '')) || 0
+        
+        if (totalValue > 0) {
+          // Get talent count for this category
+          let talentCount = 0
+          
+          // Count talent from first row
+          const firstRow = categorySection.querySelector('.talent-input-row')
+          if (firstRow) {
+            talentCount += parseInt(firstRow.querySelector('[name*="talent_count"], .talent-count')?.value) || 0
+          }
+          
+          // Count talent from additional lines
+          const additionalLines = categorySection.querySelectorAll('[data-line-index] .talent-count')
+          additionalLines.forEach(input => {
+            talentCount += parseInt(input.value) || 0
+          })
+          
+          if (talentCount > 0) {
+            // Get the actual adjusted rate from the form inputs
+            let adjustedRate = this.baseRates[categoryId] || 5000
+            
+            // Check first row for adjusted rate
+            const firstRow = categorySection.querySelector('.talent-input-row')
+            if (firstRow) {
+              const rateInput = firstRow.querySelector('[name*="adjusted_rate"], .rate-adjustment')
+              if (rateInput && rateInput.value) {
+                adjustedRate = parseInt(rateInput.value) || adjustedRate
+              }
+            }
+            
+            // Calculate base total (just rate × talent, no days)
+            const baseCategoryTotal = adjustedRate * talentCount
+            baseTotalAmount += baseCategoryTotal
+            
+            categoryTotalsHtml += `
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-700">${categoryName}: ${talentCount} × R${this.formatNumber(adjustedRate)}</span>
+                <span class="font-semibold text-gray-800">R${this.formatNumber(totalValue)}</span>
+              </div>
+            `
+          }
+          
+          totalAmount += totalValue
+        }
+      }
+    })
+    
+    if (categoryTotalsHtml === '') {
+      categoryTotalsHtml = '<div class="text-gray-500 italic text-sm">No talent selected</div>'
+    }
+    
+    categoryTotalsList.innerHTML = categoryTotalsHtml
+    talentBaseTotal.textContent = `R${this.formatNumber(baseTotalAmount)}`
+    talentGrandTotal.textContent = `R${this.formatNumber(totalAmount)}`
   }
 
   searchTerritories(event) {
