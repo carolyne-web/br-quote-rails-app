@@ -716,6 +716,7 @@ export default class extends Controller {
     
     let totalAmount = 0
     let baseTotalAmount = 0
+    let extrasBaseAmount = 0
     let categoryTotalsHtml = ''
     
     // Get all talent buttons to find available categories
@@ -762,11 +763,24 @@ export default class extends Controller {
             const baseCategoryTotal = adjustedRate * talentCount
             baseTotalAmount += baseCategoryTotal
             
+            // Track extras base amount separately
+            if (categoryName.toLowerCase().trim().includes('extras')) {
+              extrasBaseAmount += baseCategoryTotal
+            }
+            
             categoryTotalsHtml += `
               <div class="flex justify-between items-center text-sm">
-                <span class="text-gray-700">${categoryName}: ${talentCount} × R${this.formatNumber(adjustedRate)}</span>
+                <span class="text-gray-700">${talentCount} ${categoryName} @ R${this.formatNumber(adjustedRate)}</span>
+                <span> R${baseCategoryTotal}</span>
                 <span class="font-semibold text-gray-800">R${this.formatNumber(totalValue)}</span>
               </div>
+
+               ${categoryName.toLowerCase() !== 'extras' ? `
+                <div class="flex justify-between items-center text-xs text-gray-500">
+                  <span>Base (excl. extras)</span>
+                  <span>R${this.formatNumber(baseCategoryTotal)}</span>
+                </div>
+              ` : ''}
             `
           }
           
@@ -779,7 +793,26 @@ export default class extends Controller {
       categoryTotalsHtml = '<div class="text-gray-500 italic text-sm">No talent selected</div>'
     }
     
+    // Calculate base total excluding extras (subtract extras from total base)
+    const baseTotalAmountExcludingExtras = baseTotalAmount - extrasBaseAmount
+    
+    // Add base total excluding extras if there is a base total
+    if (baseTotalAmount > 0) {
+      categoryTotalsHtml += `
+        <div class="border-t pt-2 mt-2">
+          <div class="flex justify-between items-center text-sm font-medium text-blue-600">
+            <span>Base Total (without days & excl. extras)</span>
+            <span>R${this.formatNumber(baseTotalAmountExcludingExtras)}</span>
+          </div>
+        </div>
+      `
+    }
+    
+    // Store the value excluding extras for reuse
+    this.baseTotalExcludingExtras = baseTotalAmountExcludingExtras
+    
     categoryTotalsList.innerHTML = categoryTotalsHtml
+
     talentBaseTotal.textContent = `R${this.formatNumber(baseTotalAmount)}`
     talentGrandTotal.textContent = `R${this.formatNumber(totalAmount)}`
   }
