@@ -561,20 +561,14 @@ export default class extends Controller {
 
     mediaCheckboxes.forEach(checkbox => {
       checkbox.addEventListener('change', () => {
-      export default class extends Controller {
+        // If "All Media" is selected, disable all others and auto-check them
+        if (checkbox.value === 'all_media' && checkbox.checked) {
+          document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
+            otherCheckbox.checked = true
+            otherCheckbox.disabled = true
             otherCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
           })
         }
-
-    // If "All Media" is unchecked, enable all others and uncheck everything
-        else if (checkbox.value === 'all_media' && !checkbox.checked) {
-          document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
-            otherCheckbox.checked = false
-            otherCheckbox.disabled = false
-            otherCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-          })
-        }
-        
         // If "All Media" is unchecked, enable all others and uncheck everything
         else if (checkbox.value === 'all_media' && !checkbox.checked) {
           document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
@@ -837,7 +831,6 @@ export default class extends Controller {
     const isShortDuration = ['3_months', '6_months', '12_months'].includes(duration)
     
     const allMediaCheckbox = document.querySelector('input[value="all_media"]')
-    const worldwideCheckbox = this.getWorldwideTerritory()
     
     if (isShortDuration) {
       // Store current selections before forcing changes
@@ -850,13 +843,16 @@ export default class extends Controller {
         allMediaCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
       }
       
-      // Force Worldwide territory selection
+      // Force Worldwide territory selection in Combo 1 (1200%)
+      const worldwideCheckbox = this.getWorldwideTerritoryForCombo(1)
       if (worldwideCheckbox && !worldwideCheckbox.checked) {
-        // Uncheck all other territories first
-        document.querySelectorAll('.territory-checkbox:checked').forEach(checkbox => {
+        // Uncheck all other territories in Combo 1 first
+        document.querySelectorAll('.combination-territory-checkbox[data-combo="1"]:checked').forEach(checkbox => {
           checkbox.checked = false
         })
         worldwideCheckbox.checked = true
+        // Update territory tags for combo 1
+        this.updateTerritoryTagsForCombo(1)
       }
       
       // Disable All Media and Worldwide checkboxes to prevent unchecking
@@ -869,22 +865,33 @@ export default class extends Controller {
         worldwideCheckbox.closest('label').classList.add('opacity-75')
       }
     } else {
-      // Re-enable All Media and Worldwide checkboxes
+      // Re-enable All Media checkbox
       if (allMediaCheckbox) {
         allMediaCheckbox.disabled = false
         allMediaCheckbox.closest('label').classList.remove('opacity-75')
       }
+      
+      // Re-enable Worldwide checkbox in Combo 1
+      const worldwideCheckbox = this.getWorldwideTerritoryForCombo(1)
       if (worldwideCheckbox) {
         worldwideCheckbox.disabled = false
         worldwideCheckbox.closest('label').classList.remove('opacity-75')
       }
       
-      // Restore previous selections
-      this.restorePreviousSelections()
+      // Dynamically unselect All Media when switching to >12 months
+      if (allMediaCheckbox && allMediaCheckbox.checked) {
+        allMediaCheckbox.checked = false
+        // Trigger the media logic to re-enable other options
+        allMediaCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+      
+      // Don't restore previous selections - let user choose fresh
     }
     
-    // Update territory tags display
-    this.updateTerritoryTags()
+    // Update quote preview
+    if (typeof updateQuotePreview === 'function') {
+      updateQuotePreview()
+    }
   }
 
   storePreviousSelections() {
@@ -945,6 +952,38 @@ export default class extends Controller {
       const nameElement = label?.querySelector('.font-medium')
       return nameElement?.textContent.trim() === 'Worldwide'
     })
+  }
+
+  getWorldwideTerritoryForCombo(comboId) {
+    // Find the Worldwide territory checkbox for a specific combination
+    const territories = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]`)
+    return Array.from(territories).find(checkbox => {
+      const label = checkbox.closest('label')
+      const nameElement = label?.querySelector('.font-medium')
+      return nameElement?.textContent.trim() === 'Worldwide'
+    })
+  }
+
+  updateTerritoryTagsForCombo(comboId) {
+    // Update territory tags for a specific combination
+    const checkedTerritories = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
+    const territoryNames = Array.from(checkedTerritories).map(checkbox => {
+      return checkbox.getAttribute('data-territory-name')
+    }).filter(name => name)
+
+    const tagsContainer = document.querySelector(`.selected-territory-tags[data-combo="${comboId}"]`)
+    if (tagsContainer) {
+      if (territoryNames.length > 0) {
+        tagsContainer.innerHTML = territoryNames.map(name => 
+          `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            ${name}
+            <button type="button" class="ml-1 text-blue-600 hover:text-blue-800" onclick="removeTerritory('${name}', ${comboId})">×</button>
+          </span>`
+        ).join('')
+      } else {
+        tagsContainer.innerHTML = ''
+      }
+    }
   }
 
   updateTerritoryTags() {

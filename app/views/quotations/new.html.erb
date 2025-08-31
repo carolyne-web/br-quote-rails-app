@@ -612,19 +612,10 @@ document.addEventListener('DOMContentLoaded', function() {
     newTab.setAttribute('data-combo', newComboId);
     newTab.textContent = `Combo ${newComboId}`;
     
-    // Add remove button to new tab (except combo 1)
-    const tabWrapper = document.createElement('div');
-    tabWrapper.className = 'flex items-center space-x-1';
-    tabWrapper.appendChild(newTab);
+    // Add remove button directly to the tab
+    newTab.innerHTML = `Combo ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700" onclick="event.stopPropagation(); removeCombination(${newComboId});">×</span>`;
     
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'text-red-500 hover:text-red-700 text-sm px-1';
-    removeBtn.innerHTML = '×';
-    removeBtn.onclick = function() { removeCombination(newComboId); };
-    tabWrapper.appendChild(removeBtn);
-    
-    tabsContainer.appendChild(tabWrapper);
+    tabsContainer.appendChild(newTab);
     
     // Add new content
     const contentContainer = document.getElementById('combinations-content');
@@ -639,26 +630,32 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   function removeCombination(comboId) {
-    if (comboId === 1) return; // Cannot remove combo 1
+    if (comboId == 1) return; // Cannot remove combo 1
     
     // Remove tab
-    const tab = document.querySelector(`[data-combo="${comboId}"].combination-tab`);
+    const tab = document.querySelector(`button[data-combo="${comboId}"]`);
     if (tab) {
-      tab.parentElement.remove();
+      tab.remove();
     }
     
     // Remove content
-    const content = document.querySelector(`[data-combo="${comboId}"].combination-content`);
+    const content = document.querySelector(`div[data-combo="${comboId}"].combination-content`);
     if (content) {
       content.remove();
     }
     
-    // Switch to combo 1
-    switchToCombination(1);
+    // Switch to combo 1 if the removed combo was active
+    const activeTab = document.querySelector('.combination-tab.border-blue-500');
+    if (!activeTab) {
+      switchToCombination(1);
+    }
     
     // Update quote preview
     updateQuotePreview();
   }
+  
+  // Make removeCombination available globally
+  window.removeCombination = removeCombination;
   
   function createCombinationContent(comboId) {
     const content = document.createElement('div');
@@ -1397,6 +1394,136 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
+  // Handle talent category selection
+  document.querySelectorAll('.talent-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const categoryId = this.dataset.category;
+      const section = document.getElementById(`talent-category-${categoryId}`);
+      
+      if (this.classList.contains('border-blue-500')) {
+        // Remove category
+        section.classList.add('hidden');
+        this.classList.remove('border-blue-500', 'bg-blue-50');
+        this.classList.add('border-gray-300');
+      } else {
+        // Add category
+        section.classList.remove('hidden');
+        this.classList.add('border-blue-500', 'bg-blue-50');
+        this.classList.remove('border-gray-300');
+      }
+      
+      updateQuotePreview();
+    });
+  });
+
+  // Handle night button functionality
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('night-btn')) {
+      const categoryId = e.target.dataset.category;
+      const isActive = e.target.dataset.active === 'true';
+      
+      // Toggle active state
+      e.target.dataset.active = isActive ? 'false' : 'true';
+      
+      if (e.target.dataset.active === 'true') {
+        e.target.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800');
+        e.target.classList.remove('border-gray-300');
+      } else {
+        e.target.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800');
+        e.target.classList.add('border-gray-300');
+      }
+      
+      // Update hidden field
+      const hiddenField = e.target.parentElement.querySelector(`[data-night-field="${categoryId}"]`);
+      if (hiddenField) {
+        hiddenField.value = e.target.dataset.active;
+      }
+      
+      updateQuotePreview();
+    }
+  });
+
+  // Handle all input changes for talent calculations
+  document.addEventListener('input', function(e) {
+    // Update media multiplier displays for combinations
+    if (e.target.classList.contains('combination-media')) {
+      const comboId = e.target.getAttribute('data-combo');
+      calculateMediaMultiplierForCombo(comboId);
+    }
+    
+    // Handle talent input changes
+    if (e.target.hasAttribute('data-talent-input') || 
+        e.target.hasAttribute('data-adjusted-rate-input') ||
+        e.target.hasAttribute('data-days-input') ||
+        e.target.hasAttribute('data-rehearsal-input') ||
+        e.target.hasAttribute('data-down-input') ||
+        e.target.hasAttribute('data-travel-input') ||
+        e.target.hasAttribute('data-overtime-input')) {
+      
+      const categoryId = e.target.dataset.talentInput || 
+                        e.target.dataset.adjustedRateInput ||
+                        e.target.dataset.daysInput ||
+                        e.target.dataset.rehearsalInput ||
+                        e.target.dataset.downInput ||
+                        e.target.dataset.travelInput ||
+                        e.target.dataset.overtimeInput;
+      
+      if (categoryId) {
+        updateCategoryTotal(categoryId);
+      }
+    }
+    
+    updateQuotePreview();
+  });
+
+  // Calculate category totals for talent
+  function updateCategoryTotal(categoryId) {
+    const section = document.getElementById(`talent-category-${categoryId}`);
+    if (!section || section.classList.contains('hidden')) return;
+    
+    const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0;
+    const adjustedRate = parseInt(section.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)?.value) || 0;
+    const days = parseInt(section.querySelector(`[data-days-input="${categoryId}"]`)?.value) || 0;
+    const rehearsal = parseInt(section.querySelector(`[data-rehearsal-input="${categoryId}"]`)?.value) || 0;
+    const downDays = parseInt(section.querySelector(`[data-down-input="${categoryId}"]`)?.value) || 0;
+    const travelDays = parseInt(section.querySelector(`[data-travel-input="${categoryId}"]`)?.value) || 0;
+    const overtime = parseFloat(section.querySelector(`[data-overtime-input="${categoryId}"]`)?.value) || 0;
+    
+    // Check night premium
+    const nightBtn = section.querySelector(`.night-btn[data-category="${categoryId}"]`);
+    const nightPremium = nightBtn && nightBtn.dataset.active === 'true';
+    
+    let total = 0;
+    
+    // Base calculation
+    total += talentCount * adjustedRate * days;
+    
+    // Rehearsal at 50%
+    total += talentCount * adjustedRate * 0.5 * rehearsal;
+    
+    // Down days at 50%
+    total += talentCount * adjustedRate * 0.5 * downDays;
+    
+    // Travel days at 50%
+    total += talentCount * adjustedRate * 0.5 * travelDays;
+    
+    // Overtime at 10% per hour
+    total += talentCount * adjustedRate * 0.1 * overtime;
+    
+    // Night premium at 50% (applies to first shoot day only)
+    if (nightPremium) {
+      total += talentCount * adjustedRate * 0.5;
+    }
+    
+    // Update display
+    const totalElement = section.querySelector(`#category-total-${categoryId}`);
+    if (totalElement) {
+      totalElement.textContent = `R${total.toLocaleString()}`;
+    }
+    
+    updateQuotePreview();
+  }
+
   // Initial calculation
   updateQuotePreview();
 });
