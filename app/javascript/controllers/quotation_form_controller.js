@@ -11,6 +11,7 @@ export default class extends Controller {
     this.watchDurationWarning()
     this.setupManualAdjustments()
     this.setupMainRowEventListeners()
+    this.setupProductTypeListeners()
     
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
@@ -285,7 +286,7 @@ export default class extends Controller {
         <div class="flex flex-col items-center">
           <button type="button" class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
                   data-active="false" data-category="${categoryId}" data-line="${lineIndex}">
-            + Night
+            + Night Fee
           </button>
           <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][night_premium]" value="false"
                  class="night-premium" data-category="${categoryId}" data-line="${lineIndex}">
@@ -641,6 +642,17 @@ export default class extends Controller {
     }
   }
 
+  setupProductTypeListeners() {
+    // Add event listeners to product type radio buttons
+    const productTypeRadios = document.querySelectorAll('input[name="quotation[product_type]"]')
+    productTypeRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        // Update category totals when product type changes (affects kids reduction)
+        this.updateCategoryTotalsDisplay()
+      })
+    })
+  }
+
   addAdjustmentRow() {
     const container = document.getElementById('adjustments-container')
     if (!container) return
@@ -717,6 +729,7 @@ export default class extends Controller {
     let totalAmount = 0
     let baseTotalAmount = 0
     let extrasBaseAmount = 0
+    let kidsBaseAmount = 0
     let categoryTotalsHtml = ''
     
     // Get all talent buttons to find available categories
@@ -763,21 +776,26 @@ export default class extends Controller {
             const baseCategoryTotal = adjustedRate * talentCount
             baseTotalAmount += baseCategoryTotal
             
-            // Track extras base amount separately
+            // Track extras and kids base amounts separately
             if (categoryName.toLowerCase().trim().includes('extras')) {
               extrasBaseAmount += baseCategoryTotal
+            }
+            
+            // Track kids base amount (category_type == 5)
+            if (categoryId == '5') {
+              kidsBaseAmount += baseCategoryTotal
             }
             
             categoryTotalsHtml += `
               <div class="flex justify-between items-center text-sm">
                 <span class="text-gray-700">${talentCount} ${categoryName} @ R${this.formatNumber(adjustedRate)}</span>
-                <span> R${baseCategoryTotal}</span>
+               
                 <span class="font-semibold text-gray-800">R${this.formatNumber(totalValue)}</span>
               </div>
 
                ${categoryName.toLowerCase() !== 'extras' ? `
                 <div class="flex justify-between items-center text-xs text-gray-500">
-                  <span>Base (excl. extras)</span>
+                  <span>Base (excl. days)</span>
                   <span>R${this.formatNumber(baseCategoryTotal)}</span>
                 </div>
               ` : ''}
@@ -793,8 +811,28 @@ export default class extends Controller {
       categoryTotalsHtml = '<div class="text-gray-500 italic text-sm">No talent selected</div>'
     }
     
-    // Calculate base total excluding extras (subtract extras from total base)
-    const baseTotalAmountExcludingExtras = baseTotalAmount - extrasBaseAmount
+    // Get product type for kids reduction calculation
+    const productTypeInput = document.querySelector('input[name="quotation[product_type]"]:checked')
+    const productType = productTypeInput ? productTypeInput.value : null
+    
+    // Calculate kids reduction based on product type
+    let kidsReduction = 0
+    if (productType && kidsBaseAmount > 0) {
+      switch (productType) {
+        case 'adult':
+          kidsReduction = kidsBaseAmount * 0.5  // 50% reduction
+          break
+        case 'family':
+          kidsReduction = kidsBaseAmount * 0.25  // 25% reduction (keep 75%)
+          break
+        case 'kids':
+          kidsReduction = 0  // No reduction (keep 100%)
+          break
+      }
+    }
+    
+    // Calculate base total excluding extras and applying kids reduction
+    const baseTotalAmountExcludingExtras = baseTotalAmount - extrasBaseAmount - kidsReduction
     
     // Add base total excluding extras if there is a base total
     if (baseTotalAmount > 0) {
