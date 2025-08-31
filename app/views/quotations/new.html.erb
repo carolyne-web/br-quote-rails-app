@@ -8,7 +8,6 @@
         <ul class="space-y-2 text-sm text-gray-700">
           <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Campaign Information</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="territories">Territories</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Guarantee & Final</li>
         </ul>
@@ -38,7 +37,7 @@
       <section id="project-info" class="bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Campaign Information</h3>
-          <span class="text-sm text-gray-400">Step 1 of 6</span>
+          <span class="text-sm text-gray-400">Step 1 of 4</span>
         </div>
         
         <div class="mb-4">
@@ -74,7 +73,7 @@
       <section id="talent-categories" class="bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Select Talent Categories</h3>
-          <span class="text-sm text-gray-400">Step 2 of 6</span>
+          <span class="text-sm text-gray-400">Step 2 of 4</span>
         </div>
         
         <!-- Talent Category Buttons -->
@@ -253,51 +252,6 @@
 
 
 
-      <!-- Territories -->
-      <section id="territories" class="bg-white shadow rounded-2xl p-4">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold">Territories</h3>
-          <span class="text-sm text-gray-400">Step 3 of 5</span>
-        </div>
-        
-        <div class="mb-4">
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-            <div class="text-sm text-blue-800">
-              <strong>Territory Logic:</strong> Multiple territories are additive. Example: East Europe (400%) + Pan African (400%) = 800% total.
-            </div>
-          </div>
-        </div>
-        
-        <!-- Search Bar -->
-        <div class="mb-4">
-          <input type="text" id="territory-search" placeholder="Search territories (type 3+ letters)..." 
-                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        
-        <!-- Territories List -->
-        <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
-          <div id="territories-list" class="space-y-1 p-2">
-            <% @territories.group_by(&:group_name).each do |group_name, territories| %>
-              <% territories.each do |territory| %>
-                <label class="territory-item flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" 
-                       data-name="<%= territory.name.downcase %>">
-                  <div class="flex items-center">
-                    <%= check_box_tag "territories[]", territory.id, false, 
-                        class: "mr-3 rounded text-blue-600 focus:ring-blue-500 territory-checkbox",
-                        data: { territory_id: territory.id, territory_name: territory.name, percentage: territory.percentage } %>
-                    <div class="text-sm">
-                      <div class="font-medium text-gray-900"><%= territory.name %></div>
-                      <div class="text-xs text-gray-500"><%= group_name %></div>
-                    </div>
-                  </div>
-                  <div class="text-sm font-medium text-blue-600"><%= territory.percentage %>%</div>
-                </label>
-              <% end %>
-            <% end %>
-          </div>
-        </div>
-      </section>
-
       <!-- Usage & Licensing -->
       <%= fields_for :quotation_detail, @quotation.quotation_detail || @quotation.build_quotation_detail do |detail_fields| %>
         <!-- Hidden field to maintain form compatibility -->
@@ -305,85 +259,149 @@
         <section id="licensing" class="bg-white shadow rounded-2xl p-4">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold">Usage & Licensing</h3>
-            <span class="text-sm text-gray-400">Step 4 of 5</span>
+            <span class="text-sm text-gray-400">Step 3 of 4</span>
           </div>
           
-          <div class="space-y-6">
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-3">Select Media Type(s)</label>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <%= check_box_tag "media_types[]", "all_media", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
-                  <span class="text-sm font-medium">All Media</span>
-                </label>
-                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <%= check_box_tag "media_types[]", "all_moving", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
-                  <span class="text-sm font-medium">All Moving Media</span>
-                </label>
-                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <%= check_box_tag "media_types[]", "internet", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
-                  <span class="text-sm font-medium">Internet Only</span>
-                </label>
-                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <%= check_box_tag "media_types[]", "cinema", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
-                  <span class="text-sm font-medium">Cinema Only</span>
-                </label>
-                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <%= check_box_tag "media_types[]", "tv", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
-                  <span class="text-sm font-medium">TV Only</span>
-                </label>
-                <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <%= check_box_tag "media_types[]", "print", false, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
-                  <span class="text-sm font-medium">All Print Media</span>
-                </label>
+          <!-- Territory Combinations Tabs -->
+          <div class="mb-4">
+            <div class="flex items-center space-x-2 border-b border-gray-200">
+              <div id="combination-tabs" class="flex space-x-2">
+                <button type="button" class="combination-tab px-4 py-2 border-b-2 border-blue-500 text-blue-600 font-medium text-sm" data-combo="1">
+                  Combo 1
+                </button>
               </div>
-              
-              <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <div class="text-sm text-blue-800">
-                  <strong>Media Multiplier Logic:</strong> All Media = 100%, All Moving Media alone = 75%, All Moving Media + 1 other = 75%, 1 other media = 50%, 3+ media = 100%
+              <button type="button" id="add-combination" class="ml-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors">
+                + Add Combination
+              </button>
+            </div>
+          </div>
+
+          <!-- Territory Combinations Content -->
+          <div id="combinations-content">
+            <!-- Combination 1 -->
+            <div class="combination-content active" data-combo="1">
+              <div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-600" for="combination_1_duration">Contract Duration</label>
+                    <select name="combinations[1][duration]" id="combination_1_duration" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-duration" data-combo="1">
+                      <option value="">Select Contract Duration</option>
+                      <option value="3_months">Up to 3 Months</option>
+                      <option value="6_months">Up to 6 Months</option>
+                      <option value="12_months">12 Months</option>
+                      <option value="18_months">18 Months</option>
+                      <option value="24_months">2 Years</option>
+                      <option value="36_months">36 Months</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="text-xs text-blue-600 mt-1">
-                  Current multiplier: <span id="media-multiplier">100%</span>
+
+                <!-- Territory Selection for this Combination -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Combo 1</label>
+                  
+                  <!-- Selected Territory Tags -->
+                  <div class="mb-4">
+                    <div class="selected-territory-tags flex flex-wrap gap-2" data-combo="1">
+                      <!-- Selected territory tags will appear here -->
+                    </div>
+                  </div>
+                  
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <div class="text-sm text-blue-800">
+                      <strong>Territory Logic:</strong> Multiple territories are additive. Example: East Europe (400%) + Pan African (400%) = 800% total.
+                    </div>
+                  </div>
+                  
+                  <!-- Search Bar -->
+                  <div class="mb-4">
+                    <input type="text" class="territory-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-combo="1" placeholder="Search territories (type 3+ letters)...">
+                  </div>
+                  
+                  <!-- Territories List -->
+                  <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+                    <div class="territories-list space-y-1 p-2" data-combo="1">
+                      <% @territories.group_by(&:group_name).each do |group_name, territories| %>
+                        <% territories.each do |territory| %>
+                          <label class="territory-item flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
+                            <div class="flex items-center">
+                              <input type="checkbox" name="combinations[1][territories][]" value="<%= territory.id %>" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-territory-checkbox" data-territory-id="<%= territory.id %>" data-territory-name="<%= territory.name %>" data-percentage="<%= territory.percentage %>" data-combo="1">
+                              <div class="text-sm">
+                                <div class="font-medium text-gray-900"><%= territory.name %></div>
+                                <div class="text-xs text-gray-500"><%= group_name %></div>
+                              </div>
+                            </div>
+                            <div class="text-sm font-medium text-blue-600"><%= territory.percentage %>%</div>
+                          </label>
+                        <% end %>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-600 mb-3">Select Media Type(s)</label>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" name="combinations[1][media_types][]" value="all_media" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
+                      <span class="text-sm font-medium">All Media</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" name="combinations[1][media_types][]" value="all_moving" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
+                      <span class="text-sm font-medium">All Moving Media</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" name="combinations[1][media_types][]" value="internet" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
+                      <span class="text-sm font-medium">Internet Only</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" name="combinations[1][media_types][]" value="cinema" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
+                      <span class="text-sm font-medium">Cinema Only</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" name="combinations[1][media_types][]" value="tv" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
+                      <span class="text-sm font-medium">TV Only</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" name="combinations[1][media_types][]" value="print" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
+                      <span class="text-sm font-medium">All Print Media</span>
+                    </label>
+                  </div>
+                  
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <div class="text-sm text-blue-800">
+                      <strong>Media Multiplier Logic:</strong> All Media = 100%, All Moving Media alone = 75%, All Moving Media + 1 other = 75%, 1 other media = 50%, 3+ media = 100%
+                    </div>
+                    <div class="text-xs text-blue-600 mt-1">
+                      Current multiplier: <span class="media-multiplier-display" data-combo="1">100%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Exclusivity Section -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-600" for="combination_1_exclusivity">Exclusivity Level</label>
+                    <select name="combinations[1][exclusivity_type]" id="combination_1_exclusivity" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-exclusivity" data-combo="1">
+                      <option value="">Select exclusivity type</option>
+                      <% @exclusivity_options.each do |option| %>
+                        <option value="<%= option[1] %>"><%= option[0] %></option>
+                      <% end %>
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="space-y-2">
+                  <label class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" name="combinations[1][unlimited_stills]" value="1" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-unlimited-stills" data-combo="1">
+                    <span class="text-sm">Unlimited Stills (+15%)</span>
+                  </label>
+                  <label class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" name="combinations[1][unlimited_versions]" value="1" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-unlimited-versions" data-combo="1">
+                    <span class="text-sm">Unlimited Versions (+15%)</span>
+                  </label>
                 </div>
               </div>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <%= detail_fields.label :duration, "Contract Duration", class: "block text-sm font-medium text-gray-600" %>
-                <%= detail_fields.select :duration,
-                    options_for_select([
-                      ['Up to 3 Months', '3_months'],
-                      ['Up to 6 Months', '6_months'],
-                      ['12 Months', '12_months'],
-                      ['18 Months', '18_months'],
-                      ['2 Years', '24_months'],
-                      ['36 Months', '36_months']
-                    ], '12_months'),
-                    {}, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
-              </div>
-            </div>
-            
-            <!-- Exclusivity Section -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <%= detail_fields.label :exclusivity_type, "Exclusivity Level", class: "block text-sm font-medium text-gray-600" %>
-                <%= detail_fields.select :exclusivity_type,
-                    options_for_select(@exclusivity_options, detail_fields.object.exclusivity_type),
-                    { prompt: "Select exclusivity type" },
-                    { class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" } %>
-              </div>
-            </div>
-            
-            <div class="space-y-2">
-              <label class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <%= detail_fields.check_box :unlimited_stills, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
-                <span class="text-sm">Unlimited Stills (+15%)</span>
-              </label>
-              <label class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <%= detail_fields.check_box :unlimited_versions, class: "mr-3 rounded text-blue-600 focus:ring-blue-500" %>
-                <span class="text-sm">Unlimited Versions (+15%)</span>
-              </label>
             </div>
           </div>
         </section>
@@ -393,7 +411,7 @@
       <section id="guarantee" class="bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Guarantee & Manual Adjustments</h3>
-          <span class="text-sm text-gray-400">Step 5 of 5</span>
+          <span class="text-sm text-gray-400">Step 4 of 4</span>
         </div>
         
         <!-- Guarantee Option -->
@@ -545,142 +563,308 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-
-  // Territory search functionality
-  const territorySearch = document.getElementById('territory-search');
-  const territoryItems = document.querySelectorAll('.territory-item');
+  // Territory Combinations Management
+  let nextComboId = 2;
   
-  territorySearch.addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-    
-    if (searchTerm.length >= 3) {
-      territoryItems.forEach(item => {
-        const territoryName = item.dataset.name;
-        if (territoryName.includes(searchTerm)) {
-          item.style.display = 'flex';
-        } else {
-          item.style.display = 'none';
-        }
-      });
-    } else {
-      // Show all items if less than 3 characters
-      territoryItems.forEach(item => {
-        item.style.display = 'flex';
-      });
+  // Tab switching functionality
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('combination-tab')) {
+      const comboId = e.target.getAttribute('data-combo');
+      switchToCombination(comboId);
     }
   });
-
-  // Add days breakdown functionality
-  document.querySelectorAll('.btn-add-days-breakdown').forEach(button => {
-    button.addEventListener('click', function() {
-      const categoryId = this.dataset.category;
-      const container = document.querySelector(`.days-on-set-container[data-category="${categoryId}"]`);
-      const daysList = container.querySelector('.days-list');
-
-      container.classList.remove('hidden');
-
-      const rowIndex = daysList.children.length;
-      const rowHtml = `
-        <div class="flex gap-2 items-center">
-          <input type="number"
-                 name="talent_categories[${categoryId}][days_on_set][${rowIndex}][talent_count]"
-                 placeholder="Talent count"
-                 min="1"
-                 class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-          <span class="text-gray-500">×</span>
-          <input type="number"
-                 name="talent_categories[${categoryId}][days_on_set][${rowIndex}][days_count]"
-                 placeholder="Days"
-                 min="1"
-                 class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-          <button type="button" class="text-red-500 hover:text-red-700 text-sm" onclick="const categoryId = '${categoryId}'; this.parentElement.remove(); updateQuotePreview(); updateBreakdownSummary(categoryId);">
-            Remove
-          </button>
-        </div>
-      `;
-
-      daysList.insertAdjacentHTML('beforeend', rowHtml);
-      updateQuotePreview();
-      updateBreakdownSummary(categoryId);
-    });
-  });
-
-  // Update breakdown summary for a category
-  function updateBreakdownSummary(categoryId) {
-    const container = document.querySelector(`.days-on-set-container[data-category="${categoryId}"]`);
-    const summaryElement = document.getElementById(`breakdown-summary-${categoryId}`);
-    const warningElement = document.getElementById(`validation-warning-${categoryId}`);
-    
-    if (!container || container.classList.contains('hidden')) {
-      return;
-    }
-    
-    let totalTalentDays = 0;
-    let maxDaysUsed = 0;
-    let totalBreakdownRows = 0;
-    const dayBreakdownInputs = container.querySelectorAll('input[name*="talent_count"]');
-    
-    dayBreakdownInputs.forEach((talentInput, index) => {
-      const talentCount = parseInt(talentInput.value) || 0;
-      const daysInput = container.querySelectorAll('input[name*="days_count"]')[index];
-      const daysCount = parseInt(daysInput?.value) || 0;
-      
-      if (talentCount > 0 && daysCount > 0) {
-        totalTalentDays += talentCount * daysCount;
-        maxDaysUsed = Math.max(maxDaysUsed, daysCount);
-        totalBreakdownRows++;
-      }
+  
+  function switchToCombination(comboId) {
+    // Update tab styles
+    document.querySelectorAll('.combination-tab').forEach(tab => {
+      tab.classList.remove('border-blue-500', 'text-blue-600', 'font-medium');
+      tab.classList.add('border-transparent', 'text-gray-500');
     });
     
-    if (summaryElement) {
-      if (totalBreakdownRows === 0) {
-        summaryElement.textContent = `Total: 0 talent-days`;
-      } else {
-        summaryElement.textContent = `Total: ${totalTalentDays} talent-days (${totalBreakdownRows} breakdown${totalBreakdownRows > 1 ? 's' : ''})`;
-      }
+    const activeTab = document.querySelector(`[data-combo="${comboId}"].combination-tab`);
+    if (activeTab) {
+      activeTab.classList.add('border-blue-500', 'text-blue-600', 'font-medium');
+      activeTab.classList.remove('border-transparent', 'text-gray-500');
     }
     
-    // Validate against shoot days - use a more reasonable validation
-    const shootDaysInput = document.querySelector('input[name*="shoot_days"]');
-    const shootDays = parseInt(shootDaysInput?.value) || 1;
+    // Update content visibility
+    document.querySelectorAll('.combination-content').forEach(content => {
+      content.classList.remove('active');
+      content.style.display = 'none';
+    });
     
-    if (warningElement) {
-      if (maxDaysUsed > shootDays) {
-        warningElement.style.display = 'block';
-        warningElement.textContent = `⚠️ Some breakdown entries use more days (${maxDaysUsed}) than total shoot days (${shootDays})`;
-      } else if (totalBreakdownRows > 0 && maxDaysUsed > 0) {
-        warningElement.style.display = 'none';
-      }
+    const activeContent = document.querySelector(`[data-combo="${comboId}"].combination-content`);
+    if (activeContent) {
+      activeContent.classList.add('active');
+      activeContent.style.display = 'block';
     }
   }
+  
+  // Add new combination functionality
+  document.getElementById('add-combination').addEventListener('click', function() {
+    const newComboId = nextComboId++;
+    
+    // Add new tab
+    const tabsContainer = document.getElementById('combination-tabs');
+    const newTab = document.createElement('button');
+    newTab.type = 'button';
+    newTab.className = 'combination-tab px-4 py-2 border-b-2 border-transparent text-gray-500 text-sm hover:text-blue-600';
+    newTab.setAttribute('data-combo', newComboId);
+    newTab.textContent = `Combo ${newComboId}`;
+    
+    // Add remove button to new tab (except combo 1)
+    const tabWrapper = document.createElement('div');
+    tabWrapper.className = 'flex items-center space-x-1';
+    tabWrapper.appendChild(newTab);
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'text-red-500 hover:text-red-700 text-sm px-1';
+    removeBtn.innerHTML = '×';
+    removeBtn.onclick = function() { removeCombination(newComboId); };
+    tabWrapper.appendChild(removeBtn);
+    
+    tabsContainer.appendChild(tabWrapper);
+    
+    // Add new content
+    const contentContainer = document.getElementById('combinations-content');
+    const newContent = createCombinationContent(newComboId);
+    contentContainer.appendChild(newContent);
+    
+    // Switch to new combination
+    switchToCombination(newComboId);
+    
+    // Update quote preview
+    updateQuotePreview();
+  });
+  
+  function removeCombination(comboId) {
+    if (comboId === 1) return; // Cannot remove combo 1
+    
+    // Remove tab
+    const tab = document.querySelector(`[data-combo="${comboId}"].combination-tab`);
+    if (tab) {
+      tab.parentElement.remove();
+    }
+    
+    // Remove content
+    const content = document.querySelector(`[data-combo="${comboId}"].combination-content`);
+    if (content) {
+      content.remove();
+    }
+    
+    // Switch to combo 1
+    switchToCombination(1);
+    
+    // Update quote preview
+    updateQuotePreview();
+  }
+  
+  function createCombinationContent(comboId) {
+    const content = document.createElement('div');
+    content.className = 'combination-content';
+    content.setAttribute('data-combo', comboId);
+    content.style.display = 'none';
+    
+    content.innerHTML = `
+      <div class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600" for="combination_${comboId}_duration">Contract Duration</label>
+            <select name="combinations[${comboId}][duration]" id="combination_${comboId}_duration" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-duration" data-combo="${comboId}">
+              <option value="">Select Contract Duration</option>
+              <option value="3_months">Up to 3 Months</option>
+              <option value="6_months">Up to 6 Months</option>
+              <option value="12_months">12 Months</option>
+              <option value="18_months">18 Months</option>
+              <option value="24_months">2 Years</option>
+              <option value="36_months">36 Months</option>
+            </select>
+          </div>
+        </div>
 
-  // Media multiplier calculation function
-  function calculateMediaMultiplier() {
-    const selected = document.querySelectorAll('input[name="media_types[]"]:checked');
-    const allMediaSelected = document.querySelector('input[value="all_media"]:checked');
-    const allMovingSelected = document.querySelector('input[value="all_moving"]:checked');
+        <!-- Territory Selection for this Combination -->
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Combo ${comboId}</label>
+          
+          <!-- Selected Territory Tags -->
+          <div class="mb-4">
+            <div class="selected-territory-tags flex flex-wrap gap-2" data-combo="${comboId}">
+              <!-- Selected territory tags will appear here -->
+            </div>
+          </div>
+          
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div class="text-sm text-blue-800">
+              <strong>Territory Logic:</strong> Multiple territories are additive. Example: East Europe (400%) + Pan African (400%) = 800% total.
+            </div>
+          </div>
+          
+          <!-- Search Bar -->
+          <div class="mb-4">
+            <input type="text" class="territory-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-combo="${comboId}" placeholder="Search territories (type 3+ letters)...">
+          </div>
+          
+          <!-- Territories List -->
+          <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+            <div class="territories-list space-y-1 p-2" data-combo="${comboId}">
+              <% @territories.group_by(&:group_name).each do |group_name, territories| %>
+                <% territories.each do |territory| %>
+                  <label class="territory-item flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
+                    <div class="flex items-center">
+                      <input type="checkbox" name="combinations[${comboId}][territories][]" value="<%= territory.id %>" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-territory-checkbox" data-territory-id="<%= territory.id %>" data-territory-name="<%= territory.name %>" data-percentage="<%= territory.percentage %>" data-combo="${comboId}">
+                      <div class="text-sm">
+                        <div class="font-medium text-gray-900"><%= territory.name %></div>
+                        <div class="text-xs text-gray-500"><%= group_name %></div>
+                      </div>
+                    </div>
+                    <div class="text-sm font-medium text-blue-600"><%= territory.percentage %>%</div>
+                  </label>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-3">Select Media Type(s)</label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="all_media" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
+              <span class="text-sm font-medium">All Media</span>
+            </label>
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="all_moving" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
+              <span class="text-sm font-medium">All Moving Media</span>
+            </label>
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="internet" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
+              <span class="text-sm font-medium">Internet Only</span>
+            </label>
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="cinema" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
+              <span class="text-sm font-medium">Cinema Only</span>
+            </label>
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="tv" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
+              <span class="text-sm font-medium">TV Only</span>
+            </label>
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="print" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
+              <span class="text-sm font-medium">All Print Media</span>
+            </label>
+          </div>
+          
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div class="text-sm text-blue-800">
+              <strong>Media Multiplier Logic:</strong> All Media = 100%, All Moving Media alone = 75%, All Moving Media + 1 other = 75%, 1 other media = 50%, 3+ media = 100%
+            </div>
+            <div class="text-xs text-blue-600 mt-1">
+              Current multiplier: <span class="media-multiplier-display" data-combo="${comboId}">100%</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Exclusivity Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600" for="combination_${comboId}_exclusivity">Exclusivity Level</label>
+            <select name="combinations[${comboId}][exclusivity_type]" id="combination_${comboId}_exclusivity" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-exclusivity" data-combo="${comboId}">
+              <option value="">Select exclusivity type</option>
+              <% @exclusivity_options.each do |option| %>
+                <option value="<%= option[1] %>"><%= option[0] %></option>
+              <% end %>
+            </select>
+          </div>
+        </div>
+        
+        <div class="space-y-2">
+          <label class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" name="combinations[${comboId}][unlimited_stills]" value="1" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-unlimited-stills" data-combo="${comboId}">
+            <span class="text-sm">Unlimited Stills (+15%)</span>
+          </label>
+          <label class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" name="combinations[${comboId}][unlimited_versions]" value="1" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-unlimited-versions" data-combo="${comboId}">
+            <span class="text-sm">Unlimited Versions (+15%)</span>
+          </label>
+        </div>
+      </div>
+    `;
+    
+    return content;
+  }
+
+  // Initialize first combination as active
+  switchToCombination(1);
+
+  // Territory search functionality for combinations
+  document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('territory-search')) {
+      const comboId = e.target.getAttribute('data-combo');
+      const searchTerm = e.target.value.toLowerCase();
+      const territoriesList = document.querySelector(`.territories-list[data-combo="${comboId}"]`);
+      
+      if (territoriesList) {
+        const territoryItems = territoriesList.querySelectorAll('.territory-item');
+        
+        if (searchTerm.length >= 3) {
+          territoryItems.forEach(item => {
+            const territoryName = item.dataset.name;
+            if (territoryName && territoryName.includes(searchTerm)) {
+              item.style.display = 'flex';
+            } else {
+              item.style.display = 'none';
+            }
+          });
+        } else {
+          territoryItems.forEach(item => {
+            item.style.display = 'flex';
+          });
+        }
+      }
+    }
+  });
+
+
+  // Media multiplier calculation function for a specific combination (matching controller logic)
+  function calculateMediaMultiplierForCombo(comboId) {
+    const selected = document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:checked`);
+    const allMediaSelected = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_media"]:checked`);
+    const allMovingSelected = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_moving"]:checked`);
+    const allPrintSelected = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="print"]:checked`);
     let multiplier = 1.0;
     
     if (allMediaSelected) {
       multiplier = 1.0; // All Media = 100%
-    } else if (selected.length === 1 && allMovingSelected) {
-      multiplier = 0.75; // All Moving Media alone = 75%
+    } else if (allMovingSelected && allPrintSelected) {
+      // All Moving + All Print should auto-select All Media, but just in case
+      multiplier = 1.0; // = 100%
+    } else if (allMovingSelected) {
+      multiplier = 0.75; // All Moving Media = 75%
+    } else if (allPrintSelected) {
+      multiplier = 0.75; // All Print Media = 75%
     } else if (selected.length === 1) {
-      multiplier = 0.5; // One other media = 50%
-    } else if (selected.length === 2) {
-      multiplier = 0.75; // Two media (including All Moving Media + other) = 75%
+      multiplier = 0.5; // One individual media = 50%
     } else if (selected.length >= 3) {
-      multiplier = 1.0; // Three or more media = 100%
+      multiplier = 1.0; // Three or more individual media = 100%
+    } else if (selected.length === 2) {
+      multiplier = 0.75; // Two individual media = 75%
     } else {
       multiplier = 1.0; // No selection defaults to 100%
+    }
+    
+    // Update the display for this combination
+    const displayElement = document.querySelector(`.media-multiplier-display[data-combo="${comboId}"]`);
+    if (displayElement) {
+      displayElement.textContent = `${Math.round(multiplier * 100)}%`;
     }
     
     return multiplier;
   }
 
-  // Duration multiplier calculation function
-  function calculateDurationMultiplier() {
-    const durationSelect = document.querySelector('select[name*="duration"]');
+  // Duration multiplier calculation function for a specific combination
+  function calculateDurationMultiplierForCombo(comboId) {
+    const durationSelect = document.querySelector(`select[name="combinations[${comboId}][duration]"]`);
     if (!durationSelect || !durationSelect.value) {
       return 1.0; // Default multiplier
     }
@@ -698,11 +882,74 @@ document.addEventListener('DOMContentLoaded', function() {
     return durationMultipliers[durationSelect.value] || 1.0;
   }
 
-  // Enhanced calculation and preview functionality
+  // Territory multiplier calculation function for a specific combination
+  function calculateTerritoryMultiplierForCombo(comboId) {
+    const selectedTerritories = document.querySelectorAll(`input[name="combinations[${comboId}][territories][]"]:checked`);
+    let totalTerritoryPercentage = 0;
+    
+    selectedTerritories.forEach(checkbox => {
+      const percentage = parseFloat(checkbox.dataset.percentage) || 0;
+      totalTerritoryPercentage += percentage;
+    });
+    
+    return totalTerritoryPercentage > 0 ? totalTerritoryPercentage / 100.0 : 1.0;
+  }
+
+  // Exclusivity multiplier calculation function for a specific combination
+  function calculateExclusivityMultiplierForCombo(comboId) {
+    const exclusivitySelect = document.querySelector(`select[name="combinations[${comboId}][exclusivity_type]"]`);
+    if (!exclusivitySelect || !exclusivitySelect.value) {
+      return 1.0;
+    }
+    
+    const selectedOption = exclusivitySelect.selectedOptions[0];
+    if (selectedOption) {
+      const text = selectedOption.textContent;
+      const percentageMatch = text.match(/\+(\d+)%/);
+      if (percentageMatch) {
+        const percentage = parseFloat(percentageMatch[1]) || 0;
+        return 1 + (percentage / 100);
+      }
+    }
+    
+    return 1.0;
+  }
+
+  // Get all active combinations
+  function getActiveCombinations() {
+    const combinations = [];
+    const allCombinations = document.querySelectorAll('.combination-content');
+    
+    allCombinations.forEach(combo => {
+      const comboId = combo.getAttribute('data-combo');
+      const durationSelect = document.querySelector(`select[name="combinations[${comboId}][duration]"]`);
+      const selectedTerritories = document.querySelectorAll(`input[name="combinations[${comboId}][territories][]"]:checked`);
+      const selectedMedia = document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:checked`);
+      
+      // Only include combinations that have at least duration, territory, or media selected
+      if ((durationSelect && durationSelect.value) || selectedTerritories.length > 0 || selectedMedia.length > 0) {
+        combinations.push({
+          id: comboId,
+          territoryMultiplier: calculateTerritoryMultiplierForCombo(comboId),
+          mediaMultiplier: calculateMediaMultiplierForCombo(comboId),
+          durationMultiplier: calculateDurationMultiplierForCombo(comboId),
+          exclusivityMultiplier: calculateExclusivityMultiplierForCombo(comboId),
+          unlimitedStills: document.querySelector(`input[name="combinations[${comboId}][unlimited_stills]"]:checked`) ? true : false,
+          unlimitedVersions: document.querySelector(`input[name="combinations[${comboId}][unlimited_versions]"]:checked`) ? true : false,
+          selectedTerritories: Array.from(selectedTerritories).map(t => t.dataset.territoryName),
+          selectedMedia: Array.from(selectedMedia).map(m => m.value),
+          duration: durationSelect ? durationSelect.value : ''
+        });
+      }
+    });
+    
+    return combinations;
+  }
+
+  // Enhanced calculation and preview functionality for multiple combinations
   function updateQuotePreview() {
     let talentTotal = 0;
-    let territoryMultiplier = 1.0;
-    let additionalFees = 0;
+    let totalAdditionalFees = 0;
     
     const talentSummary = document.getElementById('talent-summary');
     const territorySummary = document.getElementById('territory-summary');
@@ -710,20 +957,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear summaries
     talentSummary.innerHTML = '';
     territorySummary.innerHTML = '';
-    
-    // Get shoot days for calculation
-    const shootDaysInput = document.querySelector('input[name*="shoot_days"]');
-    const shootDays = parseInt(shootDaysInput?.value) || 1;
-    
-    // Base rates for each talent category (dynamically loaded from settings)
-    const baseRates = {
-      1: <%= Setting.find_by(key: 'lead_base_rate')&.typed_value || 0 %>,           // Lead
-      2: <%= Setting.find_by(key: 'second_lead_base_rate')&.typed_value || 0 %>,   // Second Lead  
-      3: <%= Setting.find_by(key: 'featured_extra_base_rate')&.typed_value || 0 %>, // Featured Extra
-      4: <%= Setting.find_by(key: 'teenager_base_rate')&.typed_value || 0 %>,      // Teenager
-      5: <%= Setting.find_by(key: 'kid_base_rate')&.typed_value || 0 %>,           // Kid
-      6: <%= Setting.find_by(key: 'walk_on_base_rate')&.typed_value || 0 %>       // Walk-on
-    };
     
     // Calculate talent costs from active talent categories
     const activeTalentSections = document.querySelectorAll('[id^="talent-category-"]:not(.hidden)');
@@ -777,30 +1010,19 @@ document.addEventListener('DOMContentLoaded', function() {
       talentSummary.innerHTML = '<div class="text-gray-500 italic">No talent selected</div>';
     }
     
-    // Calculate territory multipliers (additive - sum all selected territories)
-    const selectedTerritories = document.querySelectorAll('.territory-checkbox:checked');
-    let hasTerritory = false;
-    let totalTerritoryPercentage = 0;
-    let territoryNames = [];
+    // Get all active combinations
+    const activeCombinations = getActiveCombinations();
     
-    selectedTerritories.forEach(checkbox => {
-      hasTerritory = true;
-      const percentage = parseFloat(checkbox.dataset.percentage) || 0;
-      const name = checkbox.dataset.territoryName;
-      territoryNames.push(name);
-      
-      // Add all territory percentages together (additive)
-      totalTerritoryPercentage += percentage;
+    // Update territory summary with all combinations
+    let allTerritoryNames = [];
+    activeCombinations.forEach(combo => {
+      allTerritoryNames = [...allTerritoryNames, ...combo.selectedTerritories];
     });
     
-    // Apply territory multiplier logic
-    if (hasTerritory) {
-      territoryMultiplier = totalTerritoryPercentage / 100.0;
-    }
-    
-    // Update territory summary
-    if (hasTerritory) {
-      territoryNames.forEach(name => {
+    if (allTerritoryNames.length > 0) {
+      // Remove duplicates and display
+      const uniqueTerritories = [...new Set(allTerritoryNames)];
+      uniqueTerritories.forEach(name => {
         const summaryItem = document.createElement('div');
         summaryItem.className = 'text-sm';
         summaryItem.innerHTML = name;
@@ -810,123 +1032,348 @@ document.addEventListener('DOMContentLoaded', function() {
       territorySummary.innerHTML = '<div class="text-gray-500 italic">No territories selected</div>';
     }
     
-    // Calculate exclusivity fees
-    let exclusivityMultiplier = 1.0;
-    const exclusivitySelect = document.querySelector('select[name*="exclusivity_type"]');
-    if (exclusivitySelect && exclusivitySelect.value) {
-      // Get the percentage from the exclusivity options data
-      const selectedOption = exclusivitySelect.selectedOptions[0];
-      if (selectedOption) {
-        const text = selectedOption.textContent;
-        const percentageMatch = text.match(/\+(\d+)%/);
-        if (percentageMatch) {
-          const percentage = parseFloat(percentageMatch[1]) || 0;
-          exclusivityMultiplier += (percentage / 100);
-        }
-      }
-    }
-    
-    // Calculate additional fees
-    const unlimitedStills = document.querySelector('input[name*="unlimited_stills"]:checked');
-    const unlimitedVersions = document.querySelector('input[name*="unlimited_versions"]:checked');
-    
-    if (unlimitedStills) additionalFees += talentTotal * 0.15;
-    if (unlimitedVersions) additionalFees += talentTotal * 0.15;
-    
-    
-    // Get media multiplier 
-    const mediaMultiplier = calculateMediaMultiplier();
-    
-    // Get duration multiplier from duration selection
-    const durationMultiplier = calculateDurationMultiplier();
-    
     // Get campaign type for adjustments
     const campaignTypeRadio = document.querySelector('input[name="quotation[product_type]"]:checked');
     const campaignType = campaignTypeRadio ? campaignTypeRadio.value : null;
     
-    // NEW CALCULATION STRUCTURE:
+    // Calculate Usage/Buyout for each combination (additive)
+    let totalUsageBuyout = 0;
+    const usageBreakdownHtml = [];
+    
+    if (activeCombinations.length > 0) {
+      activeCombinations.forEach(combo => {
+        const totalMultiplier = combo.territoryMultiplier * combo.mediaMultiplier * combo.durationMultiplier * combo.exclusivityMultiplier;
+        let comboUsageTotal = 0;
+        
+        usageBreakdownHtml.push(`<div class="font-medium text-gray-800 mt-2">Combo ${combo.id}:</div>`);
+        
+        talentCategoryBreakdown.forEach(category => {
+          let categoryUsage = category.baseFees * totalMultiplier;
+          let adjustmentText = '';
+          
+          // Apply campaign type adjustments
+          if (campaignType === 'adult' && category.id === '5') { // Kid category
+            categoryUsage *= 0.5; // 50% reduction for adult campaigns
+            adjustmentText = ' × 50% (Adult)';
+          } else if (campaignType === 'family' && category.id === '5') { // Kid category  
+            categoryUsage *= 0.75; // 25% reduction for family campaigns
+            adjustmentText = ' × 75% (Family)';
+          }
+          
+          if (categoryUsage > 0) {
+            comboUsageTotal += categoryUsage;
+            
+            usageBreakdownHtml.push(`
+              <div class="flex justify-between ml-4 text-xs">
+                <span>${category.name}: R${category.baseFees.toLocaleString()} × ${totalMultiplier.toFixed(2)}x${adjustmentText}</span>
+                <span>R${Math.round(categoryUsage).toLocaleString()}</span>
+              </div>
+            `);
+          }
+        });
+        
+        totalUsageBuyout += comboUsageTotal;
+        
+        // Calculate additional fees for this combination
+        let comboAdditionalFees = 0;
+        if (combo.unlimitedStills) comboAdditionalFees += talentTotal * 0.15;
+        if (combo.unlimitedVersions) comboAdditionalFees += talentTotal * 0.15;
+        totalAdditionalFees += comboAdditionalFees;
+        
+        if (comboAdditionalFees > 0) {
+          usageBreakdownHtml.push(`
+            <div class="flex justify-between ml-4 text-xs text-blue-600">
+              <span>Additional Options</span>
+              <span>R${Math.round(comboAdditionalFees).toLocaleString()}</span>
+            </div>
+          `);
+        }
+      });
+    } else {
+      usageBreakdownHtml.push('<div class="text-gray-500 italic">No combinations configured</div>');
+    }
+    
     // A) Talent Fees = talentTotal (includes base + standby + overtime)
     const talentFees = talentTotal;
     
-    // B) Usage/Buyout = Base talent fees × Territory × Media × Duration × Exclusivity (per category)
-    let usageBuyoutTotal = 0;
-    const usageBreakdownHtml = [];
-    const totalMultiplier = territoryMultiplier * mediaMultiplier * durationMultiplier * exclusivityMultiplier;
-    
-    talentCategoryBreakdown.forEach(category => {
-      let categoryUsage = category.baseFees * totalMultiplier;
-      let adjustmentText = '';
-      
-      // Apply campaign type adjustments
-      if (campaignType === 'adult' && category.id === '5') { // Kid category
-        categoryUsage *= 0.5; // 50% reduction for adult campaigns
-        adjustmentText = ' × 50% (Adult)';
-      } else if (campaignType === 'family' && category.id === '5') { // Kid category  
-        categoryUsage *= 0.75; // 25% reduction for family campaigns
-        adjustmentText = ' × 75% (Family)';
-      }
-      
-      usageBuyoutTotal += categoryUsage;
-      
-      usageBreakdownHtml.push(`
-        <div class="flex justify-between">
-          <span>${category.name}: R${category.baseFees.toLocaleString()} × ${totalMultiplier.toFixed(2)}x${adjustmentText}</span>
-          <span>R${Math.round(categoryUsage).toLocaleString()}</span>
-        </div>
-      `);
-    });
+    // B) Usage/Buyout = Sum of all combinations
+    const usageBuyoutTotal = totalUsageBuyout;
     
     // C) Total = A + B + Additional Options
-    const totalQuote = talentFees + usageBuyoutTotal + additionalFees;
+    const totalQuote = talentFees + usageBuyoutTotal + totalAdditionalFees;
     
-    // Update display
+    // Update display with aggregated values
+    const avgTerritoryMultiplier = activeCombinations.length > 0 ? 
+      activeCombinations.reduce((sum, combo) => sum + combo.territoryMultiplier, 0) / activeCombinations.length : 1.0;
+    const avgMediaMultiplier = activeCombinations.length > 0 ? 
+      activeCombinations.reduce((sum, combo) => sum + combo.mediaMultiplier, 0) / activeCombinations.length : 1.0;
+    const avgDurationMultiplier = activeCombinations.length > 0 ? 
+      activeCombinations.reduce((sum, combo) => sum + combo.durationMultiplier, 0) / activeCombinations.length : 1.0;
+    const avgExclusivityMultiplier = activeCombinations.length > 0 ? 
+      activeCombinations.reduce((sum, combo) => sum + combo.exclusivityMultiplier, 0) / activeCombinations.length : 1.0;
+    
     document.getElementById('talent-total').textContent = `R ${talentFees.toLocaleString()}.00`;
-    document.getElementById('territory-multiplier').textContent = `${territoryMultiplier.toFixed(2)}x`;
-    document.getElementById('media-display-multiplier').textContent = `${mediaMultiplier.toFixed(2)}x`;
-    document.getElementById('duration-multiplier').textContent = `${durationMultiplier.toFixed(2)}x`;
-    document.getElementById('exclusivity-multiplier').textContent = exclusivityMultiplier > 1 ? `+${Math.round((exclusivityMultiplier - 1) * 100)}%` : '+0%';
+    document.getElementById('territory-multiplier').textContent = `${avgTerritoryMultiplier.toFixed(2)}x (avg)`;
+    document.getElementById('media-display-multiplier').textContent = `${avgMediaMultiplier.toFixed(2)}x (avg)`;
+    document.getElementById('duration-multiplier').textContent = `${avgDurationMultiplier.toFixed(2)}x (avg)`;
+    document.getElementById('exclusivity-multiplier').textContent = avgExclusivityMultiplier > 1 ? `+${Math.round((avgExclusivityMultiplier - 1) * 100)}% (avg)` : '+0%';
     document.getElementById('usage-buyout-total').textContent = `R ${Math.round(usageBuyoutTotal).toLocaleString()}.00`;
     document.getElementById('usage-buyout-breakdown').innerHTML = usageBreakdownHtml.join('');
-    document.getElementById('additional-fees').textContent = `R ${additionalFees.toLocaleString()}.00`;
+    document.getElementById('additional-fees').textContent = `R ${totalAdditionalFees.toLocaleString()}.00`;
     document.getElementById('total-quote').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
     document.getElementById('current-total').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
   }
   
-  // Update preview when form values change
-  document.addEventListener('input', function(e) {
-    updateQuotePreview();
-    
-    // Update breakdown summaries when day breakdown inputs change
-    if (e.target.name && (e.target.name.includes('talent_count') || e.target.name.includes('days_count'))) {
-      const categoryMatch = e.target.name.match(/talent_categories\[(\d+)\]/);
-      if (categoryMatch) {
-        // Add a small delay to ensure DOM is updated
-        setTimeout(() => updateBreakdownSummary(categoryMatch[1]), 10);
-      }
+  // Add CSS for combination content visibility
+  const style = document.createElement('style');
+  style.textContent = `
+    .combination-content {
+      display: none;
     }
+    .combination-content.active {
+      display: block;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Media types mutual exclusion logic (matching quotation_form_controller.js exactly)
+  function handleMediaTypeChange(comboId, changedInput) {
+    const allInputs = document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]`);
+    const allMediaCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_media"]`);
+    const allMovingCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_moving"]`);
+    const allPrintCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="print"]`);
+    const tvCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="tv"]`);
+    const internetCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="internet"]`);
+    const cinemaCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="cinema"]`);
     
-    // Also update if shoot days change (affects validation)
-    if (e.target.name && e.target.name.includes('shoot_days')) {
-      // Update all visible breakdown summaries when shoot days change
-      document.querySelectorAll('.days-on-set-container:not(.hidden)').forEach(container => {
-        const categoryId = container.getAttribute('data-category');
-        if (categoryId) {
-          setTimeout(() => updateBreakdownSummary(categoryId), 10);
-        }
+    const value = changedInput.value;
+    const isChecked = changedInput.checked;
+    
+    // If "All Media" is selected, uncheck and disable all others
+    if (value === 'all_media' && isChecked) {
+      document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:not([value="all_media"])`).forEach(otherCheckbox => {
+        otherCheckbox.checked = false;
+        otherCheckbox.disabled = true;
+        otherCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed');
       });
     }
+    // If "All Media" is unchecked, enable all others and uncheck everything
+    else if (value === 'all_media' && !isChecked) {
+      document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:not([value="all_media"])`).forEach(otherCheckbox => {
+        otherCheckbox.checked = false;
+        otherCheckbox.disabled = false;
+        otherCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+      });
+    }
+    // If "All Moving Media" is selected
+    else if (value === 'all_moving' && isChecked) {
+      // Auto-check TV, Internet, Cinema
+      if (tvCheckbox) tvCheckbox.checked = true;
+      if (internetCheckbox) internetCheckbox.checked = true;
+      if (cinemaCheckbox) cinemaCheckbox.checked = true;
+      
+      // Disable All Print Media and All Media
+      if (allPrintCheckbox) {
+        allPrintCheckbox.disabled = true;
+        allPrintCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed');
+      }
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = true;
+        allMediaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed');
+      }
+    }
+    // If "All Moving Media" is unchecked
+    else if (value === 'all_moving' && !isChecked) {
+      // Uncheck TV, Internet, Cinema
+      if (tvCheckbox) tvCheckbox.checked = false;
+      if (internetCheckbox) internetCheckbox.checked = false;
+      if (cinemaCheckbox) cinemaCheckbox.checked = false;
+      
+      // Re-enable All Print Media and All Media
+      if (allPrintCheckbox) {
+        allPrintCheckbox.disabled = false;
+        allPrintCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = false;
+        allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+    // If "All Print Media" is selected
+    else if (value === 'print' && isChecked) {
+      // Auto-check Internet
+      if (internetCheckbox) internetCheckbox.checked = true;
+      
+      // Disable All Moving Media, individual moving options, and All Media
+      if (allMovingCheckbox) {
+        allMovingCheckbox.disabled = true;
+        allMovingCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed');
+      }
+      if (tvCheckbox) {
+        tvCheckbox.disabled = true;
+        tvCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed');
+      }
+      if (cinemaCheckbox) {
+        cinemaCheckbox.disabled = true;
+        cinemaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed');
+      }
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = true;
+        allMediaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed');
+      }
+    }
+    // If "All Print Media" is unchecked
+    else if (value === 'print' && !isChecked) {
+      // Uncheck Internet
+      if (internetCheckbox) internetCheckbox.checked = false;
+      
+      // Re-enable All Moving Media, individual moving options, and All Media
+      if (allMovingCheckbox) {
+        allMovingCheckbox.disabled = false;
+        allMovingCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+      if (tvCheckbox) {
+        tvCheckbox.disabled = false;
+        tvCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+      if (cinemaCheckbox) {
+        cinemaCheckbox.disabled = false;
+        cinemaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = false;
+        allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+    // Handle TV, Internet, Cinema individual selections
+    else if (['tv', 'internet', 'cinema'].includes(value)) {
+      const tvChecked = tvCheckbox && tvCheckbox.checked;
+      const internetChecked = internetCheckbox && internetCheckbox.checked;
+      const cinemaChecked = cinemaCheckbox && cinemaCheckbox.checked;
+      
+      // Special case: If "All Print Media" was checked but user unchecks Internet
+      if (value === 'internet' && allPrintCheckbox && allPrintCheckbox.checked && !internetChecked) {
+        allPrintCheckbox.checked = false;
+        // Re-enable All Moving Media, individual moving options, and All Media
+        if (allMovingCheckbox) {
+          allMovingCheckbox.disabled = false;
+          allMovingCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        if (tvCheckbox) {
+          tvCheckbox.disabled = false;
+          tvCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        if (cinemaCheckbox) {
+          cinemaCheckbox.disabled = false;
+          cinemaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        if (allMediaCheckbox) {
+          allMediaCheckbox.disabled = false;
+          allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+      }
+      // If user manually selects all three, auto-check "All Moving Media"
+      else if (tvChecked && internetChecked && cinemaChecked && allMovingCheckbox && !allMovingCheckbox.checked) {
+        allMovingCheckbox.checked = true;
+        // Disable All Print Media and All Media
+        if (allPrintCheckbox) {
+          allPrintCheckbox.disabled = true;
+          allPrintCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        if (allMediaCheckbox) {
+          allMediaCheckbox.disabled = true;
+          allMediaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed');
+        }
+      } 
+      // If "All Moving Media" was checked but user unchecks one of TV/Internet/Cinema
+      else if (allMovingCheckbox && allMovingCheckbox.checked && !(tvChecked && internetChecked && cinemaChecked)) {
+        allMovingCheckbox.checked = false;
+        // Re-enable All Print Media and All Media
+        if (allPrintCheckbox) {
+          allPrintCheckbox.disabled = false;
+          allPrintCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        if (allMediaCheckbox) {
+          allMediaCheckbox.disabled = false;
+          allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+      }
+    }
+    // If any other checkbox is selected, uncheck "All Media"
+    else if (value !== 'all_media' && isChecked && allMediaCheckbox) {
+      allMediaCheckbox.checked = false;
+    }
+    
+    calculateMediaMultiplierForCombo(comboId);
+  }
+
+  // Territory tags management
+  function updateTerritoryTags(comboId) {
+    const tagsContainer = document.querySelector(`.selected-territory-tags[data-combo="${comboId}"]`);
+    const selectedTerritories = document.querySelectorAll(`input[name="combinations[${comboId}][territories][]"]:checked`);
+    
+    if (!tagsContainer) return;
+    
+    tagsContainer.innerHTML = '';
+    
+    selectedTerritories.forEach(checkbox => {
+      const territoryName = checkbox.dataset.territoryName;
+      const territoryId = checkbox.dataset.territoryId;
+      
+      const tag = document.createElement('span');
+      tag.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800';
+      tag.innerHTML = `
+        ${territoryName}
+        <button type="button" class="ml-2 inline-flex items-center justify-center w-4 h-4 text-blue-400 hover:text-blue-600" onclick="removeTerritoryTag('${comboId}', '${territoryId}')">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+          </svg>
+        </button>
+      `;
+      tagsContainer.appendChild(tag);
+    });
+  }
+
+  // Remove territory tag function
+  function removeTerritoryTag(comboId, territoryId) {
+    const checkbox = document.querySelector(`input[name="combinations[${comboId}][territories][]"][value="${territoryId}"]`);
+    if (checkbox) {
+      checkbox.checked = false;
+      updateTerritoryTags(comboId);
+      updateQuotePreview();
+    }
+  }
+
+  // Global function to be accessible from onclick
+  window.removeTerritoryTag = removeTerritoryTag;
+
+  // Update preview when form values change
+  document.addEventListener('input', function(e) {
+    // Update media multiplier displays for combinations
+    if (e.target.classList.contains('combination-media')) {
+      const comboId = e.target.getAttribute('data-combo');
+      calculateMediaMultiplierForCombo(comboId);
+    }
+    
+    updateQuotePreview();
+    
   });
   
   document.addEventListener('change', function(e) {
+    // Handle media type changes
+    if (e.target.classList.contains('combination-media')) {
+      const comboId = e.target.getAttribute('data-combo');
+      handleMediaTypeChange(comboId, e.target);
+    }
+    
+    // Handle territory checkbox changes
+    if (e.target.classList.contains('combination-territory-checkbox')) {
+      const comboId = e.target.getAttribute('data-combo');
+      updateTerritoryTags(comboId);
+    }
+    
     updateQuotePreview();
     
-    // Also handle change events for breakdown inputs
-    if (e.target.name && (e.target.name.includes('talent_count') || e.target.name.includes('days_count'))) {
-      const categoryMatch = e.target.name.match(/talent_categories\[(\d+)\]/);
-      if (categoryMatch) {
-        updateBreakdownSummary(categoryMatch[1]);
-      }
-    }
   });
   
   // Scroll spy to update sidebar

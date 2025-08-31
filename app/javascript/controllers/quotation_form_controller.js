@@ -6,19 +6,24 @@ export default class extends Controller {
 
   connect() {
     console.log('Quotation form controller connected')
+    
+    // Initialize arrays first
+    this.baseRates = {}
+    this.previousMediaSelections = []
+    this.previousTerritorySelections = []
+    
     this.setupTalentButtons()
     this.setupMediaTypeLogic()
     this.watchDurationWarning()
     this.setupManualAdjustments()
     this.setupMainRowEventListeners()
     this.setupProductTypeListeners()
+    this.setupDurationLogic()
     
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
     window.removeCombination = (categoryId, index) => this.removeCombination(categoryId, index)
     
-    // Store base rates for each category
-    this.baseRates = {}
     this.loadBaseRates()
   }
 
@@ -553,17 +558,23 @@ export default class extends Controller {
     const tvCheckbox = document.querySelector('input[value="tv"]')
     const internetCheckbox = document.querySelector('input[value="internet"]')
     const cinemaCheckbox = document.querySelector('input[value="cinema"]')
-    
+
     mediaCheckboxes.forEach(checkbox => {
       checkbox.addEventListener('change', () => {
-        // If "All Media" is selected, uncheck and disable all others
-        if (checkbox.value === 'all_media' && checkbox.checked) {
-          document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
-            otherCheckbox.checked = false
-            otherCheckbox.disabled = true
+      export default class extends Controller {
             otherCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
           })
         }
+
+    // If "All Media" is unchecked, enable all others and uncheck everything
+        else if (checkbox.value === 'all_media' && !checkbox.checked) {
+          document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
+            otherCheckbox.checked = false
+            otherCheckbox.disabled = false
+            otherCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+          })
+        }
+        
         // If "All Media" is unchecked, enable all others and uncheck everything
         else if (checkbox.value === 'all_media' && !checkbox.checked) {
           document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
@@ -797,6 +808,181 @@ export default class extends Controller {
         this.updateCategoryTotalsDisplay()
       })
     })
+  }
+
+  setupDurationLogic() {
+    const durationSelect = document.querySelector('select[name*="duration"]')
+    if (durationSelect) {
+      durationSelect.addEventListener('change', () => {
+        this.handleDurationChange()
+      })
+      
+      // Check initial state on page load
+      this.handleDurationChange()
+    }
+    
+    // Add event listeners to territory checkboxes to update tags
+    document.querySelectorAll('.territory-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', () => {
+        this.updateTerritoryTags()
+      })
+    })
+  }
+
+  handleDurationChange() {
+    const durationSelect = document.querySelector('select[name*="duration"]')
+    if (!durationSelect) return
+    
+    const duration = durationSelect.value
+    const isShortDuration = ['3_months', '6_months', '12_months'].includes(duration)
+    
+    const allMediaCheckbox = document.querySelector('input[value="all_media"]')
+    const worldwideCheckbox = this.getWorldwideTerritory()
+    
+    if (isShortDuration) {
+      // Store current selections before forcing changes
+      this.storePreviousSelections()
+      
+      // Force All Media selection
+      if (allMediaCheckbox && !allMediaCheckbox.checked) {
+        allMediaCheckbox.checked = true
+        // Trigger the media logic to disable other options
+        allMediaCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+      
+      // Force Worldwide territory selection
+      if (worldwideCheckbox && !worldwideCheckbox.checked) {
+        // Uncheck all other territories first
+        document.querySelectorAll('.territory-checkbox:checked').forEach(checkbox => {
+          checkbox.checked = false
+        })
+        worldwideCheckbox.checked = true
+      }
+      
+      // Disable All Media and Worldwide checkboxes to prevent unchecking
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = true
+        allMediaCheckbox.closest('label').classList.add('opacity-75')
+      }
+      if (worldwideCheckbox) {
+        worldwideCheckbox.disabled = true
+        worldwideCheckbox.closest('label').classList.add('opacity-75')
+      }
+    } else {
+      // Re-enable All Media and Worldwide checkboxes
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = false
+        allMediaCheckbox.closest('label').classList.remove('opacity-75')
+      }
+      if (worldwideCheckbox) {
+        worldwideCheckbox.disabled = false
+        worldwideCheckbox.closest('label').classList.remove('opacity-75')
+      }
+      
+      // Restore previous selections
+      this.restorePreviousSelections()
+    }
+    
+    // Update territory tags display
+    this.updateTerritoryTags()
+  }
+
+  storePreviousSelections() {
+    // Initialize arrays if they don't exist
+    if (!this.previousMediaSelections) {
+      this.previousMediaSelections = []
+    }
+    if (!this.previousTerritorySelections) {
+      this.previousTerritorySelections = []
+    }
+    
+    // Only store if we haven't already stored (to preserve original user choices)
+    if (this.previousMediaSelections.length === 0) {
+      const checkedMedia = document.querySelectorAll('input[name="media_types[]"]:checked')
+      this.previousMediaSelections = Array.from(checkedMedia).map(checkbox => checkbox.value)
+    }
+    
+    if (this.previousTerritorySelections.length === 0) {
+      const checkedTerritories = document.querySelectorAll('.territory-checkbox:checked')
+      this.previousTerritorySelections = Array.from(checkedTerritories).map(checkbox => checkbox.value)
+    }
+  }
+
+  restorePreviousSelections() {
+    // Initialize arrays if they don't exist
+    if (!this.previousMediaSelections) {
+      this.previousMediaSelections = []
+    }
+    if (!this.previousTerritorySelections) {
+      this.previousTerritorySelections = []
+    }
+    
+    // Restore media selections
+    document.querySelectorAll('input[name="media_types[]"]').forEach(checkbox => {
+      checkbox.checked = this.previousMediaSelections.includes(checkbox.value)
+      checkbox.disabled = false
+      checkbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+    })
+    
+    // Restore territory selections
+    document.querySelectorAll('.territory-checkbox').forEach(checkbox => {
+      checkbox.checked = this.previousTerritorySelections.includes(checkbox.value)
+    })
+    
+    // Clear stored selections for next time
+    this.previousMediaSelections = []
+    this.previousTerritorySelections = []
+    
+    // Recalculate media multiplier based on restored selections
+    this.calculateMediaMultiplier()
+  }
+
+  getWorldwideTerritory() {
+    // Find the Worldwide territory checkbox by looking for the territory with name "Worldwide"
+    const territories = document.querySelectorAll('.territory-checkbox')
+    return Array.from(territories).find(checkbox => {
+      const label = checkbox.closest('label')
+      const nameElement = label?.querySelector('.font-medium')
+      return nameElement?.textContent.trim() === 'Worldwide'
+    })
+  }
+
+  updateTerritoryTags() {
+    const checkedTerritories = document.querySelectorAll('.territory-checkbox:checked')
+    const territoryNames = Array.from(checkedTerritories).map(checkbox => {
+      const label = checkbox.closest('label')
+      const nameElement = label?.querySelector('.font-medium')
+      return nameElement?.textContent.trim()
+    }).filter(name => name)
+    
+    // Find or create territory tags container
+    let tagsContainer = document.getElementById('territory-tags')
+    if (!tagsContainer) {
+      // Create tags container below Usage & Licensing title
+      const usageSection = document.getElementById('licensing')
+      const titleDiv = usageSection?.querySelector('.flex.items-center.justify-between')
+      if (titleDiv) {
+        tagsContainer = document.createElement('div')
+        tagsContainer.id = 'territory-tags'
+        tagsContainer.className = 'mb-4'
+        titleDiv.parentNode.insertBefore(tagsContainer, titleDiv.nextSibling)
+      }
+    }
+    
+    if (tagsContainer) {
+      if (territoryNames.length > 0) {
+        tagsContainer.innerHTML = `
+          <div class="flex flex-wrap gap-2 mt-2">
+            <span class="text-xs text-gray-500">Selected territories:</span>
+            ${territoryNames.map(name => 
+              `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">${name}</span>`
+            ).join('')}
+          </div>
+        `
+      } else {
+        tagsContainer.innerHTML = ''
+      }
+    }
   }
 
   addAdjustmentRow() {
