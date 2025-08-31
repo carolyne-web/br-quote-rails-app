@@ -34,26 +34,7 @@ export default class extends Controller {
           })
         })
         
-        // Add rate adjustment button listeners
-        const minusBtn = row.querySelector('.rate-minus-btn')
-        const plusBtn = row.querySelector('.rate-plus-btn')
-        const rateInput = row.querySelector('[name*="adjusted_rate"]')
-        
-        if (minusBtn && rateInput) {
-          minusBtn.addEventListener('click', () => {
-            const currentValue = parseInt(rateInput.value) || 0
-            rateInput.value = Math.max(0, currentValue - 500)
-            this.calculateCategoryTotal(categoryId)
-          })
-        }
-        
-        if (plusBtn && rateInput) {
-          plusBtn.addEventListener('click', () => {
-            const currentValue = parseInt(rateInput.value) || 0
-            rateInput.value = currentValue + 500
-            this.calculateCategoryTotal(categoryId)
-          })
-        }
+        // Rate adjustment now handled by built-in number input arrows
         
         // Night button listener - simple toggle (no input field)
         const nightBtn = row.querySelector('.night-btn')
@@ -96,7 +77,7 @@ export default class extends Controller {
     // Load base rates directly from the form input values (which are set from Rails Settings)
     document.querySelectorAll('[data-adjusted-rate-input]').forEach(input => {
       const categoryId = input.dataset.adjustedRateInput
-      const baseRate = parseInt(input.value) || 0
+      const baseRate = Math.round(parseFloat(input.value)) || 0
       if (baseRate > 0) {
         this.baseRates[categoryId] = baseRate
       }
@@ -258,14 +239,11 @@ export default class extends Controller {
         </div>
         
         <!-- Rate Adjustment -->
-        <div class="flex items-center gap-1 justify-center">
-          <button type="button" class="rate-minus-btn px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-sm font-bold"
-                  data-category="${categoryId}" data-line="${lineIndex}">-</button>
+        <div>
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][adjusted_rate]" value="${this.baseRates[categoryId] || 5000}"
+                 step="500"
                  class="w-20 px-1 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-center rate-adjustment"
                  data-category="${categoryId}" data-line="${lineIndex}">
-          <button type="button" class="rate-plus-btn px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors text-sm font-bold"
-                  data-category="${categoryId}" data-line="${lineIndex}">+</button>
         </div>
         
         <!-- Shoot Days -->
@@ -339,50 +317,10 @@ export default class extends Controller {
       })
     })
     
-    // Rate adjustment buttons
-    const decreaseBtn = lineRow.querySelector('.rate-minus-btn')
-    const increaseBtn = lineRow.querySelector('.rate-plus-btn')
-    const rateInput = lineRow.querySelector('.rate-adjustment')
+    // Rate adjustment now handled by built-in number input arrows
     
-    if (decreaseBtn) {
-      decreaseBtn.addEventListener('click', () => {
-        const currentValue = parseInt(rateInput.value) || 0
-        rateInput.value = Math.max(0, currentValue - 500)
-        this.calculateCategoryTotal(categoryId)
-      })
-    }
-    
-    if (increaseBtn) {
-      increaseBtn.addEventListener('click', () => {
-        const currentValue = parseInt(rateInput.value) || 0
-        rateInput.value = currentValue + 500
-        this.calculateCategoryTotal(categoryId)
-      })
-    }
-    
-    // Night button for additional lines - simple toggle (no input field)
-    const nightBtn = lineRow.querySelector('.night-btn')
-    if (nightBtn) {
-      nightBtn.addEventListener('click', () => {
-        const isActive = nightBtn.dataset.active === 'true'
-        nightBtn.dataset.active = isActive ? 'false' : 'true'
-        
-        if (nightBtn.dataset.active === 'true') {
-          nightBtn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
-          nightBtn.classList.remove('border-gray-300')
-        } else {
-          nightBtn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
-          nightBtn.classList.add('border-gray-300')
-        }
-        
-        const hiddenField = lineRow.querySelector('.night-premium')
-        if (hiddenField) {
-          hiddenField.value = nightBtn.dataset.active
-        }
-        
-        this.calculateCategoryTotal(categoryId)
-      })
-    }
+    // Night button handling is done via event delegation in setupTalentButtons()
+    // No need for direct listeners here to avoid conflicts
   }
 
   addCombination(categoryId) {
@@ -497,7 +435,7 @@ export default class extends Controller {
 
   calculateCombinationTotal(categoryId, index) {
     const combination = document.querySelector(`[data-combination-index="${index}"]`)
-    const rate = parseInt(combination.querySelector('.rate-input').value) || 0
+    const rate = Math.round(parseFloat(combination.querySelector('.rate-input').value)) || 0
     const count = parseInt(combination.querySelector('.talent-count').value) || 0
     const days = parseInt(combination.querySelector('.shoot-days').value) || 0
     
@@ -558,7 +496,7 @@ export default class extends Controller {
   calculateLineTotal(lineRow, baseRate) {
     // Get values from the row
     const talentCount = parseInt(lineRow.querySelector('[name*="talent_count"], .talent-count')?.value) || 0
-    const adjustedRate = parseInt(lineRow.querySelector('[name*="adjusted_rate"], .rate-adjustment')?.value) || baseRate
+    const adjustedRate = Math.round(parseFloat(lineRow.querySelector('[name*="adjusted_rate"], .rate-adjustment')?.value)) || baseRate
     const shootDays = parseInt(lineRow.querySelector('[name*="days_count"], [name*="shoot_days"], .shoot-days')?.value) || 0
     const rehearsalDays = parseInt(lineRow.querySelector('[name*="rehearsal_days"], .rehearsal-days')?.value) || 0
     const downDays = parseInt(lineRow.querySelector('[name*="down_days"], .down-days')?.value) || 0
@@ -586,7 +524,7 @@ export default class extends Controller {
     // Overtime at 10% rate per hour
     lineTotal += talentCount * adjustedRate * 0.1 * overtimeHours
     
-    // Night calculation: 1 × rate × talent × 1.5 (applies to first shoot day only)
+    // Night calculation: 1 × rate × talent × 0.5 (applies to first shoot day only)
     if (isNightActive) {
       const nightCost = 1 * adjustedRate * talentCount * 0.5
       lineTotal += nightCost
@@ -816,7 +754,7 @@ export default class extends Controller {
             if (firstRow) {
               const rateInput = firstRow.querySelector('[name*="adjusted_rate"], .rate-adjustment')
               if (rateInput && rateInput.value) {
-                adjustedRate = parseInt(rateInput.value) || adjustedRate
+                adjustedRate = Math.round(parseFloat(rateInput.value)) || adjustedRate
               }
             }
             
