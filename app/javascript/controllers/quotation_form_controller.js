@@ -551,185 +551,223 @@ export default class extends Controller {
   }
 
   setupMediaTypeLogic() {
-    const mediaCheckboxes = document.querySelectorAll('input[name="media_types[]"]')
-    const allMediaCheckbox = document.querySelector('input[value="all_media"]')
-    const allMovingCheckbox = document.querySelector('input[value="all_moving"]')
-    const allPrintCheckbox = document.querySelector('input[value="print"]')
-    const tvCheckbox = document.querySelector('input[value="tv"]')
-    const internetCheckbox = document.querySelector('input[value="internet"]')
-    const cinemaCheckbox = document.querySelector('input[value="cinema"]')
+    // Set up media type logic for combination-based media types
+    this.setupCombinationMediaLogic()
+  }
 
-    mediaCheckboxes.forEach(checkbox => {
-      checkbox.addEventListener('change', () => {
-        // If "All Media" is selected, disable all others and auto-check them
-        if (checkbox.value === 'all_media' && checkbox.checked) {
-          document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
-            otherCheckbox.checked = true
-            otherCheckbox.disabled = true
-            otherCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
-          })
-        }
-        // If "All Media" is unchecked, enable all others and uncheck everything
-        else if (checkbox.value === 'all_media' && !checkbox.checked) {
-          document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
-            otherCheckbox.checked = false
-            otherCheckbox.disabled = false
-            otherCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-          })
-        }
-        // If "All Moving Media" is selected
-        else if (checkbox.value === 'all_moving' && checkbox.checked) {
-          // Auto-check TV, Internet, Cinema
-          if (tvCheckbox) tvCheckbox.checked = true
-          if (internetCheckbox) internetCheckbox.checked = true  
-          if (cinemaCheckbox) cinemaCheckbox.checked = true
-          
-          // Disable All Print Media and All Media
-          if (allPrintCheckbox) {
-            allPrintCheckbox.disabled = true
-            allPrintCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
-          }
-          if (allMediaCheckbox) {
-            allMediaCheckbox.disabled = true
-            allMediaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
-          }
-        }
-        // If "All Moving Media" is unchecked
-        else if (checkbox.value === 'all_moving' && !checkbox.checked) {
-          // Uncheck TV, Internet, Cinema
-          if (tvCheckbox) tvCheckbox.checked = false
-          if (internetCheckbox) internetCheckbox.checked = false
-          if (cinemaCheckbox) cinemaCheckbox.checked = false
-          
-          // Re-enable All Print Media and All Media
-          if (allPrintCheckbox) {
-            allPrintCheckbox.disabled = false
-            allPrintCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-          }
-          if (allMediaCheckbox) {
-            allMediaCheckbox.disabled = false
-            allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-          }
-        }
-        // If "All Print Media" is selected
-        else if (checkbox.value === 'print' && checkbox.checked) {
-          // Auto-check Internet
-          if (internetCheckbox) internetCheckbox.checked = true
-          
-          // Disable All Moving Media, individual moving options, and All Media
-          if (allMovingCheckbox) {
-            allMovingCheckbox.disabled = true
-            allMovingCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
-          }
-          if (tvCheckbox) {
-            tvCheckbox.disabled = true
-            tvCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
-          }
-          if (cinemaCheckbox) {
-            cinemaCheckbox.disabled = true
-            cinemaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
-          }
-          if (allMediaCheckbox) {
-            allMediaCheckbox.disabled = true
-            allMediaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
-          }
-        }
-        // If "All Print Media" is unchecked
-        else if (checkbox.value === 'print' && !checkbox.checked) {
-          // Uncheck Internet
-          if (internetCheckbox) internetCheckbox.checked = false
-          
-          // Re-enable All Moving Media, individual moving options, and All Media
-          if (allMovingCheckbox) {
-            allMovingCheckbox.disabled = false
-            allMovingCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-          }
-          if (tvCheckbox) {
-            tvCheckbox.disabled = false
-            tvCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-          }
-          if (cinemaCheckbox) {
-            cinemaCheckbox.disabled = false
-            cinemaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-          }
-          if (allMediaCheckbox) {
-            allMediaCheckbox.disabled = false
-            allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-          }
-        }
-        // Handle TV, Internet, Cinema individual selections
-        else if (['tv', 'internet', 'cinema'].includes(checkbox.value)) {
-          const tvChecked = tvCheckbox && tvCheckbox.checked
-          const internetChecked = internetCheckbox && internetCheckbox.checked
-          const cinemaChecked = cinemaCheckbox && cinemaCheckbox.checked
-          
-          // Special case: If "All Print Media" was checked but user unchecks Internet
-          if (checkbox.value === 'internet' && allPrintCheckbox && allPrintCheckbox.checked && !internetChecked) {
-            allPrintCheckbox.checked = false
-            // Re-enable All Moving Media, individual moving options, and All Media
-            if (allMovingCheckbox) {
-              allMovingCheckbox.disabled = false
-              allMovingCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-            }
-            if (tvCheckbox) {
-              tvCheckbox.disabled = false
-              tvCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-            }
-            if (cinemaCheckbox) {
-              cinemaCheckbox.disabled = false
-              cinemaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-            }
-            if (allMediaCheckbox) {
-              allMediaCheckbox.disabled = false
-              allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-            }
-          }
-          // If user manually selects all three, auto-check "All Moving Media"
-          else if (tvChecked && internetChecked && cinemaChecked && allMovingCheckbox && !allMovingCheckbox.checked) {
-            allMovingCheckbox.checked = true
-            // Disable All Print Media and All Media
-            if (allPrintCheckbox) {
-              allPrintCheckbox.disabled = true
-              allPrintCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
-            }
-            if (allMediaCheckbox) {
-              allMediaCheckbox.disabled = true
-              allMediaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
-            }
-          } 
-          // If "All Moving Media" was checked but user unchecks one of TV/Internet/Cinema
-          else if (allMovingCheckbox && allMovingCheckbox.checked && !(tvChecked && internetChecked && cinemaChecked)) {
-            allMovingCheckbox.checked = false
-            // Re-enable All Print Media and All Media
-            if (allPrintCheckbox) {
-              allPrintCheckbox.disabled = false
-              allPrintCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-            }
-            if (allMediaCheckbox) {
-              allMediaCheckbox.disabled = false
-              allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-            }
-          }
-        }
-        // If any other checkbox is selected, uncheck "All Media"
-        else if (checkbox.value !== 'all_media' && checkbox.checked && allMediaCheckbox) {
-          allMediaCheckbox.checked = false
-        }
-        
-        this.calculateMediaMultiplier()
-      })
+  setupCombinationMediaLogic() {
+    // Use event delegation for dynamically created combinations
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('combination-media')) {
+        const comboId = e.target.getAttribute('data-combo')
+        this.handleMediaTypeChange(e.target, comboId)
+      }
     })
-    
-    // Initialize multiplier on page load and set initial state
-    this.calculateMediaMultiplier()
-    
-    // Check initial state on page load - only "All Media" is exclusive
-    if (allMediaCheckbox && allMediaCheckbox.checked) {
-      document.querySelectorAll('input[name="media_types[]"]:not([value="all_media"])').forEach(otherCheckbox => {
+  }
+
+  handleMediaTypeChange(checkbox, comboId) {
+    const allMediaCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_media"]`)
+    const allMovingCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_moving"]`)
+    const allPrintCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="print"]`)
+    const tvCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="tv"]`)
+    const internetCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="internet"]`)
+    const cinemaCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="cinema"]`)
+
+    // If "All Media" is selected, disable all others and auto-check them
+    if (checkbox.value === 'all_media' && checkbox.checked) {
+      document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:not([value="all_media"])`).forEach(otherCheckbox => {
+        otherCheckbox.checked = true
         otherCheckbox.disabled = true
         otherCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
       })
     }
+    // If "All Media" is unchecked, enable all others and uncheck everything
+    else if (checkbox.value === 'all_media' && !checkbox.checked) {
+      document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:not([value="all_media"])`).forEach(otherCheckbox => {
+        otherCheckbox.checked = false
+        otherCheckbox.disabled = false
+        otherCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+      })
+    }
+    // If "All Moving Media" is selected
+    else if (checkbox.value === 'all_moving' && checkbox.checked) {
+      // Auto-check TV, Internet, Cinema
+      if (tvCheckbox) tvCheckbox.checked = true
+      if (internetCheckbox) internetCheckbox.checked = true  
+      if (cinemaCheckbox) cinemaCheckbox.checked = true
+      
+      // Disable All Print Media and All Media
+      if (allPrintCheckbox) {
+        allPrintCheckbox.disabled = true
+        allPrintCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+      }
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = true
+        allMediaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+      }
+    }
+    // If "All Moving Media" is unchecked
+    else if (checkbox.value === 'all_moving' && !checkbox.checked) {
+      // Uncheck TV, Internet, Cinema
+      if (tvCheckbox) tvCheckbox.checked = false
+      if (internetCheckbox) internetCheckbox.checked = false
+      if (cinemaCheckbox) cinemaCheckbox.checked = false
+      
+      // Re-enable All Print Media and All Media
+      if (allPrintCheckbox) {
+        allPrintCheckbox.disabled = false
+        allPrintCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+      }
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = false
+        allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+      }
+    }
+    // If "All Print Media" is selected
+    else if (checkbox.value === 'print' && checkbox.checked) {
+      // Auto-check Internet
+      if (internetCheckbox) internetCheckbox.checked = true
+      
+      // Uncheck and disable TV
+      if (tvCheckbox) {
+        tvCheckbox.checked = false
+        tvCheckbox.disabled = true
+        tvCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+      }
+      
+      // Disable All Moving Media, individual moving options, and All Media
+      if (allMovingCheckbox) {
+        allMovingCheckbox.disabled = true
+        allMovingCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+      }
+      if (cinemaCheckbox) {
+        cinemaCheckbox.disabled = true
+        cinemaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+      }
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = true
+        allMediaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+      }
+    }
+    // If "All Print Media" is unchecked
+    else if (checkbox.value === 'print' && !checkbox.checked) {
+      // Uncheck Internet
+      if (internetCheckbox) internetCheckbox.checked = false
+      
+      // Re-enable All Moving Media, individual moving options, and All Media
+      if (allMovingCheckbox) {
+        allMovingCheckbox.disabled = false
+        allMovingCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+      }
+      if (tvCheckbox) {
+        tvCheckbox.disabled = false
+        tvCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+      }
+      if (cinemaCheckbox) {
+        cinemaCheckbox.disabled = false
+        cinemaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+      }
+      if (allMediaCheckbox) {
+        allMediaCheckbox.disabled = false
+        allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+      }
+    }
+    // Handle TV, Internet, Cinema individual selections
+    else if (['tv', 'internet', 'cinema'].includes(checkbox.value)) {
+      const tvChecked = tvCheckbox && tvCheckbox.checked
+      const internetChecked = internetCheckbox && internetCheckbox.checked
+      const cinemaChecked = cinemaCheckbox && cinemaCheckbox.checked
+      
+      // Special case: If "All Print Media" was checked but user unchecks Internet
+      if (checkbox.value === 'internet' && allPrintCheckbox && allPrintCheckbox.checked && !internetChecked) {
+        allPrintCheckbox.checked = false
+        // Re-enable All Moving Media, individual moving options, and All Media
+        if (allMovingCheckbox) {
+          allMovingCheckbox.disabled = false
+          allMovingCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+        }
+        if (tvCheckbox) {
+          tvCheckbox.disabled = false
+          tvCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+        }
+        if (cinemaCheckbox) {
+          cinemaCheckbox.disabled = false
+          cinemaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+        }
+        if (allMediaCheckbox) {
+          allMediaCheckbox.disabled = false
+          allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+        }
+      }
+      // If user manually selects all three, auto-check "All Moving Media"
+      else if (tvChecked && internetChecked && cinemaChecked && allMovingCheckbox && !allMovingCheckbox.checked) {
+        allMovingCheckbox.checked = true
+        // Disable All Print Media and All Media
+        if (allPrintCheckbox) {
+          allPrintCheckbox.disabled = true
+          allPrintCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+        }
+        if (allMediaCheckbox) {
+          allMediaCheckbox.disabled = true
+          allMediaCheckbox.closest('label').classList.add('opacity-50', 'cursor-not-allowed')
+        }
+      } 
+      // If "All Moving Media" was checked but user unchecks one of TV/Internet/Cinema
+      else if (allMovingCheckbox && allMovingCheckbox.checked && !(tvChecked && internetChecked && cinemaChecked)) {
+        allMovingCheckbox.checked = false
+        // Re-enable All Print Media and All Media
+        if (allPrintCheckbox) {
+          allPrintCheckbox.disabled = false
+          allPrintCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+        }
+        if (allMediaCheckbox) {
+          allMediaCheckbox.disabled = false
+          allMediaCheckbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+        }
+      }
+    }
+    // If any other checkbox is selected, uncheck "All Media"
+    else if (checkbox.value !== 'all_media' && checkbox.checked && allMediaCheckbox) {
+      allMediaCheckbox.checked = false
+    }
+    
+    // Update media multiplier for this combination
+    this.calculateMediaMultiplierForCombo(comboId)
+  }
+
+  calculateMediaMultiplierForCombo(comboId) {
+    const selected = document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:checked`)
+    const allMediaSelected = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_media"]:checked`)
+    const allMovingSelected = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_moving"]:checked`)
+    const allPrintSelected = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="print"]:checked`)
+    let multiplier = 1.0
+    
+    if (allMediaSelected) {
+      multiplier = 1.0 // All Media = 100%
+    } else if (allMovingSelected && allPrintSelected) {
+      // All Moving + All Print should auto-select All Media, but just in case
+      multiplier = 1.0 // = 100%
+    } else if (allMovingSelected) {
+      multiplier = 0.75 // All Moving Media = 75%
+    } else if (allPrintSelected) {
+      multiplier = 0.75 // All Print Media = 75%
+    } else if (selected.length === 1) {
+      multiplier = 0.5 // One individual media = 50%
+    } else if (selected.length >= 3) {
+      multiplier = 1.0 // Three or more individual media = 100%
+    } else if (selected.length === 2) {
+      multiplier = 0.75 // Two individual media = 75%
+    } else {
+      multiplier = 1.0 // No selection defaults to 100%
+    }
+    
+    // Update display for this combination if it exists
+    const multiplierDisplay = document.getElementById(`media-multiplier-${comboId}`)
+    if (multiplierDisplay) {
+      multiplierDisplay.textContent = `${Math.round(multiplier * 100)}%`
+    }
+    
+    return multiplier
   }
 
   calculateMediaMultiplier() {
@@ -831,6 +869,7 @@ export default class extends Controller {
     const isShortDuration = ['3_months', '6_months', '12_months'].includes(duration)
     
     const allMediaCheckbox = document.querySelector('input[value="all_media"]')
+    const worldwideCheckbox = this.getWorldwideTerritoryForCombo(1)
     
     if (isShortDuration) {
       // Store current selections before forcing changes
@@ -844,7 +883,6 @@ export default class extends Controller {
       }
       
       // Force Worldwide territory selection in Combo 1 (1200%)
-      const worldwideCheckbox = this.getWorldwideTerritoryForCombo(1)
       if (worldwideCheckbox && !worldwideCheckbox.checked) {
         // Uncheck all other territories in Combo 1 first
         document.querySelectorAll('.combination-territory-checkbox[data-combo="1"]:checked').forEach(checkbox => {
@@ -872,17 +910,32 @@ export default class extends Controller {
       }
       
       // Re-enable Worldwide checkbox in Combo 1
-      const worldwideCheckbox = this.getWorldwideTerritoryForCombo(1)
       if (worldwideCheckbox) {
         worldwideCheckbox.disabled = false
         worldwideCheckbox.closest('label').classList.remove('opacity-75')
       }
       
-      // Dynamically unselect All Media when switching to >12 months
+      // Dynamically unselect ALL media types when switching to >12 months
+      // First handle combination-based media types for Combo 1
+      const combo1MediaCheckboxes = document.querySelectorAll(`input[name="combinations[1][media_types][]"]`)
+      combo1MediaCheckboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+          checkbox.checked = false
+        }
+        checkbox.disabled = false
+        checkbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
+      })
+      
+      // Also handle old global media types if they exist
       if (allMediaCheckbox && allMediaCheckbox.checked) {
         allMediaCheckbox.checked = false
-        // Trigger the media logic to re-enable other options
-        allMediaCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+      
+      // Dynamically unselect Worldwide territory in Combo 1 when switching to >12 months
+      if (worldwideCheckbox && worldwideCheckbox.checked) {
+        worldwideCheckbox.checked = false
+        // Update territory tags for combo 1
+        this.updateTerritoryTagsForCombo(1)
       }
       
       // Don't restore previous selections - let user choose fresh

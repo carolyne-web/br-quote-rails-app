@@ -613,7 +613,7 @@ document.addEventListener('DOMContentLoaded', function() {
     newTab.textContent = `Combo ${newComboId}`;
     
     // Add remove button directly to the tab
-    newTab.innerHTML = `Combo ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700" onclick="event.stopPropagation(); removeCombination(${newComboId});">×</span>`;
+    newTab.innerHTML = `Combo ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
     
     tabsContainer.appendChild(newTab);
     
@@ -626,36 +626,71 @@ document.addEventListener('DOMContentLoaded', function() {
     switchToCombination(newComboId);
     
     // Update quote preview
+    if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
+        if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
+  }
+    }
+      }
+    }
   });
   
   function removeCombination(comboId) {
-    if (comboId == 1) return; // Cannot remove combo 1
+    console.log('Removing combination:', comboId);
+    if (comboId == 1) {
+      console.log('Cannot remove combo 1');
+      return; // Cannot remove combo 1
+    }
     
     // Remove tab
-    const tab = document.querySelector(`button[data-combo="${comboId}"]`);
+    const tab = document.querySelector(`button[data-combo="${comboId}"].combination-tab`);
+    console.log('Found tab to remove:', tab);
     if (tab) {
       tab.remove();
     }
     
     // Remove content
     const content = document.querySelector(`div[data-combo="${comboId}"].combination-content`);
+    console.log('Found content to remove:', content);
     if (content) {
       content.remove();
     }
     
-    // Switch to combo 1 if the removed combo was active
+    // Switch to combo 1 if no active tab remains
     const activeTab = document.querySelector('.combination-tab.border-blue-500');
+    console.log('Active tab after removal:', activeTab);
     if (!activeTab) {
+      console.log('Switching to combination 1');
       switchToCombination(1);
     }
     
     // Update quote preview
+    if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
+        if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
+  }
+    }
+      }
+    }
   }
   
   // Make removeCombination available globally
   window.removeCombination = removeCombination;
+  
+  // Add event delegation for remove combination buttons
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-combo-btn')) {
+      e.preventDefault();
+      e.stopPropagation();
+      const comboId = e.target.getAttribute('data-combo-id');
+      console.log('Remove button clicked for combo:', comboId);
+      removeCombination(parseInt(comboId));
+    }
+  });
   
   function createCombinationContent(comboId) {
     const content = document.createElement('div');
@@ -1337,7 +1372,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (checkbox) {
       checkbox.checked = false;
       updateTerritoryTags(comboId);
-      updateQuotePreview();
+      if (typeof updateQuotePreview === 'function') {
+        if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
+    updateQuotePreview();
+  }
+    }
+      }
     }
   }
 
@@ -1352,7 +1393,11 @@ document.addEventListener('DOMContentLoaded', function() {
       calculateMediaMultiplierForCombo(comboId);
     }
     
+    if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
+  }
+    }
     
   });
   
@@ -1369,7 +1414,11 @@ document.addEventListener('DOMContentLoaded', function() {
       updateTerritoryTags(comboId);
     }
     
+    if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
+  }
+    }
     
   });
   
@@ -1412,7 +1461,13 @@ document.addEventListener('DOMContentLoaded', function() {
         this.classList.remove('border-gray-300');
       }
       
-      updateQuotePreview();
+      if (typeof updateQuotePreview === 'function') {
+        if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
+    updateQuotePreview();
+  }
+    }
+      }
     });
   });
 
@@ -1439,7 +1494,13 @@ document.addEventListener('DOMContentLoaded', function() {
         hiddenField.value = e.target.dataset.active;
       }
       
-      updateQuotePreview();
+      if (typeof updateQuotePreview === 'function') {
+        if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
+    updateQuotePreview();
+  }
+    }
+      }
     }
   });
 
@@ -1473,7 +1534,11 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
+    if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
+  }
+    }
   });
 
   // Calculate category totals for talent
@@ -1521,11 +1586,17 @@ document.addEventListener('DOMContentLoaded', function() {
       totalElement.textContent = `R${total.toLocaleString()}`;
     }
     
+    if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
+  }
+    }
   }
 
   // Initial calculation
-  updateQuotePreview();
+  if (typeof updateQuotePreview === 'function') {
+    updateQuotePreview();
+  }
 });
 
 // Action button functions
@@ -1572,7 +1643,11 @@ document.querySelectorAll('.talent-btn').forEach(btn => {
       this.classList.remove('border-gray-300');
     }
     
+    if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
+  }
+    }
   });
 });
 
@@ -1590,7 +1665,11 @@ document.querySelectorAll('.rate-plus-btn, .rate-minus-btn').forEach(btn => {
     
     updateAdjustedRate(categoryId);
     updateCategoryTotal(categoryId);
+    if (typeof updateQuotePreview === 'function') {
+      if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
+  }
+    }
   });
 });
 
