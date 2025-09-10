@@ -1,0 +1,130 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900">Support Requests</h1>
+      
+      <!-- Stats Cards -->
+      <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="p-5">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-red-500 rounded-md flex items-center justify-center">
+                  <span class="text-white text-sm font-bold"><%= @unresolved_count %></span>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 truncate">Unresolved</dt>
+                  <dd class="text-lg font-medium text-gray-900"><%= @unresolved_count %></dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="p-5">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                  <span class="text-white text-sm font-bold"><%= @open_count %></span>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 truncate">Open</dt>
+                  <dd class="text-lg font-medium text-gray-900"><%= @open_count %></dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="p-5">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                  <span class="text-white text-sm font-bold"><%= @in_progress_count %></span>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 truncate">In Progress</dt>
+                  <dd class="text-lg font-medium text-gray-900"><%= @in_progress_count %></dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Support Requests Table -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-md">
+      <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Support Requests</h3>
+      </div>
+      
+      <% if @support_requests.any? %>
+        <ul role="list" class="divide-y divide-gray-200">
+          <% @support_requests.each do |request| %>
+            <li>
+              <%= link_to admin_support_request_path(request), class: "block hover:bg-gray-50" do %>
+                <div class="px-4 py-4 sm:px-6">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                      <p class="text-sm font-medium text-indigo-600 truncate">
+                        <%= request.subject %>
+                      </p>
+                      <div class="ml-2 flex-shrink-0 flex">
+                        <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <%= request.status_badge_class %>">
+                          <%= request.status_name %>
+                        </p>
+                      </div>
+                    </div>
+                    <div class="flex items-center">
+                      <p class="text-sm text-gray-500">
+                        Priority: <%= request.priority_name %>
+                      </p>
+                      <svg class="ml-2 flex-shrink-0 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="mt-2 sm:flex sm:justify-between">
+                    <div class="sm:flex">
+                      <p class="flex items-center text-sm text-gray-500">
+                        From: <%= request.production_house.name %>
+                      </p>
+                    </div>
+                    <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                      <p>
+                        <%= time_ago_in_words(request.created_at) %> ago
+                      </p>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <p class="text-sm text-gray-600">
+                      <%= truncate(request.message, length: 150) %>
+                    </p>
+                  </div>
+                </div>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+        
+        <!-- Pagination -->
+        <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <%= paginate @support_requests %>
+        </div>
+      <% else %>
+        <div class="text-center py-12">
+          <p class="text-gray-500">No support requests found.</p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

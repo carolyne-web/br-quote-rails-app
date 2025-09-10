@@ -19,6 +19,8 @@ export default class extends Controller {
     this.setupMainRowEventListeners()
     this.setupProductTypeListeners()
     this.setupDurationLogic()
+    this.setupCommercialLogic()
+    this.setupRateValidation()
     
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
@@ -42,29 +44,7 @@ export default class extends Controller {
         
         // Rate adjustment now handled by built-in number input arrows
         
-        // Night button listener - simple toggle (no input field)
-        const nightBtn = row.querySelector('.night-btn')
-        if (nightBtn) {
-          nightBtn.addEventListener('click', () => {
-            const isActive = nightBtn.dataset.active === 'true'
-            nightBtn.dataset.active = isActive ? 'false' : 'true'
-            
-            if (nightBtn.dataset.active === 'true') {
-              nightBtn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
-              nightBtn.classList.remove('border-gray-300')
-            } else {
-              nightBtn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
-              nightBtn.classList.add('border-gray-300')
-            }
-            
-            const hiddenField = row.querySelector('[name*="night_premium"]')
-            if (hiddenField) {
-              hiddenField.value = nightBtn.dataset.active
-            }
-            
-            this.calculateCategoryTotal(categoryId)
-          })
-        }
+        // Night button handling is now done via event delegation in setupTalentButtons()
       }
     })
   }
@@ -97,7 +77,90 @@ export default class extends Controller {
     })
   }
 
+  initializeNightButtonStates() {
+    // Direct event listeners for each night button
+    document.querySelectorAll('.night-btn').forEach(btn => {
+      const hasActiveClasses = btn.classList.contains('bg-yellow-100') && 
+                              btn.classList.contains('border-yellow-400') && 
+                              btn.classList.contains('text-yellow-800')
+      
+      // Set data-active based on visual state
+      btn.dataset.active = hasActiveClasses ? 'true' : 'false'
+      
+      // Add direct click listener to this button
+      btn.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        this.toggleNightButton(btn)
+      })
+      
+      // Update hidden field to match
+      let hiddenField = btn.parentElement.querySelector('[name*="night_premium"]')
+      if (!hiddenField) {
+        hiddenField = btn.parentElement.querySelector('.night-premium')
+      }
+      if (!hiddenField) {
+        hiddenField = btn.closest('.talent-input-row').querySelector('[name*="night_premium"]')
+      }
+      
+      if (hiddenField) {
+        hiddenField.value = btn.dataset.active
+        console.log(`Night button initialized - Visual active: ${hasActiveClasses}, Data active: ${btn.dataset.active}, Hidden field: ${hiddenField.value}`)
+      } else {
+        console.log(`Night button initialized - Visual active: ${hasActiveClasses}, Data active: ${btn.dataset.active}, Hidden field: NOT FOUND`)
+      }
+    })
+  }
+
+  toggleNightButton(btn) {
+    console.log('Night button clicked directly!')
+    const categoryId = btn.dataset.category
+    const isActive = btn.dataset.active === 'true'
+    console.log(`Night button - CategoryId: ${categoryId}, IsActive: ${isActive}`)
+    
+    // Toggle the button state
+    btn.dataset.active = isActive ? 'false' : 'true'
+    console.log(`After toggle - btn.dataset.active: ${btn.dataset.active}`)
+    
+    // Update visual state
+    if (btn.dataset.active === 'true') {
+      btn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+      btn.classList.remove('border-gray-300', 'hover:bg-yellow-50')
+      console.log('Night button activated - CSS classes applied:', btn.className)
+    } else {
+      btn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+      btn.classList.add('border-gray-300', 'hover:bg-yellow-50')
+      console.log('Night button deactivated - CSS classes applied:', btn.className)
+    }
+    
+    // Update the hidden field
+    let hiddenField = btn.parentElement.querySelector('[name*="night_premium"]')
+    if (!hiddenField) {
+      hiddenField = btn.parentElement.querySelector('.night-premium')
+    }
+    if (!hiddenField) {
+      hiddenField = btn.closest('.talent-input-row').querySelector('[name*="night_premium"]')
+    }
+    
+    if (hiddenField) {
+      hiddenField.value = btn.dataset.active
+      console.log(`Night button updated: ${btn.dataset.active}, hidden field value: ${hiddenField.value}`)
+    } else {
+      console.error('Could not find night premium hidden field for button:', btn)
+    }
+    
+    // Force recalculation
+    if (categoryId) {
+      console.log('Triggering calculation after night button toggle for category:', categoryId)
+      this.calculateCategoryTotal(categoryId)
+    }
+  }
+
   setupTalentButtons() {
+    console.log('setupTalentButtons() called')
+    // Initialize night button states to ensure visual and data sync
+    this.initializeNightButtonStates()
+    
     document.querySelectorAll('.talent-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const categoryId = e.target.closest('.talent-btn').dataset.category
@@ -174,16 +237,27 @@ export default class extends Controller {
     
     // Setup add combination buttons using event delegation
     document.addEventListener('click', (e) => {
+      console.log('Document click event triggered, target:', e.target.className)
       if (e.target.closest('.add-combination-btn')) {
         const btn = e.target.closest('.add-combination-btn')
         const categoryId = btn.dataset.category
         this.addCombination(categoryId)
       }
       
+      // Handle remove category buttons
+      if (e.target.closest('[data-remove-category]')) {
+        const btn = e.target.closest('[data-remove-category]')
+        const categoryId = btn.dataset.category
+        console.log('Remove category button clicked for category:', categoryId)
+        this.removeTalentCategory(categoryId)
+      }
+      
       // Setup + Line button functionality
       if (e.target.closest('.add-line-btn')) {
+        console.log('Add line button clicked!')
         const btn = e.target.closest('.add-line-btn')
         const categoryId = btn.dataset.category
+        console.log(`Button categoryId: ${categoryId}`)
         this.addTalentLine(categoryId)
       }
       
@@ -200,34 +274,13 @@ export default class extends Controller {
         }
       }
       
-      // Handle night button toggle for additional lines
-      if (e.target.closest('.night-btn') && e.target.closest('.night-btn').dataset.line !== undefined) {
-        const btn = e.target.closest('.night-btn')
-        const categoryId = btn.dataset.category
-        const lineIndex = btn.dataset.line
-        const isActive = btn.dataset.active === 'true'
-        
-        if (isActive) {
-          btn.dataset.active = 'false'
-          btn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
-          btn.classList.add('border-gray-300', 'hover:bg-yellow-50')
-        } else {
-          btn.dataset.active = 'true'
-          btn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
-          btn.classList.remove('border-gray-300', 'hover:bg-yellow-50')
-        }
-        
-        const hiddenField = btn.parentElement.querySelector('.night-premium')
-        if (hiddenField) {
-          hiddenField.value = btn.dataset.active
-        }
-        
-        this.calculateCategoryTotal(categoryId)
-      }
+      // Night buttons now handled by direct event listeners in initializeNightButtonStates()
+      // No delegation needed to avoid conflicts
     })
   }
 
   addTalentLine(categoryId) {
+    console.log(`addTalentLine called for category: ${categoryId}`)
     const additionalLinesContainer = document.querySelector(`[data-category="${categoryId}"].additional-lines`)
     if (!additionalLinesContainer) {
       console.error(`Could not find additional lines container for category ${categoryId}`)
@@ -236,79 +289,100 @@ export default class extends Controller {
     
     const lineIndex = additionalLinesContainer.children.length
     const lineHtml = `
-      <div class="talent-input-row grid grid-cols-9 gap-2 mb-2" data-line-index="${lineIndex}">
-        <!-- Talent Count -->
-        <div>
-          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][talent_count]" min="0" max="99" value="0"
-                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center talent-count"
+      <tr class="talent-input-row" data-line-index="${lineIndex}">
+        <!-- Description -->
+        <td class="p-1">
+          <input type="text" name="talent[${categoryId}][lines][${lineIndex}][description]" value=""
+                 placeholder="Description"
+                 class="talent-description w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-left bg-gray-50"
                  data-category="${categoryId}" data-line="${lineIndex}">
-        </div>
+        </td>
+        
+        <!-- Talent Count -->
+        <td class="p-1">
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][talent_count]" min="0" max="99" value="0"
+                 class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center talent-count"
+                 data-category="${categoryId}" data-line="${lineIndex}">
+        </td>
         
         <!-- Rate Adjustment -->
-        <div>
+        <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][adjusted_rate]" value="${this.baseRates[categoryId] || 5000}"
-                 step="500"
-                 class="w-20 px-1 py-2 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-center rate-adjustment"
+                 step="100"
+                 class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center rate-adjustment"
                  data-category="${categoryId}" data-line="${lineIndex}">
-        </div>
+        </td>
         
         <!-- Shoot Days -->
-        <div>
+        <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][shoot_days]" min="1" value="1"
-                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center shoot-days"
+                 class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center shoot-days"
                  data-category="${categoryId}" data-line="${lineIndex}">
-        </div>
+        </td>
         
         <!-- Rehearsal Days -->
-        <div>
+        <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][rehearsal_days]" min="0" value="0"
-                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center rehearsal-days"
+                 class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center rehearsal-days"
                  data-category="${categoryId}" data-line="${lineIndex}">
-        </div>
+        </td>
         
         <!-- Down Days -->
-        <div>
+        <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][down_days]" min="0" value="0"
-                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center down-days"
+                 class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center down-days"
                  data-category="${categoryId}" data-line="${lineIndex}">
-        </div>
+        </td>
         
         <!-- Travel Days -->
-        <div>
+        <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][travel_days]" min="0" value="0"
-                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center travel-days"
+                 class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center travel-days"
                  data-category="${categoryId}" data-line="${lineIndex}">
-        </div>
+        </td>
         
         <!-- Overtime Hours -->
-        <div>
+        <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][overtime_hours]" min="0" step="0.5" value="0"
-                 class="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center overtime-hours"
+                 class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center overtime-hours"
                  data-category="${categoryId}" data-line="${lineIndex}">
-        </div>
+        </td>
         
         <!-- Night Button -->
-        <div class="flex flex-col items-center">
-          <button type="button" class="night-btn w-full px-2 py-2 text-xs border-2 border-gray-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
+        <td class="p-1 text-center">
+          <button type="button" class="night-btn w-full px-2 py-1 text-xs border-2 border-gray-300 rounded hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
                   data-active="false" data-category="${categoryId}" data-line="${lineIndex}">
             + Night Fee
           </button>
           <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][night_premium]" value="false"
                  class="night-premium" data-category="${categoryId}" data-line="${lineIndex}">
-        </div>
+        </td>
         
         <!-- Remove Line Button -->
-        <div>
+        <td class="p-1 text-center">
           <button type="button" class="remove-line-btn w-full text-xs text-red-600 font-medium"
                   data-category="${categoryId}" data-line="${lineIndex}">
             -
           </button>
-        </div>
-      </div>
+        </td>
+      </tr>
     `
     
     additionalLinesContainer.insertAdjacentHTML('beforeend', lineHtml)
     this.setupLineEventListeners(categoryId, lineIndex)
+    
+    // Add direct event listener to the new night button
+    const newNightBtn = additionalLinesContainer.querySelector(`[data-line-index="${lineIndex}"] .night-btn`)
+    if (newNightBtn) {
+      newNightBtn.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        this.toggleNightButton(newNightBtn)
+      })
+      console.log('Added direct event listener to new night button')
+    }
+    
+    console.log('About to calculate category total for categoryId:', categoryId)
     this.calculateCategoryTotal(categoryId)
   }
 
@@ -509,9 +583,14 @@ export default class extends Controller {
     const travelDays = parseInt(lineRow.querySelector('[name*="travel_days"], .travel-days')?.value) || 0
     const overtimeHours = parseFloat(lineRow.querySelector('[name*="overtime_hours"], .overtime-hours')?.value) || 0
     
-    // Check if night is active (simple toggle, no input count needed)
+    // Check if night is active (check both data attribute and visual state as fallback)
     const nightBtn = lineRow.querySelector('.night-btn')
-    const isNightActive = nightBtn && nightBtn.dataset.active === 'true'
+    const dataActive = nightBtn?.dataset.active === 'true'
+    const visuallyActive = nightBtn && nightBtn.classList.contains('bg-yellow-100') && 
+                          nightBtn.classList.contains('border-yellow-400') && 
+                          nightBtn.classList.contains('text-yellow-800')
+    const isNightActive = dataActive || visuallyActive
+    console.log(`Night button found: ${!!nightBtn}, dataset.active: ${nightBtn?.dataset.active}, visuallyActive: ${visuallyActive}, isNightActive: ${isNightActive}`)
     
     let lineTotal = 0
     
@@ -534,7 +613,7 @@ export default class extends Controller {
     if (isNightActive) {
       const nightCost = 1 * adjustedRate * talentCount * 0.5
       lineTotal += nightCost
-      console.log(`Night calculation: 1 × ${adjustedRate} × ${talentCount} × 1.5 = ${nightCost}`)
+      console.log(`Night calculation: 1 × ${adjustedRate} × ${talentCount} × 0.5 = ${nightCost}`)
     }
     
     console.log(`Line total: Talent=${talentCount}, Rate=${adjustedRate}, Shoot=${shootDays}, Rehearsal=${rehearsalDays}, Down=${downDays}, Travel=${travelDays}, Overtime=${overtimeHours}, Night=${isNightActive ? 'on' : 'off'}, Total=${lineTotal}`)
@@ -735,41 +814,6 @@ export default class extends Controller {
     this.calculateMediaMultiplierForCombo(comboId)
   }
 
-  calculateMediaMultiplierForCombo(comboId) {
-    const selected = document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:checked`)
-    const allMediaSelected = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_media"]:checked`)
-    const allMovingSelected = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_moving"]:checked`)
-    const allPrintSelected = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="print"]:checked`)
-    let multiplier = 1.0
-    
-    if (allMediaSelected) {
-      multiplier = 1.0 // All Media = 100%
-    } else if (allMovingSelected && allPrintSelected) {
-      // All Moving + All Print should auto-select All Media, but just in case
-      multiplier = 1.0 // = 100%
-    } else if (allMovingSelected) {
-      multiplier = 0.75 // All Moving Media = 75%
-    } else if (allPrintSelected) {
-      multiplier = 0.75 // All Print Media = 75%
-    } else if (selected.length === 1) {
-      multiplier = 0.5 // One individual media = 50%
-    } else if (selected.length >= 3) {
-      multiplier = 1.0 // Three or more individual media = 100%
-    } else if (selected.length === 2) {
-      multiplier = 0.75 // Two individual media = 75%
-    } else {
-      multiplier = 1.0 // No selection defaults to 100%
-    }
-    
-    // Update display for this combination if it exists
-    const multiplierDisplay = document.getElementById(`media-multiplier-${comboId}`)
-    if (multiplierDisplay) {
-      multiplierDisplay.textContent = `${Math.round(multiplier * 100)}%`
-    }
-    
-    return multiplier
-  }
-
   calculateMediaMultiplier() {
     const selected = document.querySelectorAll('input[name="media_types[]"]:checked')
     const allMediaSelected = document.querySelector('input[value="all_media"]:checked')
@@ -869,7 +913,6 @@ export default class extends Controller {
     const isShortDuration = ['3_months', '6_months', '12_months'].includes(duration)
     
     const allMediaCheckbox = document.querySelector('input[value="all_media"]')
-    const worldwideCheckbox = this.getWorldwideTerritoryForCombo(1)
     
     if (isShortDuration) {
       // Store current selections before forcing changes
@@ -883,6 +926,7 @@ export default class extends Controller {
       }
       
       // Force Worldwide territory selection in Combo 1 (1200%)
+      const worldwideCheckbox = this.getWorldwideTerritoryForCombo(1)
       if (worldwideCheckbox && !worldwideCheckbox.checked) {
         // Uncheck all other territories in Combo 1 first
         document.querySelectorAll('.combination-territory-checkbox[data-combo="1"]:checked').forEach(checkbox => {
@@ -910,32 +954,17 @@ export default class extends Controller {
       }
       
       // Re-enable Worldwide checkbox in Combo 1
+      const worldwideCheckbox = this.getWorldwideTerritoryForCombo(1)
       if (worldwideCheckbox) {
         worldwideCheckbox.disabled = false
         worldwideCheckbox.closest('label').classList.remove('opacity-75')
       }
       
-      // Dynamically unselect ALL media types when switching to >12 months
-      // First handle combination-based media types for Combo 1
-      const combo1MediaCheckboxes = document.querySelectorAll(`input[name="combinations[1][media_types][]"]`)
-      combo1MediaCheckboxes.forEach(checkbox => {
-        if (checkbox.checked) {
-          checkbox.checked = false
-        }
-        checkbox.disabled = false
-        checkbox.closest('label').classList.remove('opacity-50', 'cursor-not-allowed')
-      })
-      
-      // Also handle old global media types if they exist
+      // Dynamically unselect All Media when switching to >12 months
       if (allMediaCheckbox && allMediaCheckbox.checked) {
         allMediaCheckbox.checked = false
-      }
-      
-      // Dynamically unselect Worldwide territory in Combo 1 when switching to >12 months
-      if (worldwideCheckbox && worldwideCheckbox.checked) {
-        worldwideCheckbox.checked = false
-        // Update territory tags for combo 1
-        this.updateTerritoryTagsForCombo(1)
+        // Trigger the media logic to re-enable other options
+        allMediaCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
       }
       
       // Don't restore previous selections - let user choose fresh
@@ -1217,6 +1246,7 @@ export default class extends Controller {
                 <span class="font-semibold text-gray-800">R${this.formatNumber(totalValue)}</span>
               </div>
 
+
                ${categoryName.toLowerCase() !== 'extras' ? `
                 <div class="flex justify-between items-center text-xs text-gray-500">
                   <span>Base (excl. days)</span>
@@ -1361,5 +1391,134 @@ export default class extends Controller {
     })
     
     return valid
+  }
+
+  setupCommercialLogic() {
+    // Initialize commercial percentage variable
+    this.commercialPercentage = 100
+    
+    // Add event listeners to commercial type radio buttons
+    const commercialTypeRadios = document.querySelectorAll('input[name="quotation[commercial_type]"]')
+    commercialTypeRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.calculateCommercialPercentages()
+      })
+    })
+    
+    // Add event listener to number of commercials input
+    const commercialsCountInput = document.querySelector('input[name="quotation[number_of_commercials]"]')
+    if (commercialsCountInput) {
+      commercialsCountInput.addEventListener('input', () => {
+        this.calculateCommercialPercentages()
+      })
+    }
+    
+    // Calculate initial percentages if values are already set
+    this.calculateCommercialPercentages()
+  }
+
+  calculateCommercialPercentages() {
+    const commercialTypeInput = document.querySelector('input[name="quotation[commercial_type]"]:checked')
+    const commercialsCountInput = document.querySelector('input[name="quotation[number_of_commercials]"]')
+    const commercialPercentagesDiv = document.getElementById('commercial-percentages')
+    const commercialBreakdownDiv = document.getElementById('commercial-breakdown')
+    const totalPercentageSpan = document.getElementById('total-commercial-percentage')
+    
+    if (!commercialTypeInput || !commercialsCountInput || !commercialPercentagesDiv) {
+      return
+    }
+    
+    const commercialType = commercialTypeInput.value
+    const numberOfCommercials = parseInt(commercialsCountInput.value) || 1
+    
+    if (numberOfCommercials <= 0) {
+      commercialPercentagesDiv.classList.add('hidden')
+      return
+    }
+    
+    // Calculate percentages based on rules
+    const percentages = []
+    let totalPercentage = 0
+    
+    for (let i = 1; i <= numberOfCommercials; i++) {
+      let percentage = 0
+      
+      if (commercialType === 'non_brand') {
+        // Non-Brand Commercial rules
+        if (i === 1) {
+          percentage = 100
+        } else if (i === 2) {
+          percentage = 50
+        } else {
+          percentage = 25
+        }
+      } else if (commercialType === 'brand') {
+        // Brand Commercial rules
+        if (i === 1) {
+          percentage = 100
+        } else if (i === 2) {
+          percentage = 75
+        } else {
+          percentage = 50
+        }
+      }
+      
+      percentages.push({
+        position: i,
+        percentage: percentage
+      })
+      totalPercentage += percentage
+    }
+    
+    // Store the total percentage for later use
+    this.commercialPercentage = totalPercentage
+    
+    // Show the percentages section
+    commercialPercentagesDiv.classList.remove('hidden')
+    
+    // Update the breakdown display
+    if (commercialBreakdownDiv) {
+      commercialBreakdownDiv.innerHTML = percentages.map(item => 
+        `<div class="flex justify-between items-center">
+          <span class="text-sm text-gray-600">${this.getOrdinal(item.position)} commercial:</span>
+          <span class="font-medium text-gray-800">${item.percentage}%</span>
+        </div>`
+      ).join('')
+    }
+    
+    // Update total percentage display
+    if (totalPercentageSpan) {
+      totalPercentageSpan.textContent = `${totalPercentage}%`
+    }
+    
+    console.log(`Commercial calculation: Type=${commercialType}, Count=${numberOfCommercials}, Total=${totalPercentage}%`)
+  }
+
+  getOrdinal(number) {
+    const suffixes = ['th', 'st', 'nd', 'rd']
+    const mod100 = number % 100
+    return number + (suffixes[(mod100 - 20) % 10] || suffixes[mod100] || suffixes[0])
+  }
+
+  getCommercialPercentage() {
+    // Return the current commercial percentage for use in other calculations
+    return this.commercialPercentage || 100
+  }
+
+  setupRateValidation() {
+    // Add validation to all rate input fields to prevent negative values
+    document.addEventListener('input', (e) => {
+      // Check if the input is a rate field
+      if (e.target.matches('[data-adjusted-rate-input], .rate-input, .rate-adjustment') ||
+          e.target.name?.includes('adjusted_rate') || 
+          e.target.name?.includes('rate')) {
+        
+        const value = parseFloat(e.target.value)
+        if (value < 0) {
+          e.target.value = 0
+          console.log('Rate value corrected to 0 (was negative)')
+        }
+      }
+    })
   }
 }

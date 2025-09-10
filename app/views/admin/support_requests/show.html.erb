@@ -1,0 +1,166 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <!-- Back button -->
+    <div class="mb-6">
+      <%= link_to admin_support_requests_path, class: "inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700" do %>
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Support Requests
+      <% end %>
+    </div>
+
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900"><%= @support_request.subject %></h1>
+          <p class="mt-2 text-sm text-gray-600">
+            From: <span class="font-medium"><%= @support_request.production_house.name %></span>
+            • Created <%= time_ago_in_words(@support_request.created_at) %> ago
+          </p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <span class="px-3 py-1 text-sm font-semibold rounded-full <%= @support_request.status_badge_class %>">
+            <%= @support_request.status_name %>
+          </span>
+          <span class="px-3 py-1 text-sm font-semibold rounded-full <%= @support_request.priority_badge_class %>">
+            <%= @support_request.priority_name %> Priority
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Main content -->
+      <div class="lg:col-span-2">
+        <!-- Request Details -->
+        <div class="bg-white shadow rounded-lg mb-6">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Request Details</h2>
+          </div>
+          <div class="px-6 py-4">
+            <div class="prose max-w-none">
+              <p class="text-gray-700 whitespace-pre-wrap"><%= @support_request.message %></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Response -->
+        <div class="bg-white shadow rounded-lg">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Admin Response</h2>
+          </div>
+          <div class="px-6 py-4">
+            <% if @support_request.admin_response.present? %>
+              <div class="prose max-w-none mb-4">
+                <p class="text-gray-700 whitespace-pre-wrap"><%= @support_request.admin_response %></p>
+              </div>
+            <% else %>
+              <p class="text-gray-500 italic mb-4">No response yet</p>
+            <% end %>
+
+            <!-- Response Form -->
+            <%= form_with(model: [@support_request], url: admin_support_request_path(@support_request), local: true, method: :patch) do |form| %>
+              <div class="space-y-4">
+                <div>
+                  <%= form.label :admin_response, "Response:", class: "block text-sm font-medium text-gray-700" %>
+                  <%= form.text_area :admin_response, 
+                      value: @support_request.admin_response,
+                      rows: 6, 
+                      class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500",
+                      placeholder: "Type your response here..." %>
+                </div>
+
+                <div>
+                  <%= form.label :status, "Status:", class: "block text-sm font-medium text-gray-700" %>
+                  <%= form.select :status, 
+                      @status_options, 
+                      { selected: @support_request.status },
+                      { class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" } %>
+                </div>
+
+                <div class="flex justify-end">
+                  <%= form.submit "Update Response", 
+                      class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="lg:col-span-1">
+        <!-- Request Info -->
+        <div class="bg-white shadow rounded-lg">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Request Information</h3>
+          </div>
+          <div class="px-6 py-4 space-y-4">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Status</dt>
+              <dd class="mt-1">
+                <span class="px-2 py-1 text-xs font-semibold rounded-full <%= @support_request.status_badge_class %>">
+                  <%= @support_request.status_name %>
+                </span>
+              </dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Priority</dt>
+              <dd class="mt-1">
+                <span class="px-2 py-1 text-xs font-semibold rounded-full <%= @support_request.priority_badge_class %>">
+                  <%= @support_request.priority_name %>
+                </span>
+              </dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Production House</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @support_request.production_house.name %></dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Created</dt>
+              <dd class="mt-1 text-sm text-gray-900">
+                <%= @support_request.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+              </dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+              <dd class="mt-1 text-sm text-gray-900">
+                <%= @support_request.updated_at.strftime("%B %d, %Y at %I:%M %p") %>
+              </dd>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="mt-6 bg-white shadow rounded-lg">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Quick Actions</h3>
+          </div>
+          <div class="px-6 py-4 space-y-3">
+            <% unless @support_request.resolved? %>
+              <%= form_with(model: [@support_request], url: admin_support_request_path(@support_request), local: true, method: :patch) do |form| %>
+                <%= form.hidden_field :status, value: 2 %>
+                <%= form.submit "Mark as Resolved", 
+                    class: "w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500" %>
+              <% end %>
+            <% end %>
+
+            <% unless @support_request.in_progress? %>
+              <%= form_with(model: [@support_request], url: admin_support_request_path(@support_request), local: true, method: :patch) do |form| %>
+                <%= form.hidden_field :status, value: 1 %>
+                <%= form.submit "Mark as In Progress", 
+                    class: "w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500" %>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
