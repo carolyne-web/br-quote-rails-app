@@ -330,11 +330,6 @@ class QuotationPdf
     move_down 30
     text "This quotation is valid for 30 days from the date of issue.", size: 9, color: "666666"
     
-    if @calculation[:worldwide_override]
-      move_down 10
-      text "Note: Duration of 12 months or less - Worldwide All Media rates applied.", 
-           size: 9, color: "FF0000", style: :italic
-    end
     
     if @quotation.is_guaranteed
       move_down 10

@@ -9,25 +9,11 @@ class QuotationCalculator
   end
 
   def calculate
-    # Check for worldwide override condition
-    if should_use_worldwide?
-      apply_worldwide_calculation
-    else
-      standard_calculation
-    end
+    standard_calculation
   end
 
   private
 
-  def should_use_worldwide?
-    return false unless @detail
-    
-    # Only apply worldwide override if:
-    # 1. Duration is 12 months or less
-    # 2. No specific territories are selected (empty territories)
-    duration_months = parse_duration_months(@detail.duration)
-    duration_months && duration_months <= 12 && @territories.empty?
-  end
 
   def parse_duration_months(duration)
     return nil unless duration
@@ -44,59 +30,6 @@ class QuotationCalculator
     end
   end
 
-  def apply_worldwide_calculation
-    # When duration <= 12 months, use Worldwide All Media
-    territory_multiplier = 12.0 # Worldwide = 1200%
-    
-    # Section A: Talent Fees
-    base_talent_cost = calculate_base_talent_cost
-    standby_cost = calculate_standby_cost
-    overtime_cost = calculate_overtime_cost
-    
-    total_talent_fee = base_talent_cost + standby_cost + overtime_cost
-    
-    # Section B: Usage & Licensing
-    media_multiplier = 1.0 # All Media = 100%
-    duration_multiplier = calculate_duration_multiplier
-    exclusivity_multiplier = calculate_exclusivity_multiplier
-    
-    # Add unlimited options
-    additional_multiplier = 0
-    additional_multiplier += 0.15 if @detail&.unlimited_stills
-    additional_multiplier += 0.15 if @detail&.unlimited_versions
-    
-    # Calculate buyout
-    total_multiplier = territory_multiplier * media_multiplier * duration_multiplier * 
-                      exclusivity_multiplier * (1 + additional_multiplier)
-    
-    buyout_fee = total_talent_fee * (total_multiplier / 100.0)
-    
-    # Apply product type adjustments for kids
-    buyout_fee = apply_kids_adjustment(buyout_fee)
-    
-    # Apply guarantee discount if selected (25% off buyout)
-    if @quotation.is_guaranteed
-      buyout_fee = buyout_fee * 0.75
-    end
-    
-    manual_adjustment = calculate_manual_adjustments(buyout_fee)
-    total = buyout_fee + manual_adjustment
-    
-    {
-      base_talent_cost: base_talent_cost.round(2),
-      standby_cost: standby_cost.round(2),
-      overtime_cost: overtime_cost.round(2),
-      total_talent_fee: total_talent_fee.round(2),
-      territory_multiplier: territory_multiplier,
-      media_multiplier: media_multiplier,
-      duration_multiplier: duration_multiplier,
-      exclusivity_multiplier: exclusivity_multiplier,
-      buyout_fee: buyout_fee.round(2),
-      manual_adjustment: manual_adjustment.round(2),
-      total: total.round(2),
-      worldwide_override: true
-    }
-  end
 
   def standard_calculation
     # A) Talent Fees (includes base + standby + overtime)
@@ -146,8 +79,7 @@ class QuotationCalculator
       usage_buyout_total: usage_buyout_total.round(2),
       additional_fees: additional_fees.round(2),
       manual_adjustment: manual_adjustment.round(2),
-      total: total.round(2),
-      worldwide_override: false
+      total: total.round(2)
     }
   end
 

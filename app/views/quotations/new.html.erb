@@ -506,10 +506,10 @@
             <table class="w-full border-collapse border border-gray-300" id="quote-preview-table">
               <thead>
                 <tr class="bg-gray-100 border-b border-gray-300">
-                  <th class="text-left py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Description</th>
-                  <th class="text-right py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Rate</th>
-                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">No of Talent</th>
-                  <th class="text-right py-2 px-3 text-sm font-medium text-gray-700">Combo 1</th>
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Talent</th>
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Day Fee</th>
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Unit</th>
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Combo 1</th>
                 </tr>
               </thead>
               <tbody id="quote-preview-rows">
@@ -544,7 +544,12 @@
 
 
 <script>
+// Make exclusivity options available to JavaScript
+const exclusivityOptions = <%= @exclusivity_options.to_json.html_safe %>;
+
 document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOMContentLoaded fired - checking elements...');
+  console.log('add-combination button:', document.getElementById('add-combination'));
   // Sidebar navigation
   const sidebarItems = document.querySelectorAll('[data-section]');
   const sections = document.querySelectorAll('section[id]');
@@ -604,44 +609,44 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Add new combination functionality
-  document.getElementById('add-combination').addEventListener('click', function() {
-    // Calculate next combo ID based on existing combos (not a global counter)
-    const existingTabs = document.querySelectorAll('.combination-tab');
-    const newComboId = existingTabs.length + 1;
-    console.log('Creating new combo with ID:', newComboId);
-    
-    // Add new tab
-    const tabsContainer = document.getElementById('combination-tabs');
-    const newTab = document.createElement('button');
-    newTab.type = 'button';
-    newTab.className = 'combination-tab px-4 py-2 border-b-2 border-transparent text-gray-500 text-sm hover:text-blue-600';
-    newTab.setAttribute('data-combo', newComboId);
-    newTab.textContent = `Combo ${newComboId}`;
-    
-    // Add remove button directly to the tab
-    newTab.innerHTML = `Combo ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
-    
-    tabsContainer.appendChild(newTab);
-    
-    // Add new content
-    const contentContainer = document.getElementById('combinations-content');
-    const newContent = createCombinationContent(newComboId);
-    contentContainer.appendChild(newContent);
-    
-    // Switch to new combination
-    switchToCombination(newComboId);
-    
-    // Update quote preview
-    if (typeof updateQuotePreview === 'function') {
+  const addCombinationBtn = document.getElementById('add-combination');
+  if (addCombinationBtn) {
+    addCombinationBtn.addEventListener('click', function() {
+      console.log('Add combination button clicked');
+      // Calculate next combo ID based on existing combos (not a global counter)
+      const existingTabs = document.querySelectorAll('.combination-tab');
+      const newComboId = existingTabs.length + 1;
+      console.log('Creating new combo with ID:', newComboId);
+      
+      // Add new tab
+      const tabsContainer = document.getElementById('combination-tabs');
+      const newTab = document.createElement('button');
+      newTab.type = 'button';
+      newTab.className = 'combination-tab px-4 py-2 border-b-2 border-transparent text-gray-500 text-sm hover:text-blue-600';
+      newTab.setAttribute('data-combo', newComboId);
+      newTab.textContent = `Combo ${newComboId}`;
+      
+      // Add remove button directly to the tab
+      newTab.innerHTML = `Combo ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
+      
+      tabsContainer.appendChild(newTab);
+      
+      // Add new content
+      const contentContainer = document.getElementById('combinations-content');
+      const newContent = createCombinationContent(newComboId);
+      contentContainer.appendChild(newContent);
+      
+      // Switch to new combination
+      switchToCombination(newComboId);
+      
+      // Update quote preview
       if (typeof updateQuotePreview === 'function') {
-        if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
-    }
+        updateQuotePreview();
       }
-    }
-  });
+    });
+  } else {
+    console.error('Add combination button not found!');
+  }
   
   function removeCombination(comboId) {
     console.log('Removing combination:', comboId);
@@ -922,12 +927,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="float-right">▼</span>
               </button>
               <div class="exclusivity-dropdown-menu absolute top-full left-0 right-0 bg-white border rounded-lg shadow-lg mt-1 z-10 hidden max-h-60 overflow-y-auto">
-                <% @exclusivity_options.each do |option| %>
+                ${exclusivityOptions.map(option => `
                   <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                    <input type="checkbox" name="combinations[${comboId}][exclusivity_types][]" value="<%= option[1] %>" class="mr-3 rounded text-blue-600 focus:ring-blue-500 exclusivity-checkbox" data-combo="${comboId}">
-                    <span class="text-sm"><%= option[0] %></span>
+                    <input type="checkbox" name="combinations[${comboId}][exclusivity_types][]" value="${option[1]}" class="mr-3 rounded text-blue-600 focus:ring-blue-500 exclusivity-checkbox" data-combo="${comboId}">
+                    <span class="text-sm">${option[0]}</span>
                   </label>
-                <% end %>
+                `).join('')}
               </div>
             </div>
           </div>
@@ -1266,7 +1271,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('additional-fees').textContent = `R ${totalAdditionalFees.toLocaleString()}.00`;
     document.getElementById('total-quote').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
     document.getElementById('current-total').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
-  }
+  
   
   // Add CSS for combination content visibility
   const style = document.createElement('style');

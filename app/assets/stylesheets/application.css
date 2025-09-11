@@ -82,3 +82,28 @@
   font-size: 0.75rem;
   padding: 0.25rem 0.5rem;
 }
+
+/* Quote preview table Excel-style borders */
+#quote-preview-table {
+  border-collapse: collapse;
+  border: 1px solid #d1d5db;
+}
+
+#quote-preview-table th,
+#quote-preview-table td {
+  border-right: 1px solid #d1d5db;
+  border-bottom: 1px solid #d1d5db;
+}
+
+#quote-preview-table th:last-child,
+#quote-preview-table td:last-child {
+  border-right: none;
+}
+
+#quote-preview-table thead tr {
+  border-bottom: 1px solid #d1d5db;
+}
+
+#quote-preview-table tfoot tr {
+  border-top: 2px solid #9ca3af;
+}
