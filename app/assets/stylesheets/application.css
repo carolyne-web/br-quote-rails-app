@@ -84,26 +84,26 @@
 }
 
 /* Quote preview table Excel-style borders */
-#quote-preview-table {
+.quote-preview-table {
   border-collapse: collapse;
   border: 1px solid #d1d5db;
 }
 
-#quote-preview-table th,
-#quote-preview-table td {
+.quote-preview-table th,
+.quote-preview-table td {
   border-right: 1px solid #d1d5db;
   border-bottom: 1px solid #d1d5db;
 }
 
-#quote-preview-table th:last-child,
-#quote-preview-table td:last-child {
+.quote-preview-table th:last-child,
+.quote-preview-table td:last-child {
   border-right: none;
 }
 
-#quote-preview-table thead tr {
+.quote-preview-table thead tr {
   border-bottom: 1px solid #d1d5db;
 }
 
-#quote-preview-table tfoot tr {
+.quote-preview-table tfoot tr {
   border-top: 2px solid #9ca3af;
 }

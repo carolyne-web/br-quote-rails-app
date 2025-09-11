@@ -18,10 +18,20 @@ export default class extends Controller {
     this.setupDurationLogic()
     this.setupCommercialLogic()
     this.setupRateValidation()
+    this.setupComboSummaryUpdate()
+    this.setupTablePopulation()
     
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
     window.removeCombination = (categoryId, index) => this.removeCombination(categoryId, index)
+    window.quotationController = this
+    
+    // Add test functions for debugging
+    window.testTablePopulation = () => this.populateAllTables()
+    window.testGetTalentLines = () => {
+      console.log('Testing getAllTalentLines...')
+      return this.getAllTalentLines()
+    }
     
     this.loadBaseRates()
   }
@@ -1480,5 +1490,409 @@ export default class extends Controller {
         }
       }
     })
+  }
+
+  setupComboSummaryUpdate() {
+    // Set up event listeners to update the combo summary heading
+    this.updateAllComboSummaries()
+    
+    // Listen for duration changes
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('select[name*="duration"]')) {
+        this.updateAllComboSummaries()
+      }
+    })
+    
+    // Listen for territory changes
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('territory-checkbox') || 
+          e.target.classList.contains('combination-territory-checkbox')) {
+        this.updateAllComboSummaries()
+      }
+    })
+    
+    // Listen for media type changes
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('combination-media')) {
+        this.updateAllComboSummaries()
+      }
+    })
+  }
+
+  updateAllComboSummaries() {
+    // Update all existing combo summaries
+    document.querySelectorAll('.combo-summary-pills').forEach(pillsContainer => {
+      const comboId = pillsContainer.getAttribute('data-combo')
+      if (comboId) {
+        this.updateComboSummary(parseInt(comboId))
+      }
+    })
+  }
+
+  updateComboSummary(comboId) {
+    const pillsContainer = document.querySelector(`.combo-summary-pills[data-combo="${comboId}"]`)
+    if (!pillsContainer) return
+    
+    const pills = []
+    
+    // Add duration pill
+    const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
+    if (durationSelect && durationSelect.value) {
+      const durationText = this.formatDurationText(durationSelect.value)
+      pills.push(durationText)
+    }
+    
+    // Add territory pills
+    const territories = this.getSelectedTerritories(comboId)
+    pills.push(...territories)
+    
+    // Add media type pills
+    const mediaTypes = this.getSelectedMediaTypes(comboId)
+    pills.push(...mediaTypes)
+    
+    // Render all pills
+    if (pills.length > 0) {
+      pillsContainer.innerHTML = pills.map(pill => 
+        `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">${pill}</span>`
+      ).join('')
+    } else {
+      pillsContainer.innerHTML = ''
+    }
+  }
+
+  formatDurationText(duration) {
+    const durationMap = {
+      '1_month': '1 Month',
+      '3_months': '3 Months',
+      '6_months': '6 Months',
+      '12_months': '12 Months',
+      '18_months': '18 Months',
+      '24_months': '24 Months',
+      '36_months': '36 Months'
+    }
+    return durationMap[duration] || duration
+  }
+
+  getSelectedTerritories(comboId) {
+    const territories = []
+    document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`).forEach(checkbox => {
+      const territoryName = checkbox.getAttribute('data-territory-name')
+      if (territoryName) {
+        territories.push(territoryName)
+      }
+    })
+    return territories
+  }
+
+  getSelectedMediaTypes(comboId) {
+    const checkedBoxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
+    const mediaTypes = []
+    
+    // Check for parent categories first (highest priority)
+    let hasAllMedia = false
+    let hasAllMovingMedia = false
+    let hasAllPrintMedia = false
+    
+    checkedBoxes.forEach(checkbox => {
+      const label = checkbox.closest('label').textContent.trim()
+      if (label.includes('All Media')) {
+        hasAllMedia = true
+      } else if (label.includes('All Moving Media')) {
+        hasAllMovingMedia = true
+      } else if (label.includes('All Print Media')) {
+        hasAllPrintMedia = true
+      }
+    })
+    
+    // Display only the parent categories, not subcategories
+    if (hasAllMedia) {
+      mediaTypes.push('All Media')
+    } else {
+      if (hasAllMovingMedia) {
+        mediaTypes.push('All Moving Media')
+      }
+      if (hasAllPrintMedia) {
+        mediaTypes.push('All Print Media')
+      }
+      
+      // Only show individual media types if no parent categories are selected
+      if (!hasAllMovingMedia && !hasAllPrintMedia) {
+        checkedBoxes.forEach(checkbox => {
+          const label = checkbox.closest('label').textContent.trim()
+          if (!label.includes('All Media') && !label.includes('All Moving Media') && !label.includes('All Print Media')) {
+            mediaTypes.push(label)
+          }
+        })
+      }
+    }
+    
+    return mediaTypes
+  }
+
+  setupTablePopulation() {
+    // Initial population
+    this.populateAllTables()
+    
+    // Re-populate when relevant form data changes
+    document.addEventListener('input', (e) => {
+      if (e.target.classList.contains('talent-description') ||
+          e.target.name?.includes('description') ||
+          e.target.name?.includes('adjusted_rate') ||
+          e.target.name?.includes('talent_count') ||
+          e.target.matches('[data-description-input]') ||
+          e.target.matches('[data-adjusted-rate-input]') ||
+          e.target.matches('[data-talent-input]')) {
+        console.log('Form input changed, repopulating tables:', e.target)
+        this.populateAllTables()
+      }
+    })
+    
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('combination-media') || 
+          e.target.classList.contains('combination-territory-checkbox') ||
+          e.target.matches('select[name*="duration"]') ||
+          e.target.matches('select[name*="exclusivity"]') ||
+          e.target.matches('[name*="unlimited_stills"]') ||
+          e.target.matches('[name*="unlimited_versions"]')) {
+        this.populateAllTables()
+      }
+    })
+  }
+
+  populateAllTables() {
+    document.querySelectorAll('.quote-preview-rows').forEach(tbody => {
+      const comboId = tbody.getAttribute('data-combo')
+      if (comboId) {
+        this.populateComboTable(parseInt(comboId))
+      }
+    })
+  }
+
+  populateComboTable(comboId) {
+    const tbody = document.querySelector(`.quote-preview-rows[data-combo="${comboId}"]`)
+    if (!tbody) return
+
+    const rows = []
+    let totalAmount = 0
+
+    // Get all talent categories and their lines
+    const talentCategories = this.getAllTalentLines()
+    
+    talentCategories.forEach(category => {
+      category.lines.forEach(line => {
+        const dayFee = parseFloat(line.adjustedRate || line.dailyRate || 0)
+        const unit = parseInt(line.initialCount || 0)
+        const buyoutPercentage = this.calculateBuyoutPercentage(comboId)
+        const totalRands = (dayFee * unit * buyoutPercentage / 100)
+        
+        totalAmount += totalRands
+
+        rows.push(`
+          <tr class="border-b border-gray-200">
+            <td class="py-2 px-3 text-sm text-gray-900 border-r border-gray-300">${line.description || category.name}</td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(dayFee)}</td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">${unit}</td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300"></td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${buyoutPercentage.toFixed(1)}%</td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-right">R${this.formatNumber(totalRands)}</td>
+          </tr>
+        `)
+      })
+    })
+
+    tbody.innerHTML = rows.join('')
+    
+    // Update combo total
+    const totalElement = document.querySelector(`.combo-total[data-combo="${comboId}"]`)
+    if (totalElement) {
+      totalElement.textContent = `R${this.formatNumber(totalAmount)}`
+    }
+  }
+
+  getAllTalentLines() {
+    const categories = []
+    const categoryNames = {
+      1: 'Lead',
+      2: 'Featured', 
+      3: 'Background',
+      4: 'Hand/Body Double',
+      5: 'Kids'
+    }
+    
+    // Use the same selector as the existing working code
+    document.querySelectorAll('[id^="talent-category-"]').forEach(section => {
+      // DON'T skip hidden categories - we want data from all categories
+      const categoryId = section.id.replace('talent-category-', '')
+      const categoryName = categoryNames[categoryId] || `Category ${categoryId}`
+      const lines = []
+      
+      // Get all talent input rows in the additional-lines section of this category
+      const inputRows = section.querySelectorAll('.additional-lines .talent-input-row')
+      
+      inputRows.forEach((row) => {
+        // Use the same selectors as the existing working code
+        const descriptionField = row.querySelector('.talent-description, [name*="description"]')
+        const rateField = row.querySelector('[name*="adjusted_rate"]') || 
+                         row.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)
+        const countField = row.querySelector('[name*="talent_count"]') ||
+                          row.querySelector(`[data-talent-input="${categoryId}"]`)
+        
+        const description = descriptionField?.value || ''
+        const rate = rateField?.value || 0
+        const count = countField?.value || 0
+        
+        // Only include rows that have some data
+        if (description.trim() || parseFloat(rate) > 0 || parseInt(count) > 0) {
+          lines.push({
+            description: description.trim() || categoryName,
+            adjustedRate: parseFloat(rate) || 0,
+            dailyRate: parseFloat(rate) || 0,
+            initialCount: parseInt(count) || 0
+          })
+        }
+      })
+      
+      if (lines.length > 0) {
+        categories.push({
+          name: categoryName,
+          lines: lines
+        })
+      }
+    })
+    
+    return categories
+  }
+
+  calculateBuyoutPercentage(comboId) {
+    // Get combo-specific settings
+    const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
+    const duration = durationSelect?.value || ''
+    
+    const territoryCheckboxes = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
+    const territories = Array.from(territoryCheckboxes).map(cb => ({
+      percentage: parseFloat(cb.getAttribute('data-percentage') || 0)
+    }))
+    
+    const mediaCheckboxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
+    const mediaTypes = Array.from(mediaCheckboxes).map(cb => cb.value)
+    
+    const exclusivitySelect = document.querySelector(`select[name*="combinations[${comboId}][exclusivity_type]"]`)
+    const exclusivity = exclusivitySelect?.value || 'none'
+    
+    const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
+    const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
+    
+    // Calculate multipliers
+    const durationMultiplier = this.getDurationMultiplier(duration)
+    const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
+    const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
+    const exclusivityMultiplier = this.getExclusivityMultiplier(exclusivity)
+    
+    // Calculate base percentage
+    let percentage = durationMultiplier * territoryMultiplier * mediaMultiplier * exclusivityMultiplier * 100
+    
+    // Add unlimited options
+    if (unlimitedStills) percentage += 15
+    if (unlimitedVersions) percentage += 15
+    
+    return percentage
+  }
+
+  getDurationMultiplier(duration) {
+    const multipliers = {
+      '3_months': 0.5,
+      '6_months': 0.75,
+      '12_months': 1.0,
+      '18_months': 1.75,
+      '24_months': 2.0,
+      '36_months': 3.0
+    }
+    return multipliers[duration] || 1.0
+  }
+
+  getTerritoryMultiplier(territories, duration) {
+    if (territories.length === 0) return 1.0
+    
+    const totalPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
+    const durationMonths = this.parseDurationMonths(duration)
+    
+    // Check for override
+    if (this.shouldApplyTerritoryOverride(durationMonths, totalPercentage)) {
+      return 12.0 // Worldwide override
+    }
+    
+    return totalPercentage / 100.0
+  }
+
+  getMediaMultiplier(mediaTypes, territories, duration) {
+    if (mediaTypes.length === 0) return 1.0
+    
+    const totalPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
+    const durationMonths = this.parseDurationMonths(duration)
+    
+    // Force All Media if territory override is active
+    if (this.shouldApplyTerritoryOverride(durationMonths, totalPercentage)) {
+      return 1.0
+    }
+    
+    if (mediaTypes.includes('all_media')) {
+      return 1.0
+    } else if (mediaTypes.length === 1 && mediaTypes.includes('all_moving')) {
+      return 0.75
+    } else if (mediaTypes.length === 1) {
+      return 0.5
+    } else if (mediaTypes.length === 2) {
+      return 0.75
+    } else if (mediaTypes.length >= 3) {
+      return 1.0
+    }
+    
+    return 1.0
+  }
+
+  getExclusivityMultiplier(exclusivity) {
+    const multipliers = {
+      'none': 1.0,
+      'level_1': 1.25,
+      'level_2': 1.5,
+      'level_3': 1.75,
+      'level_4': 2.0,
+      'pharma_1': 1.5,
+      'pharma_2': 1.75,
+      'pharma_3': 2.0,
+      'pharma_4': 2.5
+    }
+    return multipliers[exclusivity] || 1.0
+  }
+
+  parseDurationMonths(duration) {
+    const map = {
+      '1_month': 1,
+      '3_months': 3,
+      '6_months': 6,
+      '12_months': 12,
+      '18_months': 18,
+      '24_months': 24,
+      '36_months': 36
+    }
+    return map[duration] || null
+  }
+
+  shouldApplyTerritoryOverride(durationMonths, totalPercentage) {
+    if (!durationMonths || !totalPercentage) return false
+    
+    const thresholds = {
+      12: 1200,
+      24: 2400,
+      36: 3600
+    }
+    
+    const threshold = thresholds[durationMonths]
+    return threshold && totalPercentage >= threshold
+  }
+
+  formatNumber(number) {
+    if (isNaN(number)) return '0'
+    return Math.round(number).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   }
 }

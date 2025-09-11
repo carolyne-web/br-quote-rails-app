@@ -9,7 +9,7 @@
           <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Campaign Information</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Guarantee & Final</li>
+          <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Quote Preview</li>
         </ul>
       </div>
       <div class="border-t pt-4 flex-shrink-0 hidden">
@@ -356,7 +356,7 @@
                     </div>
                   </div>
                   
-                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 hidden">
                     <div class="text-sm text-blue-800">
                       <strong>Territory Logic:</strong> Multiple territories are additive. Example: East Europe (400%) + Pan African (400%) = 800% total.
                     </div>
@@ -372,7 +372,7 @@
                     <div class="territories-list space-y-1 p-2" data-combo="1">
                       <% @territories.group_by(&:group_name).each do |group_name, territories| %>
                         <% territories.each do |territory| %>
-                          <label class="territory-item flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
+                          <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
                             <div class="flex items-center">
                               <input type="checkbox" name="combinations[1][territories][]" value="<%= territory.id %>" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-territory-checkbox" data-territory-id="<%= territory.id %>" data-territory-name="<%= territory.name %>" data-percentage="<%= territory.percentage %>" data-combo="1">
                               <div class="text-sm">
@@ -396,16 +396,12 @@
                       <span class="text-sm font-medium">All Media</span>
                     </label>
                     <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input type="checkbox" name="combinations[1][media_types][]" value="all_moving" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
-                      <span class="text-sm font-medium">All Moving Media</span>
-                    </label>
-                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input type="checkbox" name="combinations[1][media_types][]" value="internet" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
-                      <span class="text-sm font-medium">Internet Only</span>
-                    </label>
-                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                       <input type="checkbox" name="combinations[1][media_types][]" value="cinema" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
                       <span class="text-sm font-medium">Cinema Only</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" name="combinations[1][media_types][]" value="all_moving" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
+                      <span class="text-sm font-medium">All Moving Media</span>
                     </label>
                     <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                       <input type="checkbox" name="combinations[1][media_types][]" value="tv" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
@@ -415,9 +411,13 @@
                       <input type="checkbox" name="combinations[1][media_types][]" value="print" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
                       <span class="text-sm font-medium">All Print Media</span>
                     </label>
+                    <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" name="combinations[1][media_types][]" value="internet" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="1">
+                      <span class="text-sm font-medium">Internet Only</span>
+                    </label>
                   </div>
                   
-                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 hidden">
                     <div class="text-sm text-blue-800">
                       <strong>Media Multiplier Logic:</strong> All Media = 100%, All Moving Media alone = 75%, All Moving Media + 1 other = 75%, 1 other media = 50%, 3+ media = 100%
                     </div>
@@ -465,10 +465,9 @@
       <% end %>
 
       <!-- Guarantee & Manual Adjustments -->
-      <section id="guarantee" class="bg-white shadow rounded-2xl p-4">
+      <section class="hidden bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold">Guarantee & Manual Adjustments</h3>
-          <span class="text-sm text-gray-400">Step 4 of 4</span>
         </div>
         
         <!-- Guarantee Option -->
@@ -497,31 +496,47 @@
       </section>
 
       <!-- Quote Preview -->
-      <section class="bg-white shadow rounded-2xl p-4">
-        <h3 class="text-lg font-semibold mb-4">Quote Preview</h3>
+      <section id="guarantee" class="bg-white shadow rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold mb-4">Quote Preview</h3>
+        <span class="text-sm text-gray-400">Step 4 of 4</span>
+        </div>
         
-        <div class="bg-gray-50 rounded-lg p-4 mb-6">
-          <!-- Talent Lines Table -->
-          <div class="overflow-x-auto">
-            <table class="w-full border-collapse border border-gray-300" id="quote-preview-table">
-              <thead>
-                <tr class="bg-gray-100 border-b border-gray-300">
-                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Talent</th>
-                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Day Fee</th>
-                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Unit</th>
-                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Combo 1</th>
-                </tr>
-              </thead>
-              <tbody id="quote-preview-rows">
-                <!-- Talent lines will be populated here -->
-              </tbody>
-              <tfoot>
-                <tr class="border-t border-gray-400 font-semibold bg-gray-50">
-                  <td colspan="3" class="text-right py-2 px-3 text-sm text-gray-800 border-r border-gray-300">Total:</td>
-                  <td class="text-right py-2 px-3 text-sm text-gray-800" id="combo-1-total">R0</td>
-                </tr>
-              </tfoot>
-            </table>
+        <!-- Combo Tables Container -->
+        <div id="combo-tables-container">
+          <!-- Combo 1 -->
+          <div class="combo-table-section mb-6" data-combo="1">
+            <!-- Dynamic Combo Pills -->
+            <div class="combo-summary-pills mb-4 flex flex-wrap gap-2" data-combo="1">
+              <!-- Pills will be populated by JavaScript -->
+            </div>
+            
+            <div class="bg-gray-50 rounded-lg p-4">
+              <!-- Talent Lines Table -->
+              <div class="overflow-x-auto">
+                <table class="w-full border-collapse border border-gray-300 quote-preview-table">
+                  <thead>
+                    <tr class="bg-gray-100 border-b border-gray-300">
+                      <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Talent</th>
+                      <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Day Fee</th>
+                      <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Unit</th>
+                      <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Exclusivity</th>
+                      <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Buyout %</th>
+                      <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Total (R)</th>
+                    </tr>
+                  </thead>
+                  <tbody class="quote-preview-rows" data-combo="1">
+                    <!-- Talent lines will be populated here -->
+                  </tbody>
+                  <tfoot>
+                    <tr class="border-t border-gray-400 font-semibold bg-gray-50">
+                      <td colspan="5" class="text-right py-2 px-3 text-sm text-gray-800 border-r border-gray-300">Total:</td>
+                      <td class="text-right py-2 px-3 text-sm text-gray-800 combo-total" data-combo="1">R0</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -636,6 +651,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const newContent = createCombinationContent(newComboId);
       contentContainer.appendChild(newContent);
       
+      // Add new combo table
+      createComboTable(newComboId);
+      
       // Switch to new combination
       switchToCombination(newComboId);
       
@@ -669,6 +687,13 @@ document.addEventListener('DOMContentLoaded', function() {
       content.remove();
     }
     
+    // Remove combo table
+    const comboTable = document.querySelector(`div[data-combo="${comboId}"].combo-table-section`);
+    console.log('Found combo table to remove:', comboTable);
+    if (comboTable) {
+      comboTable.remove();
+    }
+    
     // Renumber all remaining tabs and content sequentially
     renumberCombinations();
     
@@ -683,6 +708,56 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update quote preview
     if (typeof updateQuotePreview === 'function') {
       updateQuotePreview();
+    }
+  }
+  
+  function createComboTable(comboId) {
+    console.log('Creating combo table for:', comboId);
+    const container = document.getElementById('combo-tables-container');
+    
+    const comboTableSection = document.createElement('div');
+    comboTableSection.className = 'combo-table-section mb-6';
+    comboTableSection.setAttribute('data-combo', comboId);
+    
+    comboTableSection.innerHTML = `
+      <!-- Dynamic Combo Pills -->
+      <div class="combo-summary-pills mb-4 flex flex-wrap gap-2" data-combo="${comboId}">
+        <!-- Pills will be populated by JavaScript -->
+      </div>
+      
+      <div class="bg-gray-50 rounded-lg p-4">
+        <!-- Talent Lines Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border border-gray-300 quote-preview-table">
+            <thead>
+              <tr class="bg-gray-100 border-b border-gray-300">
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Talent</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Day Fee</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Unit</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Exclusivity</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Buyout %</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Total (R)</th>
+              </tr>
+            </thead>
+            <tbody class="quote-preview-rows" data-combo="${comboId}">
+              <!-- Talent lines will be populated here -->
+            </tbody>
+            <tfoot>
+              <tr class="border-t border-gray-400 font-semibold bg-gray-50">
+                <td colspan="5" class="text-right py-2 px-3 text-sm text-gray-800 border-r border-gray-300">Total:</td>
+                <td class="text-right py-2 px-3 text-sm text-gray-800 combo-total" data-combo="${comboId}">R0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `;
+    
+    container.appendChild(comboTableSection);
+    
+    // Update the combo summary for this new combo
+    if (window.quotationController && typeof window.quotationController.updateComboSummary === 'function') {
+      window.quotationController.updateComboSummary(comboId);
     }
   }
   
@@ -714,6 +789,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (territoryTags) {
           territoryTags.setAttribute('data-combo', newComboId);
         }
+      }
+      
+      // Find and update corresponding combo table
+      const comboTable = document.querySelector(`div[data-combo="${oldComboId}"].combo-table-section`);
+      if (comboTable) {
+        comboTable.setAttribute('data-combo', newComboId);
+        
+        // Update all data-combo attributes within the combo table
+        comboTable.querySelectorAll('[data-combo]').forEach(element => {
+          if (element.getAttribute('data-combo') == oldComboId) {
+            element.setAttribute('data-combo', newComboId);
+          }
+        });
       }
     });
     
@@ -862,7 +950,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="territories-list space-y-1 p-2" data-combo="${comboId}">
               <% @territories.group_by(&:group_name).each do |group_name, territories| %>
                 <% territories.each do |territory| %>
-                  <label class="territory-item flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
+                  <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
                     <div class="flex items-center">
                       <input type="checkbox" name="combinations[${comboId}][territories][]" value="<%= territory.id %>" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-territory-checkbox" data-territory-id="<%= territory.id %>" data-territory-name="<%= territory.name %>" data-percentage="<%= territory.percentage %>" data-combo="${comboId}">
                       <div class="text-sm">
@@ -886,16 +974,12 @@ document.addEventListener('DOMContentLoaded', function() {
               <span class="text-sm font-medium">All Media</span>
             </label>
             <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="all_moving" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
-              <span class="text-sm font-medium">All Moving Media</span>
-            </label>
-            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="internet" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
-              <span class="text-sm font-medium">Internet Only</span>
-            </label>
-            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
               <input type="checkbox" name="combinations[${comboId}][media_types][]" value="cinema" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
               <span class="text-sm font-medium">Cinema Only</span>
+            </label>
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="all_moving" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
+              <span class="text-sm font-medium">All Moving Media</span>
             </label>
             <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
               <input type="checkbox" name="combinations[${comboId}][media_types][]" value="tv" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
@@ -905,9 +989,13 @@ document.addEventListener('DOMContentLoaded', function() {
               <input type="checkbox" name="combinations[${comboId}][media_types][]" value="print" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
               <span class="text-sm font-medium">All Print Media</span>
             </label>
+            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="combinations[${comboId}][media_types][]" value="internet" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-media" data-combo="${comboId}">
+              <span class="text-sm font-medium">Internet Only</span>
+            </label>
           </div>
           
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <div class="media-multiplier-logic-block bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
             <div class="text-sm text-blue-800">
               <strong>Media Multiplier Logic:</strong> All Media = 100%, All Moving Media alone = 75%, All Moving Media + 1 other = 75%, 1 other media = 50%, 3+ media = 100%
             </div>
