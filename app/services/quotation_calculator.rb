@@ -178,13 +178,45 @@ class QuotationCalculator
   def calculate_territory_multiplier
     return 1.0 if @territories.empty?
 
-    # NEW LOGIC: Additive territories (sum all percentages)
+    # Check for territory percentage override based on duration
     total_percentage = @territories.sum(:percentage)
+    duration_months = parse_duration_months(@detail&.duration)
+    
+    # Territory override logic for specific durations
+    if should_apply_territory_override?(duration_months, total_percentage)
+      return 12.0  # Use Worldwide (1200%) instead of sum
+    end
+
+    # NEW LOGIC: Additive territories (sum all percentages)
     total_percentage / 100.0
+  end
+
+  def should_apply_territory_override?(duration_months, total_percentage)
+    return false unless duration_months && total_percentage
+    
+    # Only apply to 12, 24, 36 month durations
+    thresholds = {
+      12 => 1200,  # 12 months: ≥1200%
+      24 => 2400,  # 24 months: ≥2400% 
+      36 => 3600   # 36 months: ≥3600%
+    }
+    
+    threshold = thresholds[duration_months]
+    return false unless threshold
+    
+    total_percentage >= threshold
   end
 
   def calculate_media_multiplier
     return 1.0 unless @detail
+    
+    # Check for territory override - if active, force All Media
+    total_percentage = @territories.sum(:percentage)
+    duration_months = parse_duration_months(@detail&.duration)
+    
+    if should_apply_territory_override?(duration_months, total_percentage)
+      return 1.0  # Force All Media = 100% when territory override is active
+    end
     
     # Get media types from the form submission
     media_types = []

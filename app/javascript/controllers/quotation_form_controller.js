@@ -882,17 +882,145 @@ export default class extends Controller {
   }
 
   setupDurationLogic() {
+    // Add event listeners for duration changes
+    const durationSelect = document.querySelector('select[name*="duration"]')
+    if (durationSelect) {
+      durationSelect.addEventListener('change', () => {
+        this.checkTerritoryOverrides()
+      })
+      
+      // Check on page load
+      this.checkTerritoryOverrides()
+    }
     
-    // Add event listeners to territory checkboxes to update tags
+    // Add event listeners to territory checkboxes to update tags and check overrides
     document.querySelectorAll('.territory-checkbox').forEach(checkbox => {
       checkbox.addEventListener('change', () => {
         this.updateTerritoryTags()
+        this.checkTerritoryOverrides()
       })
+    })
+    
+    // Also listen to combination territory checkboxes
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('combination-territory-checkbox')) {
+        this.checkTerritoryOverrides()
+      }
     })
   }
 
+  checkTerritoryOverrides() {
+    // Get current duration
+    const durationSelect = document.querySelector('select[name*="duration"]')
+    if (!durationSelect) return
+    
+    const duration = durationSelect.value
+    const durationMonths = this.parseDurationMonths(duration)
+    
+    // Only apply logic to 12, 24, 36 month durations
+    const thresholds = {
+      12: 1200,  // 12 months: ≥1200%
+      24: 2400,  // 24 months: ≥2400% 
+      36: 3600   // 36 months: ≥3600%
+    }
+    
+    const threshold = thresholds[durationMonths]
+    if (!threshold) {
+      // For durations not in the list (3, 6, 18 months), clear any override notices
+      this.clearOverrideNotices()
+      return
+    }
+    
+    // Check each combination
+    document.querySelectorAll('[data-combo]').forEach(comboElement => {
+      const comboId = comboElement.getAttribute('data-combo')
+      if (!comboId) return
+      
+      this.checkComboTerritoryOverride(comboId, threshold, durationMonths)
+    })
+  }
 
+  checkComboTerritoryOverride(comboId, threshold, durationMonths) {
+    // Calculate total percentage for this combo
+    const selectedTerritories = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
+    let totalPercentage = 0
+    
+    selectedTerritories.forEach(checkbox => {
+      const percentage = parseFloat(checkbox.dataset.percentage) || 0
+      totalPercentage += percentage
+    })
+    
+    if (totalPercentage >= threshold) {
+      // Show override notice
+      this.showTerritoryOverrideNotice(comboId, totalPercentage, threshold, durationMonths)
+      
+      // Force All Media selection for this combo
+      this.forceAllMediaForCombo(comboId)
+      
+    } else {
+      // Remove override notice if it exists
+      this.hideTerritoryOverrideNotice(comboId)
+    }
+  }
 
+  showTerritoryOverrideNotice(comboId, actualPercentage, threshold, durationMonths) {
+    let noticeContainer = document.getElementById(`territory-override-notice-${comboId}`)
+    
+    // Create notice container if it doesn't exist
+    if (!noticeContainer) {
+      noticeContainer = document.createElement('div')
+      noticeContainer.id = `territory-override-notice-${comboId}`
+      noticeContainer.className = 'bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-3 mb-4 rounded'
+      
+      // Find where to insert the notice (after territory selection section)
+      const comboContent = document.querySelector(`[data-combo="${comboId}"].combination-content`)
+      if (comboContent) {
+        const territorySection = comboContent.querySelector('.territories-list')?.parentElement?.parentElement
+        if (territorySection) {
+          territorySection.appendChild(noticeContainer)
+        }
+      }
+    }
+    
+    noticeContainer.innerHTML = `
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-orange-800">Territory Override Active</h3>
+          <p class="text-sm text-orange-700 mt-1">
+            Selected territories total ${actualPercentage}% which exceeds the ${threshold}% threshold for ${durationMonths} month duration. 
+            <strong>Worldwide (1200%) + All Media rates will be applied instead.</strong>
+          </p>
+        </div>
+      </div>
+    `
+  }
+
+  hideTerritoryOverrideNotice(comboId) {
+    const noticeContainer = document.getElementById(`territory-override-notice-${comboId}`)
+    if (noticeContainer) {
+      noticeContainer.remove()
+    }
+  }
+
+  clearOverrideNotices() {
+    document.querySelectorAll('[id^="territory-override-notice-"]').forEach(notice => {
+      notice.remove()
+    })
+  }
+
+  forceAllMediaForCombo(comboId) {
+    const allMediaCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_media"]`)
+    if (allMediaCheckbox && !allMediaCheckbox.checked) {
+      allMediaCheckbox.checked = true
+      // Trigger the media logic to disable other options
+      allMediaCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+  }
 
   getWorldwideTerritory() {
     // Find the Worldwide territory checkbox by looking for the territory with name "Worldwide"
