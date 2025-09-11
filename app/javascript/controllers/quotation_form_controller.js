@@ -105,9 +105,7 @@ export default class extends Controller {
       
       if (hiddenField) {
         hiddenField.value = btn.dataset.active
-        console.log(`Night button initialized - Visual active: ${hasActiveClasses}, Data active: ${btn.dataset.active}, Hidden field: ${hiddenField.value}`)
       } else {
-        console.log(`Night button initialized - Visual active: ${hasActiveClasses}, Data active: ${btn.dataset.active}, Hidden field: NOT FOUND`)
       }
     })
   }
@@ -222,6 +220,9 @@ export default class extends Controller {
               mainRateInput.value = baseRate
             }
             
+            // Setup event listeners for this category's input rows
+            this.setupCategoryEventListeners(categoryId)
+            
             // Add first combination if none exist
             const combinationsList = categorySection.querySelector('.combinations-list')
             if (combinationsList && combinationsList.children.length === 0) {
@@ -308,15 +309,15 @@ export default class extends Controller {
         <!-- Rate Adjustment -->
         <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][adjusted_rate]" value="${this.baseRates[categoryId] || 5000}"
-                 step="100"
+                 step="100" min="0"
                  class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center rate-adjustment"
                  data-category="${categoryId}" data-line="${lineIndex}">
         </td>
         
-        <!-- Shoot Days -->
+        <!-- Days Count -->
         <td class="p-1">
-          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][shoot_days]" min="1" value="1"
-                 class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center shoot-days"
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][days_count]" min="1" value="1"
+                 class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center days-input"
                  data-category="${categoryId}" data-line="${lineIndex}">
         </td>
         
@@ -324,45 +325,48 @@ export default class extends Controller {
         <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][rehearsal_days]" min="0" value="0"
                  class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center rehearsal-days"
-                 data-category="${categoryId}" data-line="${lineIndex}">
+                 data-category="${categoryId}" data-line="${lineIndex}" title="50% of day rate">
         </td>
         
         <!-- Down Days -->
         <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][down_days]" min="0" value="0"
                  class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center down-days"
-                 data-category="${categoryId}" data-line="${lineIndex}">
+                 data-category="${categoryId}" data-line="${lineIndex}" title="50% of day rate">
         </td>
         
         <!-- Travel Days -->
         <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][travel_days]" min="0" value="0"
                  class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center travel-days"
-                 data-category="${categoryId}" data-line="${lineIndex}">
+                 data-category="${categoryId}" data-line="${lineIndex}" title="50% of day rate">
         </td>
         
         <!-- Overtime Hours -->
         <td class="p-1">
           <input type="number" name="talent[${categoryId}][lines][${lineIndex}][overtime_hours]" min="0" step="0.5" value="0"
                  class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center overtime-hours"
-                 data-category="${categoryId}" data-line="${lineIndex}">
+                 data-category="${categoryId}" data-line="${lineIndex}" title="10% of day rate per hour">
         </td>
         
         <!-- Night Button -->
         <td class="p-1 text-center">
           <button type="button" class="night-btn w-full px-2 py-1 text-xs border-2 border-gray-300 rounded hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
-                  data-active="false" data-category="${categoryId}" data-line="${lineIndex}">
+                  data-active="false" data-category="${categoryId}" data-line="${lineIndex}" title="Night shoot calculation">
             + Night Fee
           </button>
+          <input type="number" name="talent[${categoryId}][lines][${lineIndex}][night_count]" min="1" value="1"
+                 class="nights-input w-full px-1 py-1 text-xs border border-gray-300 rounded text-center hidden"
+                 data-category="${categoryId}" data-line="${lineIndex}" placeholder="Nights">
           <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][night_premium]" value="false"
                  class="night-premium" data-category="${categoryId}" data-line="${lineIndex}">
         </td>
         
         <!-- Remove Line Button -->
         <td class="p-1 text-center">
-          <button type="button" class="remove-line-btn w-full text-xs text-red-600 font-medium"
+          <button type="button" class="remove-line-btn w-full px-2 py-1 text-xs text-red-600 rounded font-medium"
                   data-category="${categoryId}" data-line="${lineIndex}">
-            -
+            - Remove
           </button>
         </td>
       </tr>
@@ -370,6 +374,9 @@ export default class extends Controller {
     
     additionalLinesContainer.insertAdjacentHTML('beforeend', lineHtml)
     this.setupLineEventListeners(categoryId, lineIndex)
+    
+    // Also setup category-wide listeners to ensure new line is included
+    this.setupCategoryEventListeners(categoryId)
     
     // Add direct event listener to the new night button
     const newNightBtn = additionalLinesContainer.querySelector(`[data-line-index="${lineIndex}"] .night-btn`)
@@ -379,11 +386,32 @@ export default class extends Controller {
         e.stopPropagation()
         this.toggleNightButton(newNightBtn)
       })
-      console.log('Added direct event listener to new night button')
     }
     
-    console.log('About to calculate category total for categoryId:', categoryId)
     this.calculateCategoryTotal(categoryId)
+  }
+
+  setupCategoryEventListeners(categoryId) {
+    const categorySection = document.getElementById(`talent-category-${categoryId}`)
+    if (!categorySection) return
+    
+    // Set up event listeners for all input rows in this category
+    const inputRows = categorySection.querySelectorAll('.additional-lines .talent-input-row')
+    inputRows.forEach(row => {
+      // Add event listeners to all number inputs in this row
+      row.querySelectorAll('input[type="number"]').forEach(input => {
+        // Remove any existing listener to avoid duplicates
+        input.removeEventListener('input', input._categoryListener)
+        
+        // Create new listener function
+        input._categoryListener = () => {
+          this.calculateCategoryTotal(categoryId)
+        }
+        
+        // Add the listener
+        input.addEventListener('input', input._categoryListener)
+      })
+    })
   }
 
   setupLineEventListeners(categoryId, lineIndex) {
@@ -526,42 +554,25 @@ export default class extends Controller {
   }
 
   calculateCategoryTotal(categoryId) {
-    console.log('Calculating total for category:', categoryId)
     const section = document.getElementById(`talent-category-${categoryId}`)
     if (!section) {
-      console.log('Section not found for category:', categoryId)
       return
     }
     
     const baseRate = this.baseRates[categoryId] || 5000
-    console.log('Base rate for category', categoryId, ':', baseRate)
     let categoryTotal = 0
     
-    // Calculate first row (main row)
-    const firstRow = section.querySelector('.talent-input-row')
-    if (firstRow) {
-      const lineTotal = this.calculateLineTotal(firstRow, baseRate)
-      console.log('First row total:', lineTotal)
-      categoryTotal += lineTotal
-    }
-    
-    // Calculate additional lines
-    const additionalLines = section.querySelectorAll('.additional-lines .talent-input-row')
-    additionalLines.forEach((line, index) => {
+    // Calculate ALL lines (first row + additional lines)
+    const allLines = section.querySelectorAll('.additional-lines .talent-input-row')
+    allLines.forEach((line) => {
       const lineTotal = this.calculateLineTotal(line, baseRate)
-      console.log(`Additional line ${index} total:`, lineTotal)
       categoryTotal += lineTotal
     })
-    
-    console.log('Category total:', categoryTotal)
     
     // Update display
     const totalDisplay = section.querySelector(`#category-total-${categoryId}`)
     if (totalDisplay) {
       totalDisplay.textContent = `R${this.formatNumber(categoryTotal)}`
-      console.log('Updated display with:', `R${this.formatNumber(categoryTotal)}`)
-    } else {
-      console.log('Total display element not found')
     }
     
     // Update category totals display
@@ -576,6 +587,12 @@ export default class extends Controller {
   calculateLineTotal(lineRow, baseRate) {
     // Get values from the row
     const talentCount = parseInt(lineRow.querySelector('[name*="talent_count"], .talent-count')?.value) || 0
+    
+    // If no talent, return 0 immediately (no point calculating anything)
+    if (talentCount === 0) {
+      return 0
+    }
+    
     const adjustedRate = Math.round(parseFloat(lineRow.querySelector('[name*="adjusted_rate"], .rate-adjustment')?.value)) || baseRate
     const shootDays = parseInt(lineRow.querySelector('[name*="days_count"], [name*="shoot_days"], .shoot-days')?.value) || 0
     const rehearsalDays = parseInt(lineRow.querySelector('[name*="rehearsal_days"], .rehearsal-days')?.value) || 0
@@ -590,7 +607,6 @@ export default class extends Controller {
                           nightBtn.classList.contains('border-yellow-400') && 
                           nightBtn.classList.contains('text-yellow-800')
     const isNightActive = dataActive || visuallyActive
-    console.log(`Night button found: ${!!nightBtn}, dataset.active: ${nightBtn?.dataset.active}, visuallyActive: ${visuallyActive}, isNightActive: ${isNightActive}`)
     
     let lineTotal = 0
     
@@ -613,10 +629,8 @@ export default class extends Controller {
     if (isNightActive) {
       const nightCost = 1 * adjustedRate * talentCount * 0.5
       lineTotal += nightCost
-      console.log(`Night calculation: 1 × ${adjustedRate} × ${talentCount} × 0.5 = ${nightCost}`)
     }
     
-    console.log(`Line total: Talent=${talentCount}, Rate=${adjustedRate}, Shoot=${shootDays}, Rehearsal=${rehearsalDays}, Down=${downDays}, Travel=${travelDays}, Overtime=${overtimeHours}, Night=${isNightActive ? 'on' : 'off'}, Total=${lineTotal}`)
     
     return lineTotal
   }
@@ -1177,7 +1191,7 @@ export default class extends Controller {
     const talentBaseTotal = document.getElementById('talent-base-total')
     const talentGrandTotal = document.getElementById('talent-grand-total')
     
-    if (!categoryTotalsList || !talentBaseTotal || !talentGrandTotal) return
+    if (!categoryTotalsList || !talentGrandTotal) return
     
     let totalAmount = 0
     let baseTotalAmount = 0
@@ -1241,18 +1255,9 @@ export default class extends Controller {
             
             categoryTotalsHtml += `
               <div class="flex justify-between items-center text-sm">
-                <span class="text-gray-700">${talentCount} ${categoryName} @ R${this.formatNumber(adjustedRate)}</span>
-               
+                <span class="text-gray-700">${talentCount} ${categoryName}</span>
                 <span class="font-semibold text-gray-800">R${this.formatNumber(totalValue)}</span>
               </div>
-
-
-               ${categoryName.toLowerCase() !== 'extras' ? `
-                <div class="flex justify-between items-center text-xs text-gray-500">
-                  <span>Base (excl. days)</span>
-                  <span>R${this.formatNumber(baseCategoryTotal)}</span>
-                </div>
-              ` : ''}
             `
           }
           
@@ -1289,23 +1294,20 @@ export default class extends Controller {
     const baseTotalAmountExcludingExtras = baseTotalAmount - extrasBaseAmount - kidsReduction
     
     // Add base total excluding extras if there is a base total
-    if (baseTotalAmount > 0) {
-      categoryTotalsHtml += `
-        <div class="border-t pt-2 mt-2">
-          <div class="flex justify-between items-center text-sm font-medium text-blue-600">
-            <span>Base Total (without days & excl. extras)</span>
-            <span>R${this.formatNumber(baseTotalAmountExcludingExtras)}</span>
-          </div>
-        </div>
-      `
-    }
+   
     
     // Store the value excluding extras for reuse
     this.baseTotalExcludingExtras = baseTotalAmountExcludingExtras
     
     categoryTotalsList.innerHTML = categoryTotalsHtml
 
-    talentBaseTotal.textContent = `R${this.formatNumber(baseTotalAmount)}`
+    if (talentBaseTotal) {
+      talentBaseTotal.textContent = `R${this.formatNumber(baseTotalAmount)}`
+    }
+    const talentBaseExcludingExtras = document.getElementById('talent-base-excluding-extras')
+  if (talentBaseExcludingExtras) {
+    talentBaseExcludingExtras.textContent = `R${this.formatNumber(baseTotalAmountExcludingExtras)}`
+  }
     talentGrandTotal.textContent = `R${this.formatNumber(totalAmount)}`
   }
 

@@ -57,8 +57,9 @@
 
 /* Talent category button selected state */
 .talent-btn.border-blue-500 {
-  background-color: #eff6ff;
+  background-color: #ffff;
   border-color: #3b82f6;
+  color: black;
 }
 
 /* Additional lines styling */

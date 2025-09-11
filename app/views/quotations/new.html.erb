@@ -2,7 +2,7 @@
 <div class="min-h-screen bg-gray-50 flex" data-controller="quotation-form">
   <%= form_with model: @quotation, local: true, class: "w-full flex px-6" do |f| %>
     <!-- Sidebar -->
-    <aside class="flex-shrink-0 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between shadow rounded-2xl" style="width: 250px; min-width: 250px;">
+    <aside class="flex-shrink-0 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between shadow rounded-2xl" style="width: 20%; min-width: 20%;">
       <div class="flex-1 overflow-y-auto">
         <h2 class="text-lg font-semibold mb-4">Quote Sections</h2>
         <ul class="space-y-2 text-sm text-gray-700">
@@ -47,7 +47,7 @@
 
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-600 mb-3">Product Type</label>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
             <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
               <%= f.radio_button :product_type, 'adult', class: "text-blue-600 focus:ring-blue-500" %>
               <span class="text-sm font-medium">Adult Product</span>
@@ -246,12 +246,12 @@
                     + Night Fee
                   </button>
                   <input type="number" 
-                         name="talent[<%= type_id %>][night_count]" 
-                         min="1" 
-                         value="1" 
-                         class="nights-input w-full px-1 py-1 text-xs border border-gray-300 rounded text-center hidden"
-                         data-category="<%= type_id %>"
-                         placeholder="Nights">
+                        name="talent[<%= type_id %>][night_count]" 
+                        min="1" 
+                        value="1" 
+                        class="nights-input w-full px-1 py-1 text-xs border border-gray-300 rounded text-center hidden"
+                        data-category="<%= type_id %>"
+                        placeholder="Nights">
                   <%= hidden_field_tag "talent[#{type_id}][night_premium]", "false", data: { night_field: type_id } %>
                 </td>
                 
@@ -271,7 +271,7 @@
         <!-- Category Total Display -->
         <div class="category-total p-4 bg-blue-50 rounded-lg">
           <div class="flex justify-between items-center">
-            <span class="font-semibold text-gray-900">Category Total:</span>
+            <span class="font-semibold text-gray-900"><%= type_name %> Total:</span>
             <span class="text-lg font-bold text-blue-600" id="category-total-<%= type_id %>">R0</span>
           </div>
           
@@ -282,17 +282,17 @@
   
   <!-- Talent Category Totals -->
   <div id="category-totals" class="mt-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
-    <h4 class="text-lg font-semibold mb-3 text-gray-800">Category Summary</h4>
+    <h4 class="text-lg font-semibold mb-3 text-gray-800">Talent Summary</h4>
     <div id="category-totals-list" class="space-y-2">
       <!-- Category totals will be populated by JavaScript -->
     </div>
     <div class="border-t border-blue-200 mt-4 pt-4">
-      <div class="flex justify-between items-center">
+      <%# <div class="flex justify-between items-center">
         <span class="font-semibold text-gray-800 hidden">Total (without days):</span>
         <span class="text-xl font-bold text-blue-600 hidden" id="talent-base-total">R0</span>
-      </div>
+      </div> %>
       <div class="flex justify-between items-center">
-        <span class="font-semibold text-gray-800">Total A: Talent Day Fees</span>
+        <span class="font-semibold text-gray-800">Total Talent Daily Fees</span>
         <span class="text-xl font-bold text-blue-600" id="talent-grand-total">R0</span>
       </div>
     </div>
@@ -501,81 +501,27 @@
         <h3 class="text-lg font-semibold mb-4">Quote Preview</h3>
         
         <div class="bg-gray-50 rounded-lg p-4 mb-6">
-          <div class="grid grid-cols-2 gap-6">
-            <!-- Talent Summary -->
-            <div>
-              <h4 class="text-sm font-medium text-gray-600 mb-3">Talent Summary</h4>
-              <div id="talent-summary" class="space-y-2 text-sm">
-                <div class="text-gray-500 italic">No talent selected</div>
-              </div>
-            </div>
-            
-            <!-- Territory Summary -->
-            <div>
-              <h4 class="text-sm font-medium text-gray-600 mb-3">Selected Territories</h4>
-              <div id="territory-summary" class="space-y-1 text-sm max-h-32 overflow-y-auto">
-                <div class="text-gray-500 italic">No territories selected</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Cost Breakdown -->
-          <div class="mt-6 pt-4 border-t border-gray-200">
-            <div class="space-y-2">
-              <!-- A: Talent Fees -->
-              <div class="bg-gray-50 p-3 rounded-lg">
-                <div class="flex justify-between text-sm font-medium">
-                  <span class="text-gray-700">A) Talent Fees:</span>
-                  <span id="talent-total">R 0.00</span>
-                </div>
-                <div class="text-xs text-gray-500 mt-1">Base talent fees + standby & overtime</div>
-              </div>
-              
-              <!-- Usage/Buyout Calculation Details -->
-              <div class="space-y-1 text-xs text-gray-600 ml-2">
-                <div class="flex justify-between">
-                  <span>Territory Multiplier:</span>
-                  <span id="territory-multiplier">1.00x</span>
-                </div>
-                <div class="flex justify-between">
-                  <span>Media Multiplier:</span>
-                  <span id="media-display-multiplier">1.00x</span>
-                </div>
-                <div class="flex justify-between">
-                  <span>Duration Multiplier:</span>
-                  <span id="duration-multiplier">1.00x</span>
-                </div>
-                <div class="flex justify-between">
-                  <span>Exclusivity Adjustment:</span>
-                  <span id="exclusivity-multiplier">+0%</span>
-                </div>
-              </div>
-              
-              <!-- B: Usage/Buyout -->
-              <div class="bg-blue-50 p-3 rounded-lg">
-                <div class="flex justify-between text-sm font-medium mb-2">
-                  <span class="text-gray-700">B) Usage/Buyout:</span>
-                  <span id="usage-buyout-total">R 0.00</span>
-                </div>
-                <div id="usage-buyout-breakdown" class="text-xs text-gray-600 space-y-1">
-                  <!-- Category breakdowns will be inserted here -->
-                </div>
-              </div>
-              
-              <!-- Additional Options -->
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Additional Options:</span>
-                <span id="additional-fees">R 0.00</span>
-              </div>
-              
-              <!-- C: Total -->
-              <div class="bg-green-50 p-3 rounded-lg border-t border-gray-300">
-                <div class="flex justify-between font-semibold">
-                  <span class="text-gray-800">C) Total Quote (A+B):</span>
-                  <span id="total-quote" class="text-blue-600">R 0.00</span>
-                </div>
-              </div>
-            </div>
+          <!-- Talent Lines Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse border border-gray-300" id="quote-preview-table">
+              <thead>
+                <tr class="bg-gray-100 border-b border-gray-300">
+                  <th class="text-left py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Description</th>
+                  <th class="text-right py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Rate</th>
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">No of Talent</th>
+                  <th class="text-right py-2 px-3 text-sm font-medium text-gray-700">Combo 1</th>
+                </tr>
+              </thead>
+              <tbody id="quote-preview-rows">
+                <!-- Talent lines will be populated here -->
+              </tbody>
+              <tfoot>
+                <tr class="border-t border-gray-400 font-semibold bg-gray-50">
+                  <td colspan="3" class="text-right py-2 px-3 text-sm text-gray-800 border-r border-gray-300">Total:</td>
+                  <td class="text-right py-2 px-3 text-sm text-gray-800" id="combo-1-total">R0</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       </section>
@@ -1158,14 +1104,15 @@ document.addEventListener('DOMContentLoaded', function() {
   // Enhanced calculation and preview functionality for multiple combinations
   function updateQuotePreview() {
     let talentTotal = 0;
-    let totalAdditionalFees = 0;
+    let combo1Total = 0;
     
-    const talentSummary = document.getElementById('talent-summary');
-    const territorySummary = document.getElementById('territory-summary');
+    const previewRows = document.getElementById('quote-preview-rows');
+    const combo1TotalElement = document.getElementById('combo-1-total');
     
-    // Clear summaries
-    talentSummary.innerHTML = '';
-    territorySummary.innerHTML = '';
+    // Clear existing rows
+    if (previewRows) {
+      previewRows.innerHTML = '';
+    }
     
     // Calculate talent costs from active talent categories
     const activeTalentSections = document.querySelectorAll('[id^="talent-category-"]:not(.hidden)');
@@ -1173,73 +1120,61 @@ document.addEventListener('DOMContentLoaded', function() {
     let baseTalentFeesOnly = 0; // Just the base fees for usage calculation
     let talentCategoryBreakdown = []; // Store breakdown for usage calculation
     
-    activeTalentSections.forEach(section => {
-      const categoryId = section.id.replace('talent-category-', '');
-      const categoryName = section.querySelector('h4').textContent;
+    // Get all visible talent categories and process their individual lines
+    document.querySelectorAll('[id^="talent-category-"]').forEach(section => {
+      if (section.classList.contains('hidden')) return;
       
-      // Get the category total (includes base + standby + overtime)
-      const categoryTotalElement = section.querySelector(`#category-total-${categoryId}`);
-      if (categoryTotalElement) {
-        const totalText = categoryTotalElement.textContent.replace(/[R,]/g, '');
-        const categoryTotal = parseInt(totalText) || 0;
+      const categoryId = section.id.replace('talent-category-', '');
+      const categoryName = section.querySelector('h4')?.textContent || '';
+      
+      // Process all talent input rows in this category
+      const talentRows = section.querySelectorAll('.additional-lines .talent-input-row');
+      
+      talentRows.forEach(row => {
+        const descriptionInput = row.querySelector('.talent-description, [name*="description"]');
+        const talentCountInput = row.querySelector('.talent-count, [name*="talent_count"]');
+        const rateInput = row.querySelector('.rate-adjustment, [name*="adjusted_rate"]');
+        const daysInput = row.querySelector('.days-input, [name*="days_count"]');
         
-        if (categoryTotal > 0) {
-          hasTalent = true;
-          talentTotal += categoryTotal;
+        const description = descriptionInput?.value || categoryName;
+        const talentCount = parseInt(talentCountInput?.value) || 0;
+        const rate = parseInt(rateInput?.value) || 0;
+        const days = parseInt(daysInput?.value) || 0;
+        
+        // Only show lines with talent count > 0
+        if (talentCount > 0 && previewRows) {
+          const lineTotal = talentCount * rate * days;
+          combo1Total += lineTotal;
           
-          // Calculate just the base fees (combination totals) for usage calculation
-          const combinationTotals = section.querySelectorAll('.combination-total');
-          let categoryBaseFees = 0;
-          combinationTotals.forEach(total => {
-            const value = total.textContent.replace(/[R,]/g, '');
-            categoryBaseFees += parseInt(value) || 0;
-          });
-          
-          if (categoryBaseFees > 0) {
-            baseTalentFeesOnly += categoryBaseFees;
-            talentCategoryBreakdown.push({
-              id: categoryId,
-              name: categoryName,
-              baseFees: categoryBaseFees
-            });
-          }
-          
-          const summaryItem = document.createElement('div');
-          summaryItem.className = 'flex justify-between';
-          summaryItem.innerHTML = `
-            <span class="text-sm">${categoryName}</span>
-            <span>R ${categoryTotal.toLocaleString()}</span>
+          const row = document.createElement('tr');
+          row.className = 'border-b border-gray-300';
+          row.innerHTML = `
+            <td class="py-2 px-3 text-sm text-gray-800 border-r border-gray-300">${description}</td>
+            <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">R${rate.toLocaleString()}</td>
+            <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">${talentCount}</td>
+            <td class="py-2 px-3 text-sm text-gray-800 text-right">R${lineTotal.toLocaleString()}</td>
           `;
-          talentSummary.appendChild(summaryItem);
+          previewRows.appendChild(row);
+          hasTalent = true;
         }
-      }
-    });
-    
-    if (!hasTalent) {
-      talentSummary.innerHTML = '<div class="text-gray-500 italic">No talent selected</div>';
-    }
-    
-    // Get all active combinations
-    const activeCombinations = getActiveCombinations();
-    
-    // Update territory summary with all combinations
-    let allTerritoryNames = [];
-    activeCombinations.forEach(combo => {
-      allTerritoryNames = [...allTerritoryNames, ...combo.selectedTerritories];
-    });
-    
-    if (allTerritoryNames.length > 0) {
-      // Remove duplicates and display
-      const uniqueTerritories = [...new Set(allTerritoryNames)];
-      uniqueTerritories.forEach(name => {
-        const summaryItem = document.createElement('div');
-        summaryItem.className = 'text-sm';
-        summaryItem.innerHTML = name;
-        territorySummary.appendChild(summaryItem);
       });
-    } else {
-      territorySummary.innerHTML = '<div class="text-gray-500 italic">No territories selected</div>';
+    });
+    
+    // Update combo 1 total
+    if (combo1TotalElement) {
+      combo1TotalElement.textContent = `R${combo1Total.toLocaleString()}`;
     }
+    
+    // If no talent lines, show placeholder
+    if (!hasTalent && previewRows) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.innerHTML = '<td colspan="4" class="py-4 text-center text-gray-500 italic">No talent selected</td>';
+      previewRows.appendChild(emptyRow);
+    }
+    
+    // TODO: Add logic for additional combos when they exist
+    // This will be expanded when combo functionality is added
+  }
     
     // Get campaign type for adjustments
     const campaignTypeRadio = document.querySelector('input[name="quotation[product_type]"]:checked');
