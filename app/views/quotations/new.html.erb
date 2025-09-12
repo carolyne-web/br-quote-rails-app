@@ -818,67 +818,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // Exclusivity dropdown functionality
-  document.addEventListener('click', function(e) {
-    // Toggle dropdown
-    if (e.target.classList.contains('exclusivity-dropdown-toggle') || e.target.closest('.exclusivity-dropdown-toggle')) {
-      e.preventDefault();
-      const toggle = e.target.classList.contains('exclusivity-dropdown-toggle') ? e.target : e.target.closest('.exclusivity-dropdown-toggle');
-      const menu = toggle.nextElementSibling;
-      const isOpen = !menu.classList.contains('hidden');
-      
-      // Close all other exclusivity dropdowns
-      document.querySelectorAll('.exclusivity-dropdown-menu').forEach(dropdown => {
-        dropdown.classList.add('hidden');
-      });
-      
-      // Toggle current dropdown
-      if (!isOpen) {
-        menu.classList.remove('hidden');
-      }
-    }
-    // Close dropdown when clicking outside
-    else if (!e.target.closest('.exclusivity-dropdown-menu')) {
-      document.querySelectorAll('.exclusivity-dropdown-menu').forEach(dropdown => {
-        dropdown.classList.add('hidden');
-      });
-    }
-  });
   
-  // Handle exclusivity checkbox changes
-  document.addEventListener('change', function(e) {
-    if (e.target.classList.contains('exclusivity-checkbox')) {
-      const comboId = e.target.getAttribute('data-combo');
-      updateExclusivityDisplay(comboId);
-      
-      // Update quote preview
-      if (typeof updateQuotePreview === 'function') {
-        updateQuotePreview();
-      }
-    }
-  });
-  
-  function updateExclusivityDisplay(comboId) {
-    const checkboxes = document.querySelectorAll(`input[name="combinations[${comboId}][exclusivity_types][]"]:checked`);
-    const displaySpan = document.querySelector(`button[data-combo="${comboId}"] .exclusivity-display`);
-    
-    if (checkboxes.length === 0) {
-      displaySpan.textContent = 'Select exclusivity types';
-      displaySpan.className = 'exclusivity-display text-gray-500';
-    } else {
-      const selectedText = Array.from(checkboxes).map(cb => {
-        const label = cb.closest('label').querySelector('span').textContent;
-        return label;
-      }).join(', ');
-      
-      if (selectedText.length > 30) {
-        displaySpan.textContent = `${checkboxes.length} exclusivity types selected`;
-      } else {
-        displaySpan.textContent = selectedText;
-      }
-      displaySpan.className = 'exclusivity-display text-gray-900';
-    }
-  }
   
   function createCombinationContent(comboId) {
     const content = document.createElement('div');
@@ -981,27 +921,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="text-xs text-blue-600 mt-1">
               Current multiplier: <span class="media-multiplier-display" data-combo="${comboId}">100%</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Exclusivity Section -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-600">Exclusivity Level</label>
-            <div class="relative mt-1">
-              <button type="button" class="exclusivity-dropdown-toggle w-full border rounded-lg px-3 py-2 text-sm text-left bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-combo="${comboId}">
-                <span class="exclusivity-display text-gray-500">Select exclusivity types</span>
-                <span class="float-right">▼</span>
-              </button>
-              <div class="exclusivity-dropdown-menu absolute top-full left-0 right-0 bg-white border rounded-lg shadow-lg mt-1 z-10 hidden max-h-60 overflow-y-auto">
-                ${exclusivityOptions.map(option => `
-                  <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                    <input type="checkbox" name="combinations[${comboId}][exclusivity_types][]" value="${option[1]}" class="mr-3 rounded text-blue-600 focus:ring-blue-500 exclusivity-checkbox" data-combo="${comboId}">
-                    <span class="text-sm">${option[0]}</span>
-                  </label>
-                `).join('')}
-              </div>
             </div>
           </div>
         </div>
@@ -1123,25 +1042,6 @@ document.addEventListener('DOMContentLoaded', function() {
     return totalTerritoryPercentage > 0 ? totalTerritoryPercentage / 100.0 : 1.0;
   }
 
-  // Exclusivity multiplier calculation function for a specific combination
-  function calculateExclusivityMultiplierForCombo(comboId) {
-    const exclusivitySelect = document.querySelector(`select[name="combinations[${comboId}][exclusivity_type]"]`);
-    if (!exclusivitySelect || !exclusivitySelect.value) {
-      return 1.0;
-    }
-    
-    const selectedOption = exclusivitySelect.selectedOptions[0];
-    if (selectedOption) {
-      const text = selectedOption.textContent;
-      const percentageMatch = text.match(/\+(\d+)%/);
-      if (percentageMatch) {
-        const percentage = parseFloat(percentageMatch[1]) || 0;
-        return 1 + (percentage / 100);
-      }
-    }
-    
-    return 1.0;
-  }
 
   // Get all active combinations
   function getActiveCombinations() {
@@ -1161,7 +1061,7 @@ document.addEventListener('DOMContentLoaded', function() {
           territoryMultiplier: calculateTerritoryMultiplierForCombo(comboId),
           mediaMultiplier: calculateMediaMultiplierForCombo(comboId),
           durationMultiplier: calculateDurationMultiplierForCombo(comboId),
-          exclusivityMultiplier: calculateExclusivityMultiplierForCombo(comboId),
+          exclusivityMultiplier: 1.0, // Now handled by new pill system
           unlimitedStills: document.querySelector(`input[name="combinations[${comboId}][unlimited_stills]"]:checked`) ? true : false,
           unlimitedVersions: document.querySelector(`input[name="combinations[${comboId}][unlimited_versions]"]:checked`) ? true : false,
           selectedTerritories: Array.from(selectedTerritories).map(t => t.dataset.territoryName),
