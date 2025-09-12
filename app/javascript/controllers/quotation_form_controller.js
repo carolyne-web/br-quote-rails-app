@@ -1713,17 +1713,32 @@ export default class extends Controller {
     const categories = []
     const categoryNames = {
       1: 'Lead',
-      2: 'Featured', 
-      3: 'Background',
-      4: 'Hand/Body Double',
-      5: 'Kids'
+      2: 'Second Lead',
+      3: 'Featured Extra',
+      4: 'Teenager',
+      5: 'Kid'
     }
     
-    // Use the same selector as the existing working code
+    const categoryAbbreviations = {
+      1: 'LD',
+      2: '2L',
+      3: 'FE',
+      4: 'TN',
+      5: 'KD'
+    }
+    
+    // Only process categories 1-5 as requested
     document.querySelectorAll('[id^="talent-category-"]').forEach(section => {
-      // DON'T skip hidden categories - we want data from all categories
       const categoryId = section.id.replace('talent-category-', '')
-      const categoryName = categoryNames[categoryId] || `Category ${categoryId}`
+      const categoryIdNum = parseInt(categoryId)
+      
+      // Only include categories 1-5
+      if (categoryIdNum < 1 || categoryIdNum > 5) {
+        return
+      }
+      
+      const categoryName = categoryNames[categoryIdNum]
+      const categoryAbbr = categoryAbbreviations[categoryIdNum]
       const lines = []
       
       // Get all talent input rows in the additional-lines section of this category
@@ -1741,10 +1756,16 @@ export default class extends Controller {
         const rate = rateField?.value || 0
         const count = countField?.value || 0
         
-        // Only include rows that have some data
-        if (description.trim() || parseFloat(rate) > 0 || parseInt(count) > 0) {
+        // Only include rows that have actual talent count > 0 AND (description OR rate > 0)
+        // This prevents showing fake data with 0 units
+        if (parseInt(count) > 0 && (description.trim() || parseFloat(rate) > 0)) {
+          // Format description with category abbreviation if description exists
+          const formattedDescription = description.trim() 
+            ? `${categoryAbbr} - ${description.trim()}`
+            : categoryName
+          
           lines.push({
-            description: description.trim() || categoryName,
+            description: formattedDescription,
             adjustedRate: parseFloat(rate) || 0,
             dailyRate: parseFloat(rate) || 0,
             initialCount: parseInt(count) || 0
