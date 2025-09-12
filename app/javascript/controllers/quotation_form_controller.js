@@ -832,8 +832,8 @@ export default class extends Controller {
       allMediaCheckbox.checked = false
     }
     
-    // Update media multiplier for this combination
-    this.calculateMediaMultiplierForCombo(comboId)
+    // Recalculate all combinations to update media multipliers
+    this.recalculateAllCombinations()
   }
 
   calculateMediaMultiplier() {
@@ -885,10 +885,56 @@ export default class extends Controller {
     // Add event listeners to product type radio buttons
     const productTypeRadios = document.querySelectorAll('input[name="quotation[product_type]"]')
     productTypeRadios.forEach(radio => {
-      radio.addEventListener('change', () => {
+      const handleProductTypeChange = () => {
+        console.log(`🔄 Product Type selected: ${radio.value} - recalculating Kids totals...`)
+        
         // Update category totals when product type changes (affects kids reduction)
         this.updateCategoryTotalsDisplay()
-      })
+        
+        // Trigger Kids talent recalculation specifically
+        this.recalculateKidsTalentTotals()
+        
+        // Recalculate all combination totals to apply new product factors
+        this.recalculateAllCombinations()
+      }
+      
+      // Listen for both click and change events to ensure immediate response
+      radio.addEventListener('click', handleProductTypeChange)
+      radio.addEventListener('change', handleProductTypeChange)
+    })
+  }
+
+  recalculateKidsTalentTotals() {
+    // Trigger buyout table recalculation (same as when talent input changes)
+    console.log(`🧒 Triggering buyout table recalculation for Product Type change`)
+    
+    try {
+      this.populateAllTables()
+    } catch (error) {
+      console.error('Error in populateAllTables():', error)
+    }
+  }
+
+  recalculateAllCombinations() {
+    // Find all combination elements and recalculate their totals
+    const combinations = document.querySelectorAll('[data-combination-index]')
+    console.log(`🔄 Found ${combinations.length} combinations to recalculate`)
+    
+    combinations.forEach(combination => {
+      const index = combination.getAttribute('data-combination-index')
+      const categoryId = combination.closest('[data-category]')?.getAttribute('data-category')
+      
+      if (categoryId && index !== null) {
+        console.log(`🔄 Recalculating combination: Category ${categoryId}, Index ${index}`)
+        this.calculateCombinationTotal(parseInt(categoryId), parseInt(index))
+        
+        // Special logging for Kids category
+        if (categoryId === '5') {
+          console.log(`🧒 Kids combination found and recalculated: Category ${categoryId}, Index ${index}`)
+        }
+      } else {
+        console.log(`⚠️ Could not find categoryId or index for combination`, combination)
+      }
     })
   }
 
@@ -1688,9 +1734,18 @@ export default class extends Controller {
         const categoryId = this.getCategoryIdFromDescription(line.description || category.name)
         const applicableExclusivities = this.getExclusivitiesForCategory(comboId, categoryId)
         
-        // Calculate row-specific buyout percentage
-        const rowBuyoutPercentage = this.calculateRowBuyoutPercentage(comboId, applicableExclusivities)
-        const totalRands = (dayFee * unit * rowBuyoutPercentage / 100)
+        // Calculate row-specific buyout percentage with Product Type logic
+        const rowBuyoutPercentage = this.calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee)
+        
+        // Working Total = DayFee × (BuyoutPercentage/100) × ProductFactor
+        const buyoutMultiplier = rowBuyoutPercentage / 100
+        const productFactor = this.lastProductFactor || 1.0
+        const totalRands = dayFee * unit * buyoutMultiplier * productFactor
+        
+        console.log(`💰 WORKING TOTAL CALCULATION - CategoryID: ${categoryId}`)
+        console.log(`💰 DayFee: R${dayFee}, Unit: ${unit}, BuyoutPercentage: ${rowBuyoutPercentage}%`)
+        console.log(`💰 this.lastProductFactor: ${this.lastProductFactor}, productFactor: ${productFactor}`)
+        console.log(`💰 Formula: ${dayFee} × ${unit} × ${buyoutMultiplier} × ${productFactor} = R${totalRands}`)
         
         totalAmount += totalRands
         
@@ -1852,12 +1907,43 @@ export default class extends Controller {
     return percentage
   }
 
-  calculateRowBuyoutPercentage(comboId, applicableExclusivities) {
+  calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee) {
     // Get base buyout percentage (without custom exclusivities)
     const baseBuyoutPercentage = this.calculateBaseBuyoutPercentage(comboId)
     
     // Add only the exclusivities that apply to this specific row
     const rowExclusivityPercentage = applicableExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
+    
+    // Store product factor for Kids category (KD = category 5) when Kids > 1
+    let productFactor = 1.0
+    if (categoryId === 5) { // Kids category
+      const productType = this.getSelectedProductType()
+      const kidsCount = this.getKidsCount()
+      
+      console.log(`🧒 KIDS DISCOUNT DEBUG - CategoryID: ${categoryId}, ProductType: ${productType}, KidsCount: ${kidsCount}`)
+      
+      if (kidsCount >= 1) {
+        switch (productType) {
+          case 'adult':
+            productFactor = 0.5  // Adult: 50% of buyout amount
+            console.log(`🧒 ADULT PRODUCT + Kids (${kidsCount}): Product factor = ${productFactor}`)
+            break
+          case 'family':
+            productFactor = 0.75 // Family: 75% of buyout amount  
+            console.log(`🧒 FAMILY PRODUCT + Kids (${kidsCount}): Product factor = ${productFactor}`)
+            break
+          case 'kids':
+            productFactor = 1.0  // Kids: No discount (100% of buyout amount)
+            console.log(`🧒 KIDS PRODUCT + Kids (${kidsCount}): Product factor = ${productFactor}`)
+            break
+        }
+      } else {
+        console.log(`🧒 No kids found (${kidsCount}), no product factor applied`)
+      }
+    }
+    
+    // Store product factor for use in total calculation
+    this.lastProductFactor = productFactor
     
     return baseBuyoutPercentage + rowExclusivityPercentage
   }
@@ -1935,15 +2021,22 @@ export default class extends Controller {
       return 1.0
     }
     
+    console.log(`🎬 MEDIA DEBUG - mediaTypes: [${mediaTypes.join(', ')}], length: ${mediaTypes.length}`)
+    
     if (mediaTypes.includes('all_media')) {
+      console.log(`🎬 All Media selected - returning 1.0 (100%)`)
       return 1.0
-    } else if (mediaTypes.length === 1 && mediaTypes.includes('all_moving')) {
+    } else if (mediaTypes.includes('all_moving')) {
+      console.log(`🎬 All Moving Media selected - returning 0.75 (75%)`)
       return 0.75
     } else if (mediaTypes.length === 1) {
+      console.log(`🎬 Single media selected - returning 0.5 (50%)`)
       return 0.5
     } else if (mediaTypes.length === 2) {
+      console.log(`🎬 Two media types selected - returning 0.75 (75%)`)
       return 0.75
     } else if (mediaTypes.length >= 3) {
+      console.log(`🎬 Three+ media types selected - returning 1.0 (100%)`)
       return 1.0
     }
     
@@ -2026,6 +2119,40 @@ export default class extends Controller {
       // Check if this category is in the exclusivity's target categories
       return ex.categories.includes(categoryId)
     })
+  }
+
+  getSelectedProductType() {
+    const productTypeRadio = document.querySelector('input[name="quotation[product_type]"]:checked')
+    return productTypeRadio ? productTypeRadio.value : null
+  }
+
+  getKidsCount() {
+    // Get total count of Kids talent across all categories
+    let totalKidsCount = 0
+    
+    // Look for Kids category (category 5) input rows
+    const kidsSection = document.querySelector('#talent-category-5')
+    console.log(`🔍 KIDS COUNT DEBUG - KidsSection found: ${!!kidsSection}, Hidden: ${kidsSection?.classList.contains('hidden')}`)
+    
+    if (kidsSection && !kidsSection.classList.contains('hidden')) {
+      const inputRows = kidsSection.querySelectorAll('.additional-lines .talent-input-row')
+      console.log(`🔍 Found ${inputRows.length} input rows in Kids section`)
+      
+      inputRows.forEach((row, index) => {
+        const countField = row.querySelector('[name*="talent_count"]') || 
+                          row.querySelector('[data-talent-input="5"]')
+        if (countField) {
+          const count = parseInt(countField.value) || 0
+          console.log(`🔍 Row ${index}: Count field value = ${countField.value}, parsed = ${count}`)
+          totalKidsCount += count
+        } else {
+          console.log(`🔍 Row ${index}: No count field found`)
+        }
+      })
+    }
+    
+    console.log(`🔍 TOTAL KIDS COUNT: ${totalKidsCount}`)
+    return totalKidsCount
   }
 
   setupExclusivityPopup() {

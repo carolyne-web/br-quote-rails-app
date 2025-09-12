@@ -39,33 +39,36 @@
           <h3 class="text-lg font-semibold">Campaign Information</h3>
           <span class="text-sm text-gray-400">Step 1 of 4</span>
         </div>
-        
-        <div class="mb-4">
-          <%= f.label :campaign_name, "Campaign Name", class: "block text-sm font-medium text-gray-600" %>
-          <%= f.text_field :campaign_name, required: true, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "Enter campaign name" %>
-        </div>
-
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-600 mb-3">Product Type</label>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <%= f.radio_button :product_type, 'adult', class: "text-blue-600 focus:ring-blue-500" %>
-              <span class="text-sm font-medium">Adult Product</span>
-            </label>
-            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <%= f.radio_button :product_type, 'kids', class: "text-blue-600 focus:ring-blue-500" %>
-              <span class="text-sm font-medium">Kids Product</span>
-            </label>
-            <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <%= f.radio_button :product_type, 'family', class: "text-blue-600 focus:ring-blue-500" %>
-              <span class="text-sm font-medium">Family Product</span>
-            </label>
+        <div class="grid grid-cols-2 gap-6 mb-4">
+          <!-- Campaign Name Column -->
+          <div>
+            <%= f.label :campaign_name, "Campaign Name", class: "block text-sm font-medium text-gray-600 mb-2" %>
+            <%= f.text_field :campaign_name, required: true, class: "w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "Enter campaign name" %>
           </div>
-        </div>
 
-        <div class="hidden">
-          <%= f.label :status, "Status", class: "block text-sm font-medium text-gray-600" %>
-          <%= f.select :status, options_for_select(Quotation::STATUS_OPTIONS.map { |s| [s.capitalize, s] }, @quotation.status), {}, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
+          <!-- Product Type Column -->
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-2">Product Type</label>
+            <div class="flex gap-3">
+              <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <%= f.radio_button :product_type, 'adult', class: "text-blue-600 focus:ring-blue-500" %>
+                <span class="text-sm font-medium">Adult Product</span>
+              </label>
+              <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <%= f.radio_button :product_type, 'kids', class: "text-blue-600 focus:ring-blue-500" %>
+                <span class="text-sm font-medium">Kids Product</span>
+              </label>
+              <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <%= f.radio_button :product_type, 'family', class: "text-blue-600 focus:ring-blue-500" %>
+                <span class="text-sm font-medium">Family Product</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="hidden">
+            <%= f.label :status, "Status", class: "block text-sm font-medium text-gray-600" %>
+            <%= f.select :status, options_for_select(Quotation::STATUS_OPTIONS.map { |s| [s.capitalize, s] }, @quotation.status), {}, class: "w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" %>
+          </div>
         </div>
 
         <!-- Commercial Type Selection -->
