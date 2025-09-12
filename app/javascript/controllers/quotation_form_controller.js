@@ -20,6 +20,7 @@ export default class extends Controller {
     this.setupRateValidation()
     this.setupComboSummaryUpdate()
     this.setupTablePopulation()
+    this.setupExclusivityPopup()
     
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
@@ -1682,18 +1683,45 @@ export default class extends Controller {
       category.lines.forEach(line => {
         const dayFee = parseFloat(line.adjustedRate || line.dailyRate || 0)
         const unit = parseInt(line.initialCount || 0)
-        const buyoutPercentage = this.calculateBuyoutPercentage(comboId)
-        const totalRands = (dayFee * unit * buyoutPercentage / 100)
+        
+        // Get exclusivities that apply to this talent category
+        const categoryId = this.getCategoryIdFromDescription(line.description || category.name)
+        const applicableExclusivities = this.getExclusivitiesForCategory(comboId, categoryId)
+        
+        // Calculate row-specific buyout percentage
+        const rowBuyoutPercentage = this.calculateRowBuyoutPercentage(comboId, applicableExclusivities)
+        const totalRands = (dayFee * unit * rowBuyoutPercentage / 100)
         
         totalAmount += totalRands
+        
+        // Generate exclusivity pills for this row
+        const allExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
+        const rowExclusivityPills = applicableExclusivities.map(ex => {
+          const originalIndex = allExclusivities.findIndex(original => 
+            original.name === ex.name && original.percentage === ex.percentage
+          )
+          return `<span class="inline-flex items-center px-1 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+            ${ex.name} ${ex.percentage}%
+            <button type="button" class="ml-1 text-yellow-600 hover:text-yellow-800 font-bold remove-exclusivity-pill" data-combo="${comboId}" data-index="${originalIndex}" title="Remove">×</button>
+          </span>`
+        }).join('')
 
         rows.push(`
           <tr class="border-b border-gray-200">
             <td class="py-2 px-3 text-sm text-gray-900 border-r border-gray-300">${line.description || category.name}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(dayFee)}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">${unit}</td>
-            <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300"></td>
-            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${buyoutPercentage.toFixed(1)}%</td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">
+              <div class="flex items-center justify-center gap-2">
+                <button type="button" class="exclusivity-plus-btn w-6 h-6 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0" data-combo="${comboId}" title="Add Exclusivity">
+                  +
+                </button>
+                <div class="flex flex-wrap gap-1">
+                  ${rowExclusivityPills}
+                </div>
+              </div>
+            </td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${rowBuyoutPercentage.toFixed(1)}%</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right">R${this.formatNumber(totalRands)}</td>
           </tr>
         `)
@@ -1816,6 +1844,57 @@ export default class extends Controller {
     if (unlimitedStills) percentage += 15
     if (unlimitedVersions) percentage += 15
     
+    // Add custom exclusivity percentages from our new system
+    const customExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
+    const totalExclusivityPercentage = customExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
+    percentage += totalExclusivityPercentage
+    
+    return percentage
+  }
+
+  calculateRowBuyoutPercentage(comboId, applicableExclusivities) {
+    // Get base buyout percentage (without custom exclusivities)
+    const baseBuyoutPercentage = this.calculateBaseBuyoutPercentage(comboId)
+    
+    // Add only the exclusivities that apply to this specific row
+    const rowExclusivityPercentage = applicableExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
+    
+    return baseBuyoutPercentage + rowExclusivityPercentage
+  }
+
+  calculateBaseBuyoutPercentage(comboId) {
+    // This is the original calculateBuyoutPercentage but WITHOUT custom exclusivities
+    const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
+    const duration = durationSelect?.value || ''
+    
+    const territoryCheckboxes = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
+    const territories = Array.from(territoryCheckboxes).map(cb => ({
+      percentage: parseFloat(cb.getAttribute('data-percentage') || 0)
+    }))
+    
+    const mediaCheckboxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
+    const mediaTypes = Array.from(mediaCheckboxes).map(cb => cb.value)
+    
+    const exclusivitySelect = document.querySelector(`select[name*="combinations[${comboId}][exclusivity_type]"]`)
+    const exclusivity = exclusivitySelect?.value || 'none'
+    
+    const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
+    const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
+    
+    // Calculate multipliers
+    const durationMultiplier = this.getDurationMultiplier(duration)
+    const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
+    const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
+    const exclusivityMultiplier = this.getExclusivityMultiplier(exclusivity)
+    
+    // Calculate base percentage
+    let percentage = durationMultiplier * territoryMultiplier * mediaMultiplier * exclusivityMultiplier * 100
+    
+    // Add unlimited options
+    if (unlimitedStills) percentage += 15
+    if (unlimitedVersions) percentage += 15
+    
+    // Do NOT add custom exclusivities here - that's handled per row
     return percentage
   }
 
@@ -1915,5 +1994,425 @@ export default class extends Controller {
   formatNumber(number) {
     if (isNaN(number)) return '0'
     return Math.round(number).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  }
+
+  getCategoryIdFromDescription(description) {
+    // Extract category ID from description like "LD - waiter" or fallback to category name
+    if (description.startsWith('LD')) return 1
+    if (description.startsWith('2L')) return 2
+    if (description.startsWith('FE')) return 3
+    if (description.startsWith('TN')) return 4
+    if (description.startsWith('KD')) return 5
+    
+    // Fallback to full category names
+    if (description.includes('Lead')) return 1
+    if (description.includes('Second Lead')) return 2
+    if (description.includes('Featured Extra')) return 3
+    if (description.includes('Teenager')) return 4
+    if (description.includes('Kid')) return 5
+    
+    return null
+  }
+
+  getExclusivitiesForCategory(comboId, categoryId) {
+    if (!categoryId) return []
+    
+    const exclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
+    
+    return exclusivities.filter(ex => {
+      // If no categories specified, apply to all
+      if (!ex.categories || ex.categories.length === 0) return true
+      
+      // Check if this category is in the exclusivity's target categories
+      return ex.categories.includes(categoryId)
+    })
+  }
+
+  setupExclusivityPopup() {
+    // Event delegation for the plus buttons since they are dynamically created
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('exclusivity-plus-btn') || e.target.closest('.exclusivity-plus-btn')) {
+        const btn = e.target.closest('.exclusivity-plus-btn')
+        const comboId = btn.getAttribute('data-combo')
+        this.showExclusivityPopup(comboId)
+      }
+      
+      // Handle remove exclusivity pill buttons
+      if (e.target.classList.contains('remove-exclusivity-pill')) {
+        const comboId = e.target.getAttribute('data-combo')
+        const index = parseInt(e.target.getAttribute('data-index'))
+        this.removeExclusivityPill(comboId, index)
+      }
+    })
+  }
+
+  showExclusivityPopup(comboId) {
+    // Create modal overlay
+    const modal = document.createElement('div')
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center'
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
+        <div class="p-4 border-b flex-shrink-0 relative">
+          <h3 class="text-lg font-semibold">Add Exclusivity</h3>
+          <button type="button" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 exclusivity-close">
+            ✕
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto flex-1">
+          <!-- Standard Options Section -->
+          <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Standard Exclusivity Types</h4>
+            <div class="space-y-2" id="admin-exclusivity-options">
+              <div class="flex items-center justify-between p-2 border rounded">
+                <span class="text-sm">Pharmaceutical</span>
+                <div class="flex items-center gap-2">
+                  <input type="number" value="150" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
+                  <span class="text-xs text-gray-500">%</span>
+                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between p-2 border rounded">
+                <span class="text-sm">Financial Services</span>
+                <div class="flex items-center gap-2">
+                  <input type="number" value="125" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
+                  <span class="text-xs text-gray-500">%</span>
+                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between p-2 border rounded">
+                <span class="text-sm">Automotive</span>
+                <div class="flex items-center gap-2">
+                  <input type="number" value="100" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
+                  <span class="text-xs text-gray-500">%</span>
+                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between p-2 border rounded">
+                <span class="text-sm">Telecommunications</span>
+                <div class="flex items-center gap-2">
+                  <input type="number" value="75" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
+                  <span class="text-xs text-gray-500">%</span>
+                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between p-2 border rounded">
+                <span class="text-sm">Food & Beverage</span>
+                <div class="flex items-center gap-2">
+                  <input type="number" value="50" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
+                  <span class="text-xs text-gray-500">%</span>
+                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom Entry Section -->
+          <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Custom Entry</h4>
+            <div class="flex items-center gap-2">
+              <input type="text" placeholder="e.g., cookies, car" class="flex-1 px-3 py-2 text-sm border rounded" id="custom-exclusivity-name">
+              <input type="number" value="50" min="0" step="10" class="w-16 px-2 py-1 text-sm border rounded" id="custom-exclusivity-percentage">
+              <span class="text-xs text-gray-500">%</span>
+              <button type="button" class="add-custom-exclusivity px-3 py-2 bg-green-500 text-white text-xs rounded">Add</button>
+            </div>
+          </div>
+
+          <!-- Talent Category Selection -->
+          <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Apply to Talent Categories</h4>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="1" checked>
+                <span class="text-xs">Lead (LD)</span>
+              </label>
+              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="2" checked>
+                <span class="text-xs">Second Lead (2L)</span>
+              </label>
+              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="3" checked>
+                <span class="text-xs">Featured Extra (FE)</span>
+              </label>
+              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="4" checked>
+                <span class="text-xs">Teenager (TN)</span>
+              </label>
+              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="5" checked>
+                <span class="text-xs">Kid (KD)</span>
+              </label>
+              <div class="flex items-center">
+                <button type="button" class="text-xs text-blue-600 hover:text-blue-800 select-all-categories">Select All</button>
+                <span class="mx-1 text-gray-400">|</span>
+                <button type="button" class="text-xs text-blue-600 hover:text-blue-800 deselect-all-categories">None</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selected Exclusivities -->
+          <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Selected Exclusivities</h4>
+            <div class="exclusivity-selected-list space-y-1" data-combo="${comboId}">
+              <!-- Selected exclusivities will appear here -->
+            </div>
+            <div class="text-sm text-gray-600 mt-2">
+              Total: <span class="exclusivity-total font-semibold">0%</span>
+            </div>
+          </div>
+        </div>
+        <div class="p-4 border-t flex justify-end gap-2 flex-shrink-0">
+          <button type="button" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 exclusivity-close">Cancel</button>
+          <button type="button" class="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 exclusivity-save">Save</button>
+        </div>
+      </div>
+    `
+
+    document.body.appendChild(modal)
+
+    // Add event listeners for the modal
+    this.setupExclusivityModalEvents(modal, comboId)
+  }
+
+  setupExclusivityModalEvents(modal, comboId) {
+    // Close modal events
+    modal.querySelectorAll('.exclusivity-close').forEach(btn => {
+      btn.addEventListener('click', () => modal.remove())
+    })
+
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove()
+    })
+
+    // Add admin exclusivity
+    modal.querySelectorAll('.add-admin-exclusivity').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const container = e.target.closest('.flex.items-center.justify-between')
+        const name = container.querySelector('span').textContent
+        const percentage = parseInt(container.querySelector('input[type="number"]').value) || 0
+        this.addExclusivityToList(modal, comboId, name, percentage)
+      })
+    })
+
+    // Add custom exclusivity
+    modal.querySelector('.add-custom-exclusivity').addEventListener('click', () => {
+      const nameInput = modal.querySelector('#custom-exclusivity-name')
+      const percentageInput = modal.querySelector('#custom-exclusivity-percentage')
+      
+      const name = nameInput.value.trim()
+      const percentage = parseInt(percentageInput.value) || 0
+      
+      if (name) {
+        this.addExclusivityToList(modal, comboId, name, percentage)
+        nameInput.value = ''
+        percentageInput.value = '50'
+      }
+    })
+
+    // Category selection buttons
+    modal.querySelector('.select-all-categories').addEventListener('click', () => {
+      modal.querySelectorAll('.category-checkbox').forEach(checkbox => {
+        checkbox.checked = true
+      })
+    })
+
+    modal.querySelector('.deselect-all-categories').addEventListener('click', () => {
+      modal.querySelectorAll('.category-checkbox').forEach(checkbox => {
+        checkbox.checked = false
+      })
+    })
+
+    // Save exclusivities
+    modal.querySelector('.exclusivity-save').addEventListener('click', () => {
+      this.saveExclusivities(modal, comboId)
+      modal.remove()
+    })
+  }
+
+  addExclusivityToList(modal, comboId, name, percentage) {
+    // Get selected categories
+    const selectedCategories = Array.from(modal.querySelectorAll('.category-checkbox:checked'))
+      .map(cb => parseInt(cb.value))
+    
+    if (selectedCategories.length === 0) {
+      alert('Please select at least one talent category to apply this exclusivity to.')
+      return
+    }
+
+    const list = modal.querySelector('.exclusivity-selected-list')
+    const item = document.createElement('div')
+    item.className = 'flex items-center justify-between p-2 bg-gray-50 rounded text-sm'
+    
+    // Show which categories this applies to
+    const categoryNames = {1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD'}
+    const categoryLabels = selectedCategories.map(id => categoryNames[id]).join(', ')
+    
+    item.innerHTML = `
+      <div>
+        <div class="font-medium">${name} (${percentage}%)</div>
+        <div class="text-xs text-gray-500">Applies to: ${categoryLabels}</div>
+      </div>
+      <button type="button" class="text-red-500 hover:text-red-700 text-xs remove-exclusivity">Remove</button>
+    `
+    
+    // Store category data on the item
+    item.dataset.categories = JSON.stringify(selectedCategories)
+    
+    // Add remove functionality
+    item.querySelector('.remove-exclusivity').addEventListener('click', () => {
+      item.remove()
+      this.updateExclusivityTotal(modal)
+    })
+    
+    list.appendChild(item)
+    this.updateExclusivityTotal(modal)
+  }
+
+  updateExclusivityTotal(modal) {
+    const items = modal.querySelectorAll('.exclusivity-selected-list .flex')
+    let total = 0
+    
+    items.forEach(item => {
+      const text = item.querySelector('span').textContent
+      const match = text.match(/\((\d+)%\)/)
+      if (match) {
+        total += parseInt(match[1])
+      }
+    })
+    
+    modal.querySelector('.exclusivity-total').textContent = `${total}%`
+  }
+
+  saveExclusivities(modal, comboId) {
+    const items = modal.querySelectorAll('.exclusivity-selected-list > div')
+    const exclusivities = []
+    
+    items.forEach(item => {
+      const nameDiv = item.querySelector('.font-medium')
+      if (!nameDiv) return
+      
+      const text = nameDiv.textContent
+      const nameMatch = text.match(/^(.+) \((\d+)%\)$/)
+      const categories = JSON.parse(item.dataset.categories || '[]')
+      
+      if (nameMatch && categories.length > 0) {
+        exclusivities.push({
+          name: nameMatch[1],
+          percentage: parseInt(nameMatch[2]),
+          categories: categories
+        })
+      }
+    })
+    
+    // Update the exclusivity tags in the quote preview
+    this.updateExclusivityTags(comboId, exclusivities)
+    
+    // Create or update hidden form fields for database storage
+    this.updateExclusivityFormFields(comboId, exclusivities)
+    
+    // Store for later use
+    if (!window.exclusivityData) window.exclusivityData = {}
+    window.exclusivityData[comboId] = exclusivities
+    
+    // Recalculate the buyout percentage to include new exclusivity percentages
+    this.populateAllTables()
+  }
+
+  updateExclusivityFormFields(comboId, exclusivities) {
+    // Remove existing exclusivity form fields for this combo
+    document.querySelectorAll(`input[name*="combinations[${comboId}][exclusivity"]`).forEach(input => {
+      input.remove()
+    })
+    
+    if (exclusivities.length > 0) {
+      // Create form container if it doesn't exist
+      let formContainer = document.getElementById('exclusivity-form-fields')
+      if (!formContainer) {
+        formContainer = document.createElement('div')
+        formContainer.id = 'exclusivity-form-fields'
+        formContainer.style.display = 'none'
+        document.body.appendChild(formContainer)
+      }
+      
+      // Create form fields for each exclusivity
+      exclusivities.forEach((exclusivity, index) => {
+        // Exclusivity type field
+        const typeField = document.createElement('input')
+        typeField.type = 'hidden'
+        typeField.name = `combinations[${comboId}][exclusivities][${index}][type]`
+        typeField.value = exclusivity.name
+        formContainer.appendChild(typeField)
+        
+        // Exclusivity percentage field  
+        const percentageField = document.createElement('input')
+        percentageField.type = 'hidden'
+        percentageField.name = `combinations[${comboId}][exclusivities][${index}][percentage]`
+        percentageField.value = exclusivity.percentage
+        formContainer.appendChild(percentageField)
+        
+        // Exclusivity categories field
+        if (exclusivity.categories && exclusivity.categories.length > 0) {
+          const categoriesField = document.createElement('input')
+          categoriesField.type = 'hidden'
+          categoriesField.name = `combinations[${comboId}][exclusivities][${index}][categories]`
+          categoriesField.value = JSON.stringify(exclusivity.categories)
+          formContainer.appendChild(categoriesField)
+        }
+        
+        // Check if it's pharmaceutical for the boolean field
+        if (exclusivity.name.toLowerCase().includes('pharmaceutical')) {
+          const pharmaField = document.createElement('input')
+          pharmaField.type = 'hidden'
+          pharmaField.name = `combinations[${comboId}][pharmaceutical]`
+          pharmaField.value = 'true'
+          formContainer.appendChild(pharmaField)
+        }
+      })
+      
+      // Calculate total exclusivity level
+      const totalPercentage = exclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
+      const levelField = document.createElement('input')
+      levelField.type = 'hidden'
+      levelField.name = `combinations[${comboId}][exclusivity_level]`
+      levelField.value = totalPercentage
+      formContainer.appendChild(levelField)
+      
+      // Set primary exclusivity type (first one or most significant)
+      const primaryType = exclusivities.length > 0 ? exclusivities[0].name : ''
+      const primaryField = document.createElement('input')
+      primaryField.type = 'hidden'
+      primaryField.name = `combinations[${comboId}][exclusivity_type]`
+      primaryField.value = primaryType
+      formContainer.appendChild(primaryField)
+    }
+  }
+
+  updateExclusivityTags(comboId, exclusivities) {
+    // Instead of showing tags in one place, we now refresh the entire table
+    // so pills appear in individual rows where they apply
+    this.populateComboTable(comboId)
+  }
+
+  removeExclusivityPill(comboId, index) {
+    // Get current exclusivities from storage
+    const currentExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
+    
+    // Remove the item at the specified index
+    if (index >= 0 && index < currentExclusivities.length) {
+      currentExclusivities.splice(index, 1)
+      
+      // Update storage
+      if (!window.exclusivityData) window.exclusivityData = {}
+      window.exclusivityData[comboId] = currentExclusivities
+      
+      // Update the visual tags
+      this.updateExclusivityTags(comboId, currentExclusivities)
+      
+      // Update form fields
+      this.updateExclusivityFormFields(comboId, currentExclusivities)
+      
+      // Recalculate the buyout percentage which now includes exclusivity
+      this.populateAllTables()
+    }
   }
 }
