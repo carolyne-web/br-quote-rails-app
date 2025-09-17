@@ -86,30 +86,6 @@
           </div>
         </div>
 
-        <!-- Number of Commercials -->
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-600 mb-3">Number of Commercials</label>
-          <div class="flex items-center space-x-3">
-            <%= f.number_field :number_of_commercials, min: 1, max: 20, value: 1, class: "w-20 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center" %>
-            <span class="text-sm text-gray-500">commercials running simultaneously</span>
-          </div>
-        </div>
-
-        <!-- Commercial Percentages Display -->
-        <div id="commercial-percentages" class="mb-4 hidden">
-          <label class="block text-sm font-medium text-gray-600 mb-3">Commercial Usage Breakdown</label>
-          <div class="bg-gray-50 rounded-lg p-4">
-            <div id="commercial-breakdown" class="space-y-2 mb-3">
-              <!-- Individual commercial percentages will be shown here -->
-            </div>
-            <div class="border-t pt-3">
-              <div class="flex justify-between items-center font-medium">
-                <span>Total Commercial Usage:</span>
-                <span id="total-commercial-percentage" class="text-blue-600">100%</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       <!-- Talent Categories -->
@@ -345,6 +321,10 @@
                       <option value="24_months">2 Years</option>
                       <option value="36_months">36 Months</option>
                     </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-3" for="combination_1_commercials">Number of Commercials</label>
+                    <input type="number" name="combinations[1][number_of_commercials]" id="combination_1_commercials" min="1" max="20" value="1" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-commercials" data-combo="1">
                   </div>
                 </div>
 
@@ -636,7 +616,27 @@ document.addEventListener('DOMContentLoaded', function() {
       const contentContainer = document.getElementById('combinations-content');
       const newContent = createCombinationContent(newComboId);
       contentContainer.appendChild(newContent);
-      
+
+      // Setup commercial input listener for new combo (with delay to ensure DOM is ready)
+      setTimeout(() => {
+        const newCommercialInput = document.querySelector(`input[name="combinations[${newComboId}][number_of_commercials]"]`);
+        if (newCommercialInput) {
+          newCommercialInput.addEventListener('input', () => {
+            if (typeof window.quotationFormController !== 'undefined') {
+              window.quotationFormController.populateAllTables();
+            }
+          });
+
+          // Prevent form submission on Enter key
+          newCommercialInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              newCommercialInput.blur(); // Remove focus from input
+            }
+          });
+        }
+      }, 100);
+
       // Add new combo table
       createComboTable(newComboId);
       
@@ -841,6 +841,10 @@ document.addEventListener('DOMContentLoaded', function() {
               <option value="24_months">2 Years</option>
               <option value="36_months">36 Months</option>
             </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600" for="combination_${comboId}_commercials">Number of Commercials</label>
+            <input type="number" name="combinations[${comboId}][number_of_commercials]" id="combination_${comboId}_commercials" min="1" max="20" value="1" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-commercials" data-combo="${comboId}">
           </div>
         </div>
 
@@ -1153,11 +1157,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get campaign type for adjustments
     const campaignTypeRadio = document.querySelector('input[name="quotation[product_type]"]:checked');
     const campaignType = campaignTypeRadio ? campaignTypeRadio.value : null;
-    
+
+    // Get active combinations data (for now, default to empty array until combo functionality is complete)
+    const activeCombinations = [];
+
     // Calculate Usage/Buyout for each combination (additive)
     let totalUsageBuyout = 0;
     const usageBreakdownHtml = [];
-    
+
     if (activeCombinations.length > 0) {
       activeCombinations.forEach(combo => {
         const totalMultiplier = combo.territoryMultiplier * combo.mediaMultiplier * combo.durationMultiplier * combo.exclusivityMultiplier;

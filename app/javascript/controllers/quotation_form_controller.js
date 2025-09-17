@@ -6,7 +6,10 @@ export default class extends Controller {
 
   connect() {
     console.log('Quotation form controller connected')
-    
+
+    // Make controller available globally for HTML callback functions
+    window.quotationFormController = this
+
     // Initialize arrays first
     this.baseRates = {}
     
@@ -1422,99 +1425,13 @@ export default class extends Controller {
     // Add event listeners to commercial type radio buttons
     const commercialTypeRadios = document.querySelectorAll('input[name="quotation[commercial_type]"]')
     commercialTypeRadios.forEach(radio => {
-      radio.addEventListener('change', () => {
-        this.calculateCommercialPercentages()
-      })
+      radio.addEventListener('change', this.handleCommercialTypeChange.bind(this))
     })
-    
-    // Add event listener to number of commercials input
-    const commercialsCountInput = document.querySelector('input[name="quotation[number_of_commercials]"]')
-    if (commercialsCountInput) {
-      commercialsCountInput.addEventListener('input', () => {
-        this.calculateCommercialPercentages()
-      })
-    }
-    
-    // Calculate initial percentages if values are already set
-    this.calculateCommercialPercentages()
+
+    // Add event listeners to combination commercial inputs
+    this.setupComboCommercialListeners()
   }
 
-  calculateCommercialPercentages() {
-    const commercialTypeInput = document.querySelector('input[name="quotation[commercial_type]"]:checked')
-    const commercialsCountInput = document.querySelector('input[name="quotation[number_of_commercials]"]')
-    const commercialPercentagesDiv = document.getElementById('commercial-percentages')
-    const commercialBreakdownDiv = document.getElementById('commercial-breakdown')
-    const totalPercentageSpan = document.getElementById('total-commercial-percentage')
-    
-    if (!commercialTypeInput || !commercialsCountInput || !commercialPercentagesDiv) {
-      return
-    }
-    
-    const commercialType = commercialTypeInput.value
-    const numberOfCommercials = parseInt(commercialsCountInput.value) || 1
-    
-    if (numberOfCommercials <= 0) {
-      commercialPercentagesDiv.classList.add('hidden')
-      return
-    }
-    
-    // Calculate percentages based on rules
-    const percentages = []
-    let totalPercentage = 0
-    
-    for (let i = 1; i <= numberOfCommercials; i++) {
-      let percentage = 0
-      
-      if (commercialType === 'non_brand') {
-        // Non-Brand Commercial rules
-        if (i === 1) {
-          percentage = 100
-        } else if (i === 2) {
-          percentage = 50
-        } else {
-          percentage = 25
-        }
-      } else if (commercialType === 'brand') {
-        // Brand Commercial rules
-        if (i === 1) {
-          percentage = 100
-        } else if (i === 2) {
-          percentage = 75
-        } else {
-          percentage = 50
-        }
-      }
-      
-      percentages.push({
-        position: i,
-        percentage: percentage
-      })
-      totalPercentage += percentage
-    }
-    
-    // Store the total percentage for later use
-    this.commercialPercentage = totalPercentage
-    
-    // Show the percentages section
-    commercialPercentagesDiv.classList.remove('hidden')
-    
-    // Update the breakdown display
-    if (commercialBreakdownDiv) {
-      commercialBreakdownDiv.innerHTML = percentages.map(item => 
-        `<div class="flex justify-between items-center">
-          <span class="text-sm text-gray-600">${this.getOrdinal(item.position)} commercial:</span>
-          <span class="font-medium text-gray-800">${item.percentage}%</span>
-        </div>`
-      ).join('')
-    }
-    
-    // Update total percentage display
-    if (totalPercentageSpan) {
-      totalPercentageSpan.textContent = `${totalPercentage}%`
-    }
-    
-    console.log(`Commercial calculation: Type=${commercialType}, Count=${numberOfCommercials}, Total=${totalPercentage}%`)
-  }
 
   getOrdinal(number) {
     const suffixes = ['th', 'st', 'nd', 'rd']
@@ -1522,9 +1439,38 @@ export default class extends Controller {
     return number + (suffixes[(mod100 - 20) % 10] || suffixes[mod100] || suffixes[0])
   }
 
-  getCommercialPercentage() {
-    // Return the current commercial percentage for use in other calculations
-    return this.commercialPercentage || 100
+  getCommercialPercentage(comboId = null) {
+    // If comboId is provided, calculate total percentage for that specific combo
+    if (comboId) {
+      const commercialTypeInput = document.querySelector('input[name="quotation[commercial_type]"]:checked')
+      const commercialsCountInput = document.querySelector(`input[name="combinations[${comboId}][number_of_commercials]"]`)
+
+      if (!commercialTypeInput || !commercialsCountInput) {
+        return 100 // Default to 100% if no commercial info
+      }
+
+      const commercialType = commercialTypeInput.value
+      const numberOfCommercials = parseInt(commercialsCountInput.value) || 1
+
+      let totalPercentage = 0
+
+      for (let i = 1; i <= numberOfCommercials; i++) {
+        if (commercialType === 'non_brand') {
+          if (i === 1) totalPercentage += 100
+          else if (i === 2) totalPercentage += 50
+          else totalPercentage += 25
+        } else if (commercialType === 'brand') {
+          if (i === 1) totalPercentage += 100
+          else if (i === 2) totalPercentage += 75
+          else totalPercentage += 50
+        }
+      }
+
+      return totalPercentage
+    }
+
+    // Legacy fallback - return 100% if no combo specified
+    return 100
   }
 
   setupRateValidation() {
@@ -1826,6 +1772,31 @@ export default class extends Controller {
           </td>
         </tr>
       `)
+
+      // Commercial breakdown rows (show only if commercial type is selected)
+      const commercialTypeInput = document.querySelector('input[name="quotation[commercial_type]"]:checked')
+      const hasCommercialType = commercialTypeInput && commercialTypeInput.value
+      const commercialBreakdown = this.getCommercialBreakdownForCombo(comboId, totalAmount)
+
+      if (hasCommercialType && commercialBreakdown.length > 0) {
+        let commercialTotal = 0
+        commercialBreakdown.forEach(commercial => {
+          commercialTotal += commercial.amount
+          rows.push(`
+            <tr class="commercial-breakdown-row" data-combo="${comboId}">
+              <td class="py-1 px-3 text-xs text-gray-600 pl-8" colspan="6">
+                ${commercial.label}
+              </td>
+              <td class="py-1 px-3 text-xs text-gray-700 text-right">
+                R${this.formatNumber(commercial.amount)}
+              </td>
+            </tr>
+          `)
+        })
+
+        // Update totalAmount to reflect commercial total instead of base amount
+        totalAmount = commercialTotal
+      }
       
       // Total row
       rows.push(`
@@ -2235,6 +2206,96 @@ export default class extends Controller {
     const productTypeRadio = document.querySelector('input[name="quotation[product_type]"]:checked')
     return productTypeRadio ? productTypeRadio.value : null
   }
+
+  getCommercialBreakdownForCombo(comboId, baseAmount) {
+    const commercialTypeInput = document.querySelector('input[name="quotation[commercial_type]"]:checked')
+    const commercialsCountInput = document.querySelector(`input[name="combinations[${comboId}][number_of_commercials]"]`)
+
+    // Return empty array if no commercial type selected or no input found
+    if (!commercialTypeInput || !commercialTypeInput.value || !commercialsCountInput) {
+      return []
+    }
+
+    const commercialType = commercialTypeInput.value
+    const numberOfCommercials = parseInt(commercialsCountInput.value) || 1
+
+    if (numberOfCommercials <= 0) {
+      return []
+    }
+
+    const breakdown = []
+
+    // Calculate percentage for each commercial based on type
+    for (let i = 1; i <= numberOfCommercials; i++) {
+      let percentage = 0
+      let label = ''
+
+      if (commercialType === 'non_brand') {
+        if (i === 1) {
+          percentage = 100
+          label = `Commercial 1 (100% of base)`
+        } else if (i === 2) {
+          percentage = 50
+          label = `Commercial 2 (50% of base)`
+        } else {
+          percentage = 25
+          label = `Commercial ${i} (25% of base)`
+        }
+      } else if (commercialType === 'brand') {
+        if (i === 1) {
+          percentage = 100
+          label = `Commercial 1 (100% of base)`
+        } else if (i === 2) {
+          percentage = 75
+          label = `Commercial 2 (75% of base)`
+        } else {
+          percentage = 50
+          label = `Commercial ${i} (50% of base)`
+        }
+      }
+
+      const amount = baseAmount * (percentage / 100)
+      breakdown.push({
+        label: label,
+        percentage: percentage,
+        amount: amount
+      })
+    }
+
+    return breakdown
+  }
+
+  setupComboCommercialListeners() {
+    // Add event listeners to existing commercial inputs
+    const self = this
+    document.querySelectorAll('.combination-commercials').forEach(input => {
+      // Remove any existing listeners to avoid duplicates
+      input.removeEventListener('input', this.handleCommercialInput)
+      input.removeEventListener('keydown', this.handleCommercialKeydown)
+
+      // Add new listeners
+      input.addEventListener('input', this.handleCommercialInput.bind(self))
+      input.addEventListener('keydown', this.handleCommercialKeydown.bind(self))
+    })
+  }
+
+  handleCommercialInput(e) {
+    // Regenerate all combo tables to update commercial breakdown
+    this.populateAllTables()
+  }
+
+  handleCommercialKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      e.target.blur() // Remove focus from input
+    }
+  }
+
+  handleCommercialTypeChange(e) {
+    // Regenerate all combo tables to update commercial breakdown
+    this.populateAllTables()
+  }
+
 
   getKidsCount() {
     // Get total count of Kids talent across all categories
