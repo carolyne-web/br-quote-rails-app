@@ -335,8 +335,8 @@
               <div class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-600" for="combination_1_duration">Contract Duration</label>
-                    <select name="combinations[1][duration]" id="combination_1_duration" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-duration" data-combo="1">
+                    <label class="block text-sm font-medium text-gray-600 mb-3" for="combination_1_duration">Contract Duration</label>
+                    <select name="combinations[1][duration]" id="combination_1_duration" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-duration" data-combo="1">
                       <option value="">Select Contract Duration</option>
                       <option value="3_months">Up to 3 Months</option>
                       <option value="6_months">Up to 6 Months</option>
@@ -353,7 +353,7 @@
                   <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Combo 1</label>
                   
                   <!-- Selected Territory Tags -->
-                  <div class="mb-4">
+                  <div>
                     <div class="selected-territory-tags flex flex-wrap gap-2" data-combo="1">
                       <!-- Selected territory tags will appear here -->
                     </div>
@@ -367,7 +367,7 @@
                   
                   <!-- Search Bar -->
                   <div class="mb-4">
-                    <input type="text" class="territory-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-combo="1" placeholder="Search territories (type 3+ letters)...">
+                    <input type="text" class="territory-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-combo="1" placeholder="Search territories...">
                   </div>
                   
                   <!-- Territories List -->
@@ -544,6 +544,8 @@
 <script>
 // Make exclusivity options available to JavaScript
 const exclusivityOptions = <%= @exclusivity_options.to_json.html_safe %>;
+// Make raw exclusivity settings available for popup
+const exclusivitySettings = <%= @exclusivity_settings.to_json.html_safe %>;
 
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOMContentLoaded fired - checking elements...');
@@ -851,7 +853,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Combo ${comboId}</label>
           
           <!-- Selected Territory Tags -->
-          <div class="mb-4">
+          <div>
             <div class="selected-territory-tags flex flex-wrap gap-2" data-combo="${comboId}">
               <!-- Selected territory tags will appear here -->
             </div>
@@ -865,7 +867,7 @@ document.addEventListener('DOMContentLoaded', function() {
           
           <!-- Search Bar -->
           <div class="mb-4">
-            <input type="text" class="territory-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-combo="${comboId}" placeholder="Search territories (type 3+ letters)...">
+            <input type="text" class="territory-search w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-combo="${comboId}" placeholder="Search territories...">
           </div>
           
           <!-- Territories List -->
@@ -957,10 +959,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (territoriesList) {
         const territoryItems = territoriesList.querySelectorAll('.territory-item');
         
-        if (searchTerm.length >= 3) {
+        if (searchTerm.length >= 1) {
           territoryItems.forEach(item => {
             const territoryName = item.dataset.name;
-            if (territoryName && territoryName.includes(searchTerm)) {
+            if (territoryName && territoryName.toLowerCase().includes(searchTerm)) {
               item.style.display = 'flex';
             } else {
               item.style.display = 'none';

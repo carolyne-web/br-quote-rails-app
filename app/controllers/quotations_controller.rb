@@ -177,11 +177,20 @@ class QuotationsController < ApplicationController
     @talent_settings = Setting.where(category: "talent").order(:key)
     @duration_settings = Setting.where(category: "duration").order(:key)
     @territories = Territory.all.order(:name)
-    @exclusivity_options = Setting.where(category: "exclusivity").order(:value).map do |setting|
-      name = setting.key.gsub('exclusivity_', '').humanize.titleize
-      percentage = setting.typed_value
-      display_name = percentage > 0 ? "#{name} (+#{percentage}%)" : name
-      [display_name, setting.key]
+    
+    # Raw exclusivity settings for popup
+    @exclusivity_settings = Setting.where(category: "exclusivity").order(:key).map do |setting|
+      {
+        name: setting.key.gsub('exclusivity_', '').humanize.titleize,
+        percentage: setting.typed_value,
+        key: setting.key
+      }
+    end
+    
+    # Formatted options for dropdowns
+    @exclusivity_options = @exclusivity_settings.map do |setting|
+      display_name = setting[:percentage] > 0 ? "#{setting[:name]} (+#{setting[:percentage]}%)" : setting[:name]
+      [display_name, setting[:key]]
     end
   end
 

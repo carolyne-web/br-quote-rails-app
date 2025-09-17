@@ -1358,7 +1358,7 @@ export default class extends Controller {
       const name = territory.dataset.name.toLowerCase()
       const code = territory.dataset.code?.toLowerCase() || ''
       
-      if (searchTerm.length >= 3) {
+      if (searchTerm.length >= 1) {
         if (name.includes(searchTerm) || code.includes(searchTerm)) {
           territory.style.display = 'block'
         } else {
@@ -1880,41 +1880,72 @@ export default class extends Controller {
     const mediaCheckboxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
     const mediaTypes = Array.from(mediaCheckboxes).map(cb => cb.value)
     
-    const exclusivitySelect = document.querySelector(`select[name*="combinations[${comboId}][exclusivity_type]"]`)
-    const exclusivity = exclusivitySelect?.value || 'none'
-    
     const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
     const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
     
-    // Calculate multipliers
+    // NEW FORMULA:
+    // Core Buyout Factor = duration × territory × media
     const durationMultiplier = this.getDurationMultiplier(duration)
     const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
     const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
-    const exclusivityMultiplier = this.getExclusivityMultiplier(exclusivity)
+    const coreBuyoutFactor = durationMultiplier * territoryMultiplier * mediaMultiplier
     
-    // Calculate base percentage
-    let percentage = durationMultiplier * territoryMultiplier * mediaMultiplier * exclusivityMultiplier * 100
+    // Buyout % = (Core Buyout Factor × 100)
+    //          + (unlimited options % × Core Buyout Factor)
+    //          + (custom exclusivities % × Core Buyout Factor)
     
-    // Add unlimited options
-    if (unlimitedStills) percentage += 15
-    if (unlimitedVersions) percentage += 15
+    let percentage = coreBuyoutFactor * 100
     
-    // Add custom exclusivity percentages from our new system
+    // Add unlimited options (percentage of core factor)
+    if (unlimitedStills) percentage += 15 * coreBuyoutFactor
+    if (unlimitedVersions) percentage += 15 * coreBuyoutFactor
+    
+    // Add custom exclusivity percentages (percentage of core factor)
     const customExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
     const totalExclusivityPercentage = customExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
-    percentage += totalExclusivityPercentage
+    percentage += totalExclusivityPercentage * coreBuyoutFactor
     
     return percentage
   }
 
   calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee) {
-    // Get base buyout percentage (without custom exclusivities)
-    const baseBuyoutPercentage = this.calculateBaseBuyoutPercentage(comboId)
+    // Get base components for the row-specific calculation
+    const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
+    const duration = durationSelect?.value || ''
     
-    // Add only the exclusivities that apply to this specific row
+    const territoryCheckboxes = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
+    const territories = Array.from(territoryCheckboxes).map(cb => ({
+      percentage: parseFloat(cb.getAttribute('data-percentage') || 0)
+    }))
+    
+    const mediaCheckboxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
+    const mediaTypes = Array.from(mediaCheckboxes).map(cb => cb.value)
+    
+    const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
+    const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
+    
+    // NEW FORMULA:
+    // Core Buyout Factor = duration × territory × media
+    const durationMultiplier = this.getDurationMultiplier(duration)
+    const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
+    const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
+    const coreBuyoutFactor = durationMultiplier * territoryMultiplier * mediaMultiplier
+    
+    // Buyout % = (Core Buyout Factor × 100)
+    //          + (unlimited options % × Core Buyout Factor)
+    //          + (row-specific custom exclusivities % × Core Buyout Factor)
+    
+    let percentage = coreBuyoutFactor * 100
+    
+    // Add unlimited options (percentage of core factor)
+    if (unlimitedStills) percentage += 15 * coreBuyoutFactor
+    if (unlimitedVersions) percentage += 15 * coreBuyoutFactor
+    
+    // Add only the exclusivities that apply to this specific row (percentage of core factor)
     const rowExclusivityPercentage = applicableExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
+    percentage += rowExclusivityPercentage * coreBuyoutFactor
     
-    // Store product factor for Kids category (KD = category 5) when Kids > 1
+    // Apply product factor for Kids category (KD = category 5) when Kids > 1
     let productFactor = 1.0
     if (categoryId === 5) { // Kids category
       const productType = this.getSelectedProductType()
@@ -1942,14 +1973,17 @@ export default class extends Controller {
       }
     }
     
-    // Store product factor for use in total calculation
-    this.lastProductFactor = productFactor
+    // Apply product factor to the percentage (Option A: show effective buyout %)
+    const effectivePercentage = percentage * productFactor
     
-    return baseBuyoutPercentage + rowExclusivityPercentage
+    // Store product factor for use in total calculation (but now it should be 1.0 since we applied it to percentage)
+    this.lastProductFactor = 1.0
+    
+    return effectivePercentage
   }
 
   calculateBaseBuyoutPercentage(comboId) {
-    // This is the original calculateBuyoutPercentage but WITHOUT custom exclusivities
+    // This is the base buyout percentage WITHOUT custom exclusivities
     const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
     const duration = durationSelect?.value || ''
     
@@ -1961,24 +1995,23 @@ export default class extends Controller {
     const mediaCheckboxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
     const mediaTypes = Array.from(mediaCheckboxes).map(cb => cb.value)
     
-    const exclusivitySelect = document.querySelector(`select[name*="combinations[${comboId}][exclusivity_type]"]`)
-    const exclusivity = exclusivitySelect?.value || 'none'
-    
     const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
     const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
     
-    // Calculate multipliers
+    // NEW FORMULA:
+    // Core Buyout Factor = duration × territory × media
     const durationMultiplier = this.getDurationMultiplier(duration)
     const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
     const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
-    const exclusivityMultiplier = this.getExclusivityMultiplier(exclusivity)
+    const coreBuyoutFactor = durationMultiplier * territoryMultiplier * mediaMultiplier
     
-    // Calculate base percentage
-    let percentage = durationMultiplier * territoryMultiplier * mediaMultiplier * exclusivityMultiplier * 100
+    // Buyout % = (Core Buyout Factor × 100)
+    //          + (unlimited options % × Core Buyout Factor)
+    let percentage = coreBuyoutFactor * 100
     
-    // Add unlimited options
-    if (unlimitedStills) percentage += 15
-    if (unlimitedVersions) percentage += 15
+    // Add unlimited options (percentage of core factor)
+    if (unlimitedStills) percentage += 15 * coreBuyoutFactor
+    if (unlimitedVersions) percentage += 15 * coreBuyoutFactor
     
     // Do NOT add custom exclusivities here - that's handled per row
     return percentage
@@ -2155,6 +2188,25 @@ export default class extends Controller {
     return totalKidsCount
   }
 
+  generateAdminExclusivityOptions() {
+    // Check if exclusivitySettings is available (loaded from server)
+    if (typeof exclusivitySettings !== 'undefined' && exclusivitySettings.length > 0) {
+      return exclusivitySettings.map(setting => `
+        <div class="flex items-center justify-between p-2 border rounded">
+          <span class="text-sm">${setting.name}</span>
+          <div class="flex items-center gap-2">
+            <input type="number" value="${setting.percentage}" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
+            <span class="text-xs text-gray-500">%</span>
+            <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
+          </div>
+        </div>
+      `).join('')
+    } else {
+      // Fallback message if no settings found
+      return '<div class="text-sm text-gray-500 p-2">No exclusivity types configured. Please add them in the admin panel.</div>'
+    }
+  }
+
   setupExclusivityPopup() {
     // Event delegation for the plus buttons since they are dynamically created
     document.addEventListener('click', (e) => {
@@ -2176,60 +2228,25 @@ export default class extends Controller {
   showExclusivityPopup(comboId) {
     // Create modal overlay
     const modal = document.createElement('div')
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center'
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center modal-glass'
     modal.innerHTML = `
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
-        <div class="p-4 border-b flex-shrink-0 relative">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col border border-black">
+        <!-- Fixed Header -->
+        <div class="p-4 border-b flex-shrink-0 relative flex justify-between">
           <h3 class="text-lg font-semibold">Add Exclusivity</h3>
           <button type="button" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 exclusivity-close">
             ✕
           </button>
         </div>
-        <div class="p-4 overflow-y-auto flex-1">
+        
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto" style="max-height: calc(90vh - 140px);">
+          <div class="p-4">
           <!-- Standard Options Section -->
           <div class="mb-4">
             <h4 class="text-sm font-medium text-gray-700 mb-2">Standard Exclusivity Types</h4>
             <div class="space-y-2" id="admin-exclusivity-options">
-              <div class="flex items-center justify-between p-2 border rounded">
-                <span class="text-sm">Pharmaceutical</span>
-                <div class="flex items-center gap-2">
-                  <input type="number" value="150" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
-                  <span class="text-xs text-gray-500">%</span>
-                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
-                </div>
-              </div>
-              <div class="flex items-center justify-between p-2 border rounded">
-                <span class="text-sm">Financial Services</span>
-                <div class="flex items-center gap-2">
-                  <input type="number" value="125" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
-                  <span class="text-xs text-gray-500">%</span>
-                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
-                </div>
-              </div>
-              <div class="flex items-center justify-between p-2 border rounded">
-                <span class="text-sm">Automotive</span>
-                <div class="flex items-center gap-2">
-                  <input type="number" value="100" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
-                  <span class="text-xs text-gray-500">%</span>
-                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
-                </div>
-              </div>
-              <div class="flex items-center justify-between p-2 border rounded">
-                <span class="text-sm">Telecommunications</span>
-                <div class="flex items-center gap-2">
-                  <input type="number" value="75" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
-                  <span class="text-xs text-gray-500">%</span>
-                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
-                </div>
-              </div>
-              <div class="flex items-center justify-between p-2 border rounded">
-                <span class="text-sm">Food & Beverage</span>
-                <div class="flex items-center gap-2">
-                  <input type="number" value="50" min="0" step="25" class="w-16 px-2 py-1 text-xs border rounded">
-                  <span class="text-xs text-gray-500">%</span>
-                  <button type="button" class="add-admin-exclusivity px-2 py-1 bg-blue-500 text-white text-xs rounded">Add</button>
-                </div>
-              </div>
+              ${this.generateAdminExclusivityOptions()}
             </div>
           </div>
 
@@ -2282,11 +2299,14 @@ export default class extends Controller {
             <div class="exclusivity-selected-list space-y-1" data-combo="${comboId}">
               <!-- Selected exclusivities will appear here -->
             </div>
-            <div class="text-sm text-gray-600 mt-2">
+            <div class="text-sm text-gray-600 mt-2 hidden">
               Total: <span class="exclusivity-total font-semibold">0%</span>
             </div>
           </div>
+          </div>
         </div>
+        
+        <!-- Fixed Footer -->
         <div class="p-4 border-t flex justify-end gap-2 flex-shrink-0">
           <button type="button" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 exclusivity-close">Cancel</button>
           <button type="button" class="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 exclusivity-save">Save</button>

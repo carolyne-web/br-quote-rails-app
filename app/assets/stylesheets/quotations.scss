@@ -804,3 +804,9 @@ textarea:focus {
   font-size: 10px;
   margin-top: 2px;
 }
+
+.modal-glass {
+  background: #ffffff30;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); 
+}

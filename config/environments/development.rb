@@ -71,6 +71,5 @@ Rails.application.configure do
   # config.generators.apply_rubocop_autocorrect_after_generate!
 
   # Allow ngrok hosts
-  config.hosts << "285316aed905.ngrok-free.app"
-  config.hosts << "b9783e78f99c.ngrok-free.app"
+  config.hosts << "5dd38b1843f9.ngrok-free.app"
 end
