@@ -287,6 +287,7 @@ export default class extends Controller {
         }
       }
       
+
       // Night buttons now handled by direct event listeners in initializeNightButtonStates()
       // No delegation needed to avoid conflicts
     })
@@ -1658,10 +1659,35 @@ export default class extends Controller {
   }
 
   populateAllTables() {
-    document.querySelectorAll('.quote-preview-rows').forEach(tbody => {
-      const comboId = tbody.getAttribute('data-combo')
-      if (comboId) {
-        this.populateComboTable(parseInt(comboId))
+    // Find all active combo tabs to ensure we populate all existing combos
+    const activeTabs = document.querySelectorAll('.combination-tab')
+    const comboIds = Array.from(activeTabs).map(tab => parseInt(tab.getAttribute('data-combo'))).filter(id => !isNaN(id))
+
+    console.log('🔍 populateAllTables - Found combo IDs:', comboIds)
+
+    comboIds.forEach(comboId => {
+      // Ensure combo table exists before populating
+      let tbody = document.querySelector(`.quote-preview-rows[data-combo="${comboId}"]`)
+      if (!tbody) {
+        console.log(`⚠️ Combo table ${comboId} missing, checking if combo table section exists...`)
+        const comboTableSection = document.querySelector(`.combo-table-section[data-combo="${comboId}"]`)
+        if (!comboTableSection) {
+          console.log(`❌ Combo table section ${comboId} completely missing - this combo may have been removed`)
+          return
+        }
+        // If section exists but tbody is missing, something went wrong with the HTML structure
+        tbody = comboTableSection.querySelector('.quote-preview-rows')
+        if (tbody) {
+          tbody.setAttribute('data-combo', comboId)
+          console.log(`✅ Fixed missing data-combo attribute for combo ${comboId}`)
+        }
+      }
+
+      if (tbody) {
+        console.log(`📋 Populating combo table ${comboId}`)
+        this.populateComboTable(comboId)
+      } else {
+        console.log(`❌ Could not find or restore tbody for combo ${comboId}`)
       }
     })
   }
@@ -1689,13 +1715,19 @@ export default class extends Controller {
     const talentCategories = this.getAllTalentLines()
     
     talentCategories.forEach(category => {
-      category.lines.forEach(line => {
+      category.lines.forEach((line, lineIndex) => {
         const dayFee = parseFloat(line.adjustedRate || line.dailyRate || 0)
         const unit = parseInt(line.initialCount || 0)
-        
+
         // Get exclusivities that apply to this talent category
         const categoryId = this.getCategoryIdFromDescription(line.description || category.name)
-        const applicableExclusivities = this.getExclusivitiesForCategory(comboId, categoryId)
+        const categoryExclusivities = this.getExclusivitiesForCategory(comboId, categoryId)
+
+        // Get line-specific exclusivities for this exact talent line
+        const lineSpecificExclusivities = this.getExclusivitiesForSpecificLine(comboId, categoryId, lineIndex)
+
+        // Combine both types of exclusivities
+        const applicableExclusivities = [...categoryExclusivities, ...lineSpecificExclusivities]
         
         // Calculate row-specific buyout percentage with Product Type logic
         let rowBuyoutPercentage = this.calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee)
@@ -1724,12 +1756,27 @@ export default class extends Controller {
         // Generate exclusivity pills for this row
         const allExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
         const rowExclusivityPills = applicableExclusivities.map(ex => {
-          const originalIndex = allExclusivities.findIndex(original => 
-            original.name === ex.name && original.percentage === ex.percentage
-          )
-          return `<span class="inline-flex items-center px-1 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+          const originalIndex = allExclusivities.findIndex(original => {
+            // For line-specific exclusivities, match all properties
+            if (ex.isLineSpecific && original.isLineSpecific) {
+              return original.name === ex.name &&
+                     original.percentage === ex.percentage &&
+                     original.categoryId === ex.categoryId &&
+                     original.lineIndex === ex.lineIndex
+            }
+            // For category-based exclusivities, match name and percentage
+            if (!ex.isLineSpecific && !original.isLineSpecific) {
+              return original.name === ex.name && original.percentage === ex.percentage
+            }
+            return false
+          })
+
+          const pillType = ex.isLineSpecific ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'
+          const title = ex.isLineSpecific ? 'Remove line-specific exclusivity' : 'Remove from this row only'
+
+          return `<span class="inline-flex items-center px-1 py-0.5 ${pillType} text-xs rounded-full">
             ${ex.name} ${ex.percentage}%
-            <button type="button" class="ml-1 text-yellow-600 hover:text-yellow-800 font-bold remove-exclusivity-pill" data-combo="${comboId}" data-index="${originalIndex}" data-category="${categoryId}" title="Remove from this row only">×</button>
+            <button type="button" class="ml-1 hover:font-bold remove-exclusivity-pill" data-combo="${comboId}" data-index="${originalIndex}" data-category="${categoryId}" data-line-index="${lineIndex}" title="${title}">×</button>
           </span>`
         }).join('')
 
@@ -1738,8 +1785,8 @@ export default class extends Controller {
             <td class="py-2 px-3 text-sm text-gray-900 border-r border-gray-300">${line.description || category.name}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(dayFee)}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">${unit}</td>
-            <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">
-              <div class="flex items-center justify-center gap-2">
+            <td class="py-2 px-3 text-sm text-gray-900 border-r border-gray-300">
+              <div class="flex items-center justify-start gap-2">
                 <button type="button" class="exclusivity-plus-btn w-6 h-6 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0" data-combo="${comboId}" title="Add Exclusivity">
                   +
                 </button>
@@ -2190,15 +2237,31 @@ export default class extends Controller {
 
   getExclusivitiesForCategory(comboId, categoryId) {
     if (!categoryId) return []
-    
+
     const exclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
-    
+
     return exclusivities.filter(ex => {
+      // Skip line-specific exclusivities (they are handled separately)
+      if (ex.isLineSpecific) return false
+
       // If no categories specified, apply to all
       if (!ex.categories || ex.categories.length === 0) return true
-      
+
       // Check if this category is in the exclusivity's target categories
       return ex.categories.includes(categoryId)
+    })
+  }
+
+  getExclusivitiesForSpecificLine(comboId, categoryId, lineIndex) {
+    if (!categoryId || lineIndex === undefined) return []
+
+    const exclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
+
+    return exclusivities.filter(ex => {
+      // Only include line-specific exclusivities that match this exact line
+      return ex.isLineSpecific &&
+             ex.categoryId === parseInt(categoryId) &&
+             ex.lineIndex === parseInt(lineIndex)
     })
   }
 
@@ -2353,7 +2416,7 @@ export default class extends Controller {
         const comboId = btn.getAttribute('data-combo')
         this.showExclusivityPopup(comboId)
       }
-      
+
       // Handle remove exclusivity pill buttons
       if (e.target.classList.contains('remove-exclusivity-pill')) {
         const comboId = e.target.getAttribute('data-combo')
@@ -2362,6 +2425,90 @@ export default class extends Controller {
         this.removeExclusivityPill(comboId, index, categoryId)
       }
     })
+  }
+
+  showLineExclusivityPopup(categoryId, lineIndex, talentDescription) {
+    // Create modal overlay
+    const modal = document.createElement('div')
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center modal-glass'
+
+    const categoryNames = {1: 'Lead', 2: 'Second Lead', 3: 'Featured Extra', 4: 'Teenager', 5: 'Kid'}
+    const categoryName = categoryNames[categoryId] || `Category ${categoryId}`
+    const displayDescription = talentDescription || 'Unnamed'
+
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col border border-black">
+        <!-- Fixed Header -->
+        <div class="p-4 border-b flex-shrink-0 relative flex justify-between">
+          <h3 class="text-lg font-semibold">Add Exclusivity</h3>
+          <button type="button" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 exclusivity-close">
+            ✕
+          </button>
+        </div>
+
+        <!-- Talent Line Info -->
+        <div class="p-4 bg-blue-50 border-b">
+          <div class="text-sm font-medium text-blue-800">Applying to specific talent line:</div>
+          <div class="text-lg font-semibold text-blue-900">${categoryName} - ${displayDescription}</div>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto" style="max-height: calc(90vh - 180px);">
+          <div class="p-4">
+
+          <!-- Step 1: Standard Exclusivity Types -->
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">1</span>
+              Standard Exclusivity Types
+            </h4>
+            <div class="space-y-2" id="admin-exclusivity-options-line">
+              ${this.generateAdminExclusivityOptions()}
+            </div>
+          </div>
+
+          <!-- Step 2: Custom Entry -->
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
+              Custom Entry
+            </h4>
+            <div class="flex items-center gap-2">
+              <input type="text" placeholder="e.g., cookies, car" class="flex-1 px-3 py-2 text-sm border rounded" id="custom-exclusivity-name-line">
+              <input type="number" value="50" min="0" step="10" class="w-16 px-2 py-1 text-sm border rounded" id="custom-exclusivity-percentage-line">
+              <span class="text-xs text-gray-500">%</span>
+              <button type="button" class="add-custom-exclusivity-line px-3 py-2 bg-green-500 text-white text-xs rounded">Add</button>
+            </div>
+          </div>
+
+          <!-- Selected Exclusivities (Editable) -->
+          <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Selected Exclusivities</h4>
+            <div class="exclusivity-selected-list-line space-y-2" data-category="${categoryId}" data-line="${lineIndex}">
+              <!-- Selected exclusivities will appear here -->
+            </div>
+            <div class="text-sm text-gray-600 mt-2 hidden">
+              Total: <span class="exclusivity-total-line font-semibold">0%</span>
+            </div>
+          </div>
+          </div>
+        </div>
+
+        <!-- Fixed Footer -->
+        <div class="p-4 border-t flex justify-end gap-2 flex-shrink-0">
+          <button type="button" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 exclusivity-close">Cancel</button>
+          <button type="button" class="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 exclusivity-save-line">Save</button>
+        </div>
+      </div>
+    `
+
+    document.body.appendChild(modal)
+
+    // Populate existing line-specific exclusivities in the modal
+    this.populateExistingLineExclusivities(modal, categoryId, lineIndex)
+
+    // Add event listeners for the modal
+    this.setupLineExclusivityModalEvents(modal, categoryId, lineIndex, talentDescription)
   }
 
   showExclusivityPopup(comboId) {
@@ -2384,28 +2531,36 @@ export default class extends Controller {
         <!-- Scrollable Content -->
         <div class="flex-1 overflow-y-auto" style="max-height: calc(90vh - 140px);">
           <div class="p-4">
-          <!-- Standard Options Section -->
-          <div class="mb-4">
-            <h4 class="text-sm font-medium text-gray-700 mb-2">Standard Exclusivity Types</h4>
-            <div class="space-y-2" id="admin-exclusivity-options">
-              ${this.generateAdminExclusivityOptions()}
+          <!-- Step 1: Choose Scope -->
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">1</span>
+              Choose Scope
+            </h4>
+            <div class="grid grid-cols-1 gap-3 mb-4">
+              <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="radio" name="exclusivity_scope" value="categories" class="mr-3 text-blue-600 focus:ring-blue-500 exclusivity-scope-radio" checked>
+                <div>
+                  <div class="font-medium text-sm">Apply to Entire Talent Categories</div>
+                  <div class="text-xs text-gray-500">Exclusivity will apply to all talent in selected categories (Lead, Kids, etc.)</div>
+                </div>
+              </label>
+              <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="radio" name="exclusivity_scope" value="specific_line" class="mr-3 text-blue-600 focus:ring-blue-500 exclusivity-scope-radio">
+                <div>
+                  <div class="font-medium text-sm">Apply to Specific Talent Line</div>
+                  <div class="text-xs text-gray-500">Exclusivity will apply only to one specific talent line (e.g., "KD - Chocolate Cake")</div>
+                </div>
+              </label>
             </div>
           </div>
 
-          <!-- Custom Entry Section -->
-          <div class="mb-4">
-            <h4 class="text-sm font-medium text-gray-700 mb-2">Custom Entry</h4>
-            <div class="flex items-center gap-2">
-              <input type="text" placeholder="e.g., cookies, car" class="flex-1 px-3 py-2 text-sm border rounded" id="custom-exclusivity-name">
-              <input type="number" value="50" min="0" step="10" class="w-16 px-2 py-1 text-sm border rounded" id="custom-exclusivity-percentage">
-              <span class="text-xs text-gray-500">%</span>
-              <button type="button" class="add-custom-exclusivity px-3 py-2 bg-green-500 text-white text-xs rounded">Add</button>
-            </div>
-          </div>
-
-          <!-- Talent Category Selection -->
-          <div class="mb-4">
-            <h4 class="text-sm font-medium text-gray-700 mb-2">Apply to Talent Categories</h4>
+          <!-- Step 2A: Apply to Talent Categories (shown when scope is 'categories') -->
+          <div class="mb-6 scope-categories-section">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
+              Apply to Talent Categories
+            </h4>
             <div class="grid grid-cols-2 gap-2">
               <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
                 <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="1" ${rememberedCategories.includes(1) ? 'checked' : ''}>
@@ -2435,10 +2590,48 @@ export default class extends Controller {
             </div>
           </div>
 
-          <!-- Selected Exclusivities -->
+          <!-- Step 2B: Select Specific Talent Line (shown when scope is 'specific_line') -->
+          <div class="mb-6 scope-specific-line-section" style="display: none;">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
+              Select Specific Talent Line
+            </h4>
+            <select class="w-full px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 talent-line-select" data-combo="${comboId}">
+              <option value="">Choose a talent line...</option>
+              <!-- Talent lines will be populated by JavaScript -->
+            </select>
+            <div class="text-xs text-gray-500 mt-2">Select which specific talent line this exclusivity should apply to</div>
+          </div>
+
+          <!-- Step 3: Standard Exclusivity Types -->
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">3</span>
+              Standard Exclusivity Types
+            </h4>
+            <div class="space-y-2" id="admin-exclusivity-options">
+              ${this.generateAdminExclusivityOptions()}
+            </div>
+          </div>
+
+          <!-- Step 4: Custom Entry -->
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">4</span>
+              Custom Entry
+            </h4>
+            <div class="flex items-center gap-2">
+              <input type="text" placeholder="e.g., cookies, car" class="flex-1 px-3 py-2 text-sm border rounded" id="custom-exclusivity-name">
+              <input type="number" value="50" min="0" step="10" class="w-16 px-2 py-1 text-sm border rounded" id="custom-exclusivity-percentage">
+              <span class="text-xs text-gray-500">%</span>
+              <button type="button" class="add-custom-exclusivity px-3 py-2 bg-green-500 text-white text-xs rounded">Add</button>
+            </div>
+          </div>
+
+          <!-- Selected Exclusivities (Editable) -->
           <div class="mb-4">
             <h4 class="text-sm font-medium text-gray-700 mb-2">Selected Exclusivities</h4>
-            <div class="exclusivity-selected-list space-y-1" data-combo="${comboId}">
+            <div class="exclusivity-selected-list space-y-2" data-combo="${comboId}">
               <!-- Selected exclusivities will appear here -->
             </div>
             <div class="text-sm text-gray-600 mt-2 hidden">
@@ -2458,11 +2651,118 @@ export default class extends Controller {
 
     document.body.appendChild(modal)
 
+    // Populate available talent lines for the dropdown
+    this.populateTalentLinesDropdown(modal, comboId)
+
     // Populate existing exclusivities in the modal
     this.populateExistingExclusivities(modal, comboId)
 
     // Add event listeners for the modal
     this.setupExclusivityModalEvents(modal, comboId)
+  }
+
+  populateTalentLinesDropdown(modal, comboId) {
+    const dropdown = modal.querySelector('.talent-line-select')
+    if (!dropdown) {
+      console.log('❌ Talent line dropdown not found')
+      return
+    }
+
+    console.log('🔍 Populating talent lines dropdown...')
+
+    // Clear existing options except the first one
+    dropdown.innerHTML = '<option value="">Choose a talent line...</option>'
+
+    // Get all talent lines from ALL categories (including hidden ones)
+    const allTalentLines = []
+    const categoryNames = {1: 'Lead', 2: 'Second Lead', 3: 'Featured Extra', 4: 'Teenager', 5: 'Kid'}
+    const categoryAbbrevs = {1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD'}
+
+    console.log('🔍 Looking for ALL talent categories (1-5)...')
+
+    // Process categories in order (1, 2, 3, 4, 5) for organized display
+    const categoryIds = [1, 2, 3, 4, 5]
+    for (let i = 0; i < categoryIds.length; i++) {
+      const categoryId = categoryIds[i]
+      const categorySection = document.querySelector(`#talent-category-${categoryId}`)
+      const categoryName = categoryNames[categoryId] || `Category ${categoryId}`
+      const categoryAbbrev = categoryAbbrevs[categoryId] || `C${categoryId}`
+
+      console.log(`📋 Processing category ${categoryId} (${categoryName})`)
+
+      // Only process categories that exist (check for talent data presence instead of hidden class)
+      if (categorySection) {
+        // Get all talent input rows in this category
+        const talentRows = categorySection.querySelectorAll('.talent-input-row')
+        console.log(`   Found ${talentRows.length} talent rows`)
+
+        // Process each talent row and check if it has data
+        talentRows.forEach((row, lineIndex) => {
+          const descriptionInput = row.querySelector('.talent-description, [name*="description"]')
+          const talentCountInput = row.querySelector('.talent-count, [name*="talent_count"]')
+          const rateInput = row.querySelector('.rate-adjustment, [name*="adjusted_rate"]')
+          const daysInput = row.querySelector('.days-input, [name*="days_count"]')
+          const rehearsalInput = row.querySelector('[name*="rehearsal_days"]')
+          const downInput = row.querySelector('[name*="down_days"]')
+          const travelInput = row.querySelector('[name*="travel_days"]')
+          const overtimeInput = row.querySelector('[name*="overtime_hours"]')
+
+          const talentDescription = descriptionInput ? descriptionInput.value.trim() : ''
+          const talentCount = talentCountInput ? parseInt(talentCountInput.value) || 0 : 0
+          const rate = rateInput ? parseInt(rateInput.value) || 0 : 0
+          const days = daysInput ? parseInt(daysInput.value) || 0 : 0
+          const rehearsalDays = rehearsalInput ? parseInt(rehearsalInput.value) || 0 : 0
+          const downDays = downInput ? parseInt(downInput.value) || 0 : 0
+          const travelDays = travelInput ? parseInt(travelInput.value) || 0 : 0
+          const overtimeHours = overtimeInput ? parseFloat(overtimeInput.value) || 0 : 0
+
+          // Check if this line has any actual data (non-zero values OR has a description)
+          const hasData = talentDescription.length > 0 || talentCount > 0 || rate > 0 || days > 0 || rehearsalDays > 0 || downDays > 0 || travelDays > 0 || overtimeHours > 0
+
+          console.log(`   Row ${lineIndex}: desc="${talentDescription}", count=${talentCount}, rate=${rate}, days=${days}, hasData=${hasData}`)
+
+          if (hasData) {
+            // Determine display name
+            let displayName
+            if (talentDescription) {
+              displayName = talentDescription
+            } else {
+              displayName = `Line ${lineIndex + 1}`
+            }
+
+            console.log(`   ✅ Adding line: ${categoryAbbrev} - ${displayName}`)
+
+            allTalentLines.push({
+              value: `${categoryId}_${lineIndex}`,
+              display: `${categoryAbbrev} - ${displayName}`,
+              categoryId: categoryId,
+              lineIndex: lineIndex,
+              description: talentDescription
+            })
+          } else {
+            console.log(`   ❌ Skipping line ${lineIndex} - no data`)
+          }
+        })
+      } else {
+        console.log(`   ❌ Skipping category ${categoryId} - section doesn't exist`)
+      }
+    }
+
+    console.log(`✅ Total talent lines found: ${allTalentLines.length}`)
+
+    // Populate dropdown
+    allTalentLines.forEach(line => {
+      const option = document.createElement('option')
+      option.value = line.value
+      option.textContent = line.display
+      option.dataset.categoryId = line.categoryId
+      option.dataset.lineIndex = line.lineIndex
+      option.dataset.description = line.description
+      dropdown.appendChild(option)
+      console.log(`   Added option: ${line.display}`)
+    })
+
+    console.log('📋 Dropdown populated successfully')
   }
 
   setupExclusivityModalEvents(modal, comboId) {
@@ -2476,6 +2776,13 @@ export default class extends Controller {
       if (e.target === modal) modal.remove()
     })
 
+    // Handle scope radio button changes
+    modal.querySelectorAll('.exclusivity-scope-radio').forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.handleScopeChange(modal, radio.value)
+      })
+    })
+
     // Add admin exclusivity
     modal.querySelectorAll('.add-admin-exclusivity').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -2484,7 +2791,7 @@ export default class extends Controller {
         const name = container.querySelector('span').textContent
         const percentage = parseInt(container.querySelector('input[type="number"]').value) || 0
         console.log(`📝 Admin exclusivity details: ${name}, ${percentage}%`)
-        this.addExclusivityToList(modal, comboId, name, percentage)
+        this.addExclusivityToModal(modal, comboId, name, percentage)
       })
     })
 
@@ -2500,7 +2807,7 @@ export default class extends Controller {
       console.log(`📝 Custom exclusivity details: ${name}, ${percentage}%`)
       
       if (name) {
-        this.addExclusivityToList(modal, comboId, name, percentage)
+        this.addExclusivityToModal(modal, comboId, name, percentage)
         nameInput.value = ''
         percentageInput.value = '50'
       } else {
@@ -2547,24 +2854,53 @@ export default class extends Controller {
 
     const list = modal.querySelector('.exclusivity-selected-list')
     const item = document.createElement('div')
-    item.className = 'flex items-center justify-between p-2 bg-gray-50 rounded text-sm'
+    item.className = 'flex items-start justify-between p-2 bg-blue-50 border border-blue-200 rounded text-sm min-h-[60px]'
     
     // Show which categories this applies to
     const categoryNames = {1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD'}
     const categoryLabels = selectedCategories.map(id => categoryNames[id]).join(', ')
     
+    // Create individual category pills with remove buttons
+    const categoryPills = selectedCategories.map(id => {
+      const categoryName = categoryNames[id]
+      return `<span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mr-1 mb-1">
+        ${categoryName}
+        <button type="button" class="ml-1 text-blue-600 hover:text-blue-800 remove-category-pill" data-category-id="${id}">×</button>
+      </span>`
+    }).join('')
+
     item.innerHTML = `
-      <div>
-        <div class="font-medium">${name} (${percentage}%)</div>
-        <div class="text-xs text-gray-500">Applies to: ${categoryLabels}</div>
+      <div class="flex-1">
+        <div class="font-medium cursor-pointer hover:text-blue-600 exclusivity-edit" data-name="${name}" data-percentage="${percentage}">${name} (${percentage}%)</div>
+        <div class="text-xs text-gray-500 mt-1">
+          <div class="category-pills-container">
+            ${categoryPills}
+          </div>
+        </div>
       </div>
-      <button type="button" class="text-red-500 hover:text-red-700 text-xs remove-exclusivity">Remove</button>
+      <button type="button" class="text-red-500 hover:text-red-700 text-xs remove-exclusivity ml-2">Remove</button>
     `
-    
+
     // Store category data on the item
     item.dataset.categories = JSON.stringify(selectedCategories)
-    
-    // Add remove functionality
+    item.dataset.name = name
+    item.dataset.percentage = percentage
+
+    // Add edit functionality - click on name/percentage to edit
+    item.querySelector('.exclusivity-edit').addEventListener('click', () => {
+      this.editExclusivity(modal, item, comboId)
+    })
+
+    // Add individual category pill remove functionality
+    item.querySelectorAll('.remove-category-pill').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const categoryId = parseInt(btn.dataset.categoryId)
+        this.removeCategoryFromExclusivity(modal, item, categoryId)
+      })
+    })
+
+    // Add remove functionality for entire exclusivity
     item.querySelector('.remove-exclusivity').addEventListener('click', () => {
       item.remove()
       this.updateExclusivityTotal(modal)
@@ -2572,6 +2908,214 @@ export default class extends Controller {
     
     list.appendChild(item)
     this.updateExclusivityTotal(modal)
+  }
+
+  handleScopeChange(modal, scopeValue) {
+    console.log(`🔄 Scope changed to: ${scopeValue}`)
+
+    const categoriesSection = modal.querySelector('.scope-categories-section')
+    const specificLineSection = modal.querySelector('.scope-specific-line-section')
+
+    if (scopeValue === 'categories') {
+      console.log('👥 Showing categories section')
+      categoriesSection.style.display = 'block'
+      specificLineSection.style.display = 'none'
+    } else if (scopeValue === 'specific_line') {
+      console.log('🎯 Showing specific line section')
+      categoriesSection.style.display = 'none'
+      specificLineSection.style.display = 'block'
+      // Refresh the talent lines dropdown
+      console.log('🔄 Refreshing talent lines dropdown...')
+      this.populateTalentLinesDropdown(modal)
+    }
+  }
+
+  addExclusivityToModal(modal, comboId, name, percentage) {
+    const selectedScope = modal.querySelector('input[name="exclusivity_scope"]:checked').value
+
+    if (selectedScope === 'categories') {
+      // Use existing category-based logic
+      this.addExclusivityToList(modal, comboId, name, percentage)
+    } else if (selectedScope === 'specific_line') {
+      // Handle specific talent line
+      const dropdown = modal.querySelector('.talent-line-select')
+      const selectedLine = dropdown.value
+
+      // Check if dropdown has any options (excluding the default "Choose a talent line..." option)
+      const availableOptions = dropdown.querySelectorAll('option[value]:not([value=""])')
+      if (availableOptions.length === 0) {
+        alert('No talent lines available. Please add talent descriptions or data to at least one talent line before applying specific line exclusivity.')
+        return
+      }
+
+      if (!selectedLine) {
+        alert('Please select a specific talent line first.')
+        return
+      }
+
+      const [categoryId, lineIndex] = selectedLine.split('_')
+      const selectedOption = modal.querySelector(`.talent-line-select option[value="${selectedLine}"]`)
+      const talentDescription = selectedOption.dataset.description || 'Unnamed'
+
+      this.addLineExclusivityToModal(modal, comboId, categoryId, lineIndex, name, percentage, talentDescription)
+    }
+  }
+
+  addLineExclusivityToModal(modal, comboId, categoryId, lineIndex, name, percentage, talentDescription) {
+    const list = modal.querySelector('.exclusivity-selected-list')
+    const item = document.createElement('div')
+    item.className = 'flex items-start justify-between p-2 bg-blue-50 border border-blue-200 rounded text-sm min-h-[60px]'
+
+    const categoryNames = {1: 'Lead', 2: 'Second Lead', 3: 'Featured Extra', 4: 'Teenager', 5: 'Kid'}
+    const categoryName = categoryNames[categoryId] || `Category ${categoryId}`
+    const displayName = talentDescription || 'Unnamed'
+
+    item.innerHTML = `
+      <div class="flex-1">
+        <div class="font-medium cursor-pointer hover:text-blue-600 exclusivity-edit" data-name="${name}" data-percentage="${percentage}">${name} (${percentage}%)</div>
+        <div class="text-xs text-gray-500 mt-1">
+          <div class="text-purple-600 font-medium">Specific Line: ${categoryName} - ${displayName}</div>
+        </div>
+      </div>
+      <button type="button" class="text-red-500 hover:text-red-700 text-xs remove-exclusivity ml-2">Remove</button>
+    `
+
+    // Store data on the item
+    item.dataset.categories = JSON.stringify([parseInt(categoryId)])
+    item.dataset.name = name
+    item.dataset.percentage = percentage
+    item.dataset.isLineSpecific = 'true'
+    item.dataset.categoryId = categoryId
+    item.dataset.lineIndex = lineIndex
+    item.dataset.talentDescription = talentDescription
+
+    // Add edit functionality - click on name/percentage to edit
+    item.querySelector('.exclusivity-edit').addEventListener('click', () => {
+      this.editExclusivity(modal, item, comboId)
+    })
+
+    // Add remove functionality for entire exclusivity
+    item.querySelector('.remove-exclusivity').addEventListener('click', () => {
+      item.remove()
+      this.updateExclusivityTotal(modal)
+    })
+
+    list.appendChild(item)
+    this.updateExclusivityTotal(modal)
+
+    // Store in main exclusivity data structure with line-specific flags
+    if (!window.exclusivityData) window.exclusivityData = {}
+    if (!window.exclusivityData[comboId]) window.exclusivityData[comboId] = []
+
+    window.exclusivityData[comboId].push({
+      name: name,
+      percentage: percentage,
+      isLineSpecific: true,
+      categoryId: parseInt(categoryId),
+      lineIndex: parseInt(lineIndex),
+      talentDescription: talentDescription
+    })
+  }
+
+  storeLineExclusivity(categoryId, lineIndex, name, percentage, talentDescription) {
+    // Initialize lineExclusivityData if it doesn't exist
+    if (!window.lineExclusivityData) {
+      window.lineExclusivityData = {}
+    }
+
+    const lineKey = `${categoryId}_${lineIndex}`
+    if (!window.lineExclusivityData[lineKey]) {
+      window.lineExclusivityData[lineKey] = []
+    }
+
+    // Add to line-specific exclusivities
+    window.lineExclusivityData[lineKey].push({
+      name: name,
+      percentage: percentage,
+      categoryId: categoryId,
+      lineIndex: lineIndex,
+      talentDescription: talentDescription
+    })
+
+    console.log(`Stored line exclusivity for ${lineKey}:`, window.lineExclusivityData[lineKey])
+  }
+
+  editExclusivity(modal, item, comboId) {
+    const currentName = item.dataset.name
+    const currentPercentage = item.dataset.percentage
+    const currentCategories = JSON.parse(item.dataset.categories)
+
+    // Pre-fill form with current values
+    const nameInput = modal.querySelector('#custom-exclusivity-name')
+    const percentageInput = modal.querySelector('#custom-exclusivity-percentage')
+
+    nameInput.value = currentName
+    percentageInput.value = currentPercentage
+
+    // Check the current categories
+    modal.querySelectorAll('.category-checkbox').forEach(checkbox => {
+      checkbox.checked = currentCategories.includes(parseInt(checkbox.value))
+    })
+
+    // Remove the current item so it can be re-added with new values
+    item.remove()
+    this.updateExclusivityTotal(modal)
+
+    // Focus on name input for editing
+    nameInput.focus()
+    nameInput.select()
+
+    // Show a visual indicator that we're editing
+    const addButton = modal.querySelector('.add-custom-exclusivity')
+    const originalText = addButton.textContent
+    addButton.textContent = 'Update'
+    addButton.style.backgroundColor = '#f59e0b'
+
+    // Reset the button after a few seconds if not used
+    setTimeout(() => {
+      if (addButton.textContent === 'Update') {
+        addButton.textContent = originalText
+        addButton.style.backgroundColor = ''
+      }
+    }, 10000)
+  }
+
+  removeCategoryFromExclusivity(modal, item, categoryIdToRemove) {
+    const currentCategories = JSON.parse(item.dataset.categories)
+    const updatedCategories = currentCategories.filter(id => id !== categoryIdToRemove)
+
+    if (updatedCategories.length === 0) {
+      // If no categories left, remove the entire exclusivity
+      item.remove()
+      this.updateExclusivityTotal(modal)
+      return
+    }
+
+    // Update the stored categories
+    item.dataset.categories = JSON.stringify(updatedCategories)
+
+    // Regenerate the category pills
+    const categoryNames = {1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD'}
+    const categoryPills = updatedCategories.map(id => {
+      const categoryName = categoryNames[id]
+      return `<span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mr-1 mb-1">
+        ${categoryName}
+        <button type="button" class="ml-1 text-blue-600 hover:text-blue-800 remove-category-pill" data-category-id="${id}">×</button>
+      </span>`
+    }).join('')
+
+    // Update the pills container
+    const pillsContainer = item.querySelector('.category-pills-container')
+    pillsContainer.innerHTML = categoryPills
+
+    // Re-add event listeners for the new pills
+    item.querySelectorAll('.remove-category-pill').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const categoryId = parseInt(btn.dataset.categoryId)
+        this.removeCategoryFromExclusivity(modal, item, categoryId)
+      })
+    })
   }
 
   updateExclusivityTotal(modal) {
@@ -2595,58 +3139,356 @@ export default class extends Controller {
   populateExistingExclusivities(modal, comboId) {
     const existingExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
     const list = modal.querySelector('.exclusivity-selected-list')
-    
+
     // Clear existing items first to avoid duplicates
     list.innerHTML = ''
-    
-    // Only show exclusivities that still have categories
+
+    // Show category-based exclusivities
     existingExclusivities.filter(ex => ex.categories && ex.categories.length > 0).forEach(ex => {
       const categoryNames = {1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD'}
-      const categoryLabels = ex.categories.map(id => categoryNames[id]).join(', ')
-      
+
+      // Create individual category pills with remove buttons
+      const categoryPills = ex.categories.map(id => {
+        const categoryName = categoryNames[id]
+        return `<span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mr-1 mb-1">
+          ${categoryName}
+          <button type="button" class="ml-1 text-blue-600 hover:text-blue-800 remove-category-pill" data-category-id="${id}">×</button>
+        </span>`
+      }).join('')
+
       const item = document.createElement('div')
-      item.className = 'flex items-center justify-between p-2 bg-gray-50 rounded text-sm'
+      item.className = 'flex items-start justify-between p-2 bg-blue-50 border border-blue-200 rounded text-sm min-h-[60px]'
       item.innerHTML = `
-        <div>
-          <div class="font-medium">${ex.name} (${ex.percentage}%)</div>
-          <div class="text-xs text-gray-500">Applies to: ${categoryLabels}</div>
+        <div class="flex-1">
+          <div class="font-medium cursor-pointer hover:text-blue-600 exclusivity-edit" data-name="${ex.name}" data-percentage="${ex.percentage}">${ex.name} (${ex.percentage}%)</div>
+          <div class="text-xs text-gray-500 mt-1">
+            <div class="category-pills-container">
+              ${categoryPills}
+            </div>
+          </div>
         </div>
-        <button type="button" class="text-red-600 hover:text-red-800 text-sm remove-exclusivity">Remove</button>
+        <button type="button" class="text-red-500 hover:text-red-700 text-xs remove-exclusivity ml-2">Remove</button>
       `
-      
+
       // Store category data on the item
       item.dataset.categories = JSON.stringify(ex.categories)
-      
-      // Add remove functionality
+      item.dataset.name = ex.name
+      item.dataset.percentage = ex.percentage
+
+      // Add edit functionality - click on name/percentage to edit
+      item.querySelector('.exclusivity-edit').addEventListener('click', () => {
+        this.editExclusivity(modal, item, comboId)
+      })
+
+      // Add individual category pill remove functionality
+      item.querySelectorAll('.remove-category-pill').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          const categoryId = parseInt(btn.dataset.categoryId)
+          this.removeCategoryFromExclusivity(modal, item, categoryId)
+        })
+      })
+
+      // Add remove functionality for entire exclusivity
       item.querySelector('.remove-exclusivity').addEventListener('click', () => {
         item.remove()
         this.updateExclusivityTotal(modal)
       })
-      
+
       list.appendChild(item)
     })
-    
+
+    // Show line-specific exclusivities
+    existingExclusivities.filter(ex => ex.isLineSpecific).forEach(ex => {
+      const categoryNames = {1: 'Lead', 2: 'Second Lead', 3: 'Featured Extra', 4: 'Teenager', 5: 'Kid'}
+      const categoryName = categoryNames[ex.categoryId] || `Category ${ex.categoryId}`
+      const displayName = ex.talentDescription || 'Unnamed'
+
+      const item = document.createElement('div')
+      item.className = 'flex items-start justify-between p-2 bg-blue-50 border border-blue-200 rounded text-sm min-h-[60px]'
+      item.innerHTML = `
+        <div class="flex-1">
+          <div class="font-medium cursor-pointer hover:text-blue-600 exclusivity-edit" data-name="${ex.name}" data-percentage="${ex.percentage}">${ex.name} (${ex.percentage}%)</div>
+          <div class="text-xs text-gray-500 mt-1">
+            <div class="text-purple-600 font-medium">Specific Line: ${categoryName} - ${displayName}</div>
+          </div>
+        </div>
+        <button type="button" class="text-red-500 hover:text-red-700 text-xs remove-exclusivity ml-2">Remove</button>
+      `
+
+      // Store data on the item for line-specific exclusivities
+      item.dataset.name = ex.name
+      item.dataset.percentage = ex.percentage
+      item.dataset.isLineSpecific = 'true'
+      item.dataset.categoryId = ex.categoryId
+      item.dataset.lineIndex = ex.lineIndex
+      item.dataset.talentDescription = ex.talentDescription
+
+      // Add edit functionality - click on name/percentage to edit
+      item.querySelector('.exclusivity-edit').addEventListener('click', () => {
+        this.editExclusivity(modal, item, comboId)
+      })
+
+      // Add remove functionality for entire exclusivity
+      item.querySelector('.remove-exclusivity').addEventListener('click', () => {
+        // Remove from global data structure
+        const updatedExclusivities = existingExclusivities.filter(existing =>
+          !(existing.isLineSpecific &&
+            existing.name === ex.name &&
+            existing.percentage === ex.percentage &&
+            existing.categoryId === ex.categoryId &&
+            existing.lineIndex === ex.lineIndex)
+        )
+
+        if (!window.exclusivityData) window.exclusivityData = {}
+        window.exclusivityData[comboId] = updatedExclusivities
+
+        item.remove()
+        this.updateExclusivityTotal(modal)
+
+        // Update form fields and tables
+        this.updateExclusivityFormFields(comboId, updatedExclusivities)
+        this.populateAllTables()
+      })
+
+      list.appendChild(item)
+    })
+
     this.updateExclusivityTotal(modal)
+  }
+
+  setupLineExclusivityModalEvents(modal, categoryId, lineIndex, talentDescription) {
+    // Close modal events
+    modal.querySelectorAll('.exclusivity-close').forEach(btn => {
+      btn.addEventListener('click', () => modal.remove())
+    })
+
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove()
+    })
+
+    // Add admin exclusivity for line
+    modal.querySelectorAll('.add-admin-exclusivity').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const container = e.target.closest('.flex.items-center.justify-between')
+        const name = container.querySelector('span').textContent
+        const percentage = parseInt(container.querySelector('input[type="number"]').value) || 0
+        this.addLineExclusivityToList(modal, categoryId, lineIndex, name, percentage)
+      })
+    })
+
+    // Add custom exclusivity for line
+    modal.querySelector('.add-custom-exclusivity-line').addEventListener('click', () => {
+      const nameInput = modal.querySelector('#custom-exclusivity-name-line')
+      const percentageInput = modal.querySelector('#custom-exclusivity-percentage-line')
+
+      const name = nameInput.value.trim()
+      const percentage = parseInt(percentageInput.value) || 0
+
+      if (name) {
+        this.addLineExclusivityToList(modal, categoryId, lineIndex, name, percentage)
+        nameInput.value = ''
+        percentageInput.value = '50'
+      }
+    })
+
+    // Save line exclusivities
+    modal.querySelector('.exclusivity-save-line').addEventListener('click', () => {
+      this.saveLineExclusivities(modal, categoryId, lineIndex, talentDescription)
+      modal.remove()
+    })
+  }
+
+  addLineExclusivityToList(modal, categoryId, lineIndex, name, percentage) {
+    const list = modal.querySelector('.exclusivity-selected-list-line')
+    const item = document.createElement('div')
+    item.className = 'flex items-start justify-between p-2 bg-blue-50 border border-blue-200 rounded text-sm min-h-[60px]'
+
+    item.innerHTML = `
+      <div class="flex-1">
+        <div class="font-medium cursor-pointer hover:text-blue-600 exclusivity-edit-line" data-name="${name}" data-percentage="${percentage}">${name} (${percentage}%)</div>
+        <div class="text-xs text-gray-500 mt-1">Line-specific exclusivity</div>
+      </div>
+      <button type="button" class="text-red-500 hover:text-red-700 text-xs remove-exclusivity-line ml-2">Remove</button>
+    `
+
+    // Store data on the item
+    item.dataset.name = name
+    item.dataset.percentage = percentage
+
+    // Add edit functionality
+    item.querySelector('.exclusivity-edit-line').addEventListener('click', () => {
+      this.editLineExclusivity(modal, item, categoryId, lineIndex)
+    })
+
+    // Add remove functionality
+    item.querySelector('.remove-exclusivity-line').addEventListener('click', () => {
+      item.remove()
+      this.updateLineExclusivityTotal(modal)
+    })
+
+    list.appendChild(item)
+    this.updateLineExclusivityTotal(modal)
+  }
+
+  editLineExclusivity(modal, item, categoryId, lineIndex) {
+    const currentName = item.dataset.name
+    const currentPercentage = item.dataset.percentage
+
+    // Pre-fill form with current values
+    const nameInput = modal.querySelector('#custom-exclusivity-name-line')
+    const percentageInput = modal.querySelector('#custom-exclusivity-percentage-line')
+
+    nameInput.value = currentName
+    percentageInput.value = currentPercentage
+
+    // Remove the current item so it can be re-added with new values
+    item.remove()
+    this.updateLineExclusivityTotal(modal)
+
+    // Focus on name input for editing
+    nameInput.focus()
+    nameInput.select()
+
+    // Show a visual indicator that we're editing
+    const addButton = modal.querySelector('.add-custom-exclusivity-line')
+    const originalText = addButton.textContent
+    addButton.textContent = 'Update'
+    addButton.style.backgroundColor = '#f59e0b'
+
+    // Reset the button after a few seconds if not used
+    setTimeout(() => {
+      if (addButton.textContent === 'Update') {
+        addButton.textContent = originalText
+        addButton.style.backgroundColor = ''
+      }
+    }, 10000)
+  }
+
+  updateLineExclusivityTotal(modal) {
+    const items = modal.querySelectorAll('.exclusivity-selected-list-line .flex')
+    let total = 0
+
+    items.forEach(item => {
+      const text = item.querySelector('.font-medium').textContent
+      const match = text.match(/\((\d+)%\)/)
+      if (match) {
+        total += parseInt(match[1])
+      }
+    })
+
+    modal.querySelector('.exclusivity-total-line').textContent = `${total}%`
+  }
+
+  populateExistingLineExclusivities(modal, categoryId, lineIndex) {
+    // Get existing line-specific exclusivities
+    const lineKey = `${categoryId}_${lineIndex}`
+    const existingExclusivities = (window.lineExclusivityData && window.lineExclusivityData[lineKey]) || []
+    const list = modal.querySelector('.exclusivity-selected-list-line')
+
+    // Clear existing items first to avoid duplicates
+    list.innerHTML = ''
+
+    existingExclusivities.forEach(ex => {
+      const item = document.createElement('div')
+      item.className = 'flex items-start justify-between p-2 bg-blue-50 border border-blue-200 rounded text-sm min-h-[60px]'
+      item.innerHTML = `
+        <div class="flex-1">
+          <div class="font-medium cursor-pointer hover:text-blue-600 exclusivity-edit-line" data-name="${ex.name}" data-percentage="${ex.percentage}">${ex.name} (${ex.percentage}%)</div>
+          <div class="text-xs text-gray-500 mt-1">Line-specific exclusivity</div>
+        </div>
+        <button type="button" class="text-red-500 hover:text-red-700 text-xs remove-exclusivity-line ml-2">Remove</button>
+      `
+
+      // Store data on the item
+      item.dataset.name = ex.name
+      item.dataset.percentage = ex.percentage
+
+      // Add edit functionality
+      item.querySelector('.exclusivity-edit-line').addEventListener('click', () => {
+        this.editLineExclusivity(modal, item, categoryId, lineIndex)
+      })
+
+      // Add remove functionality
+      item.querySelector('.remove-exclusivity-line').addEventListener('click', () => {
+        item.remove()
+        this.updateLineExclusivityTotal(modal)
+      })
+
+      list.appendChild(item)
+    })
+
+    this.updateLineExclusivityTotal(modal)
+  }
+
+  saveLineExclusivities(modal, categoryId, lineIndex, talentDescription) {
+    const items = modal.querySelectorAll('.exclusivity-selected-list-line > div')
+    const newExclusivities = []
+
+    items.forEach(item => {
+      const name = item.dataset.name
+      const percentage = parseInt(item.dataset.percentage)
+      newExclusivities.push({
+        name: name,
+        percentage: percentage,
+        categoryId: categoryId,
+        lineIndex: lineIndex,
+        talentDescription: talentDescription
+      })
+    })
+
+    // Initialize lineExclusivityData if it doesn't exist
+    if (!window.lineExclusivityData) {
+      window.lineExclusivityData = {}
+    }
+
+    // Store the line-specific exclusivities
+    const lineKey = `${categoryId}_${lineIndex}`
+    window.lineExclusivityData[lineKey] = newExclusivities
+
+    console.log(`Saved line exclusivities for ${lineKey}:`, newExclusivities)
+
+    // Update all combo tables to reflect changes
+    this.populateAllTables()
   }
 
   saveExclusivities(modal, comboId) {
     const items = modal.querySelectorAll('.exclusivity-selected-list > div')
     const newExclusivities = []
-    
+
     items.forEach(item => {
       const nameDiv = item.querySelector('.font-medium')
       if (!nameDiv) return
-      
+
       const text = nameDiv.textContent
       const nameMatch = text.match(/^(.+) \((\d+)%\)$/)
-      const categories = JSON.parse(item.dataset.categories || '[]')
-      
-      if (nameMatch && categories.length > 0) {
-        newExclusivities.push({
-          name: nameMatch[1],
-          percentage: parseInt(nameMatch[2]),
-          categories: categories
-        })
+
+      if (nameMatch) {
+        const name = nameMatch[1]
+        const percentage = parseInt(nameMatch[2])
+
+        // Check if this is a line-specific exclusivity
+        if (item.dataset.isLineSpecific === 'true') {
+          newExclusivities.push({
+            name: name,
+            percentage: percentage,
+            isLineSpecific: true,
+            categoryId: parseInt(item.dataset.categoryId),
+            lineIndex: parseInt(item.dataset.lineIndex),
+            talentDescription: item.dataset.talentDescription
+          })
+        } else {
+          // Category-based exclusivity
+          const categories = JSON.parse(item.dataset.categories || '[]')
+          if (categories.length > 0) {
+            newExclusivities.push({
+              name: name,
+              percentage: percentage,
+              categories: categories
+            })
+          }
+        }
       }
     })
     
