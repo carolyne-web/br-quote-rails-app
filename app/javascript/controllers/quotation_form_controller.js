@@ -21,6 +21,7 @@ export default class extends Controller {
     this.setupComboSummaryUpdate()
     this.setupTablePopulation()
     this.setupExclusivityPopup()
+    this.setupCurrencyAndGuaranteeListeners()
     
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
@@ -884,6 +885,7 @@ export default class extends Controller {
   setupProductTypeListeners() {
     // Add event listeners to product type radio buttons
     const productTypeRadios = document.querySelectorAll('input[name="quotation[product_type]"]')
+    console.log(`🔍 Found ${productTypeRadios.length} product type radio buttons`)
     productTypeRadios.forEach(radio => {
       const handleProductTypeChange = () => {
         console.log(`🔄 Product Type selected: ${radio.value} - recalculating Kids totals...`)
@@ -896,6 +898,9 @@ export default class extends Controller {
         
         // Recalculate all combination totals to apply new product factors
         this.recalculateAllCombinations()
+        
+        // IMPORTANT: Also update quote preview tables with new kids discount
+        this.populateAllTables()
       }
       
       // Listen for both click and change events to ensure immediate response
@@ -1715,9 +1720,21 @@ export default class extends Controller {
     })
   }
 
-  populateComboTable(comboId) {
+  populateComboTable(comboId, guaranteeState = null) {
     const tbody = document.querySelector(`.quote-preview-rows[data-combo="${comboId}"]`)
     if (!tbody) return
+
+    // Determine guarantee state for this combo
+    let isGuaranteedForCombo = false
+    if (guaranteeState !== null) {
+      // Use passed guarantee state to avoid timing issues
+      isGuaranteedForCombo = guaranteeState
+    } else {
+      // Fallback to reading from DOM (for initial load or when no state passed)
+      const guaranteeCheckbox = document.querySelector(`.guarantee-checkbox[data-combo="${comboId}"]`)
+      isGuaranteedForCombo = guaranteeCheckbox && guaranteeCheckbox.checked
+      // For initial load when no checkbox exists yet, default to false
+    }
 
     const rows = []
     let totalAmount = 0
@@ -1735,7 +1752,16 @@ export default class extends Controller {
         const applicableExclusivities = this.getExclusivitiesForCategory(comboId, categoryId)
         
         // Calculate row-specific buyout percentage with Product Type logic
-        const rowBuyoutPercentage = this.calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee)
+        let rowBuyoutPercentage = this.calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee)
+        
+        // Apply guarantee reduction if enabled for this combo
+        const originalBuyoutPercentage = rowBuyoutPercentage
+        if (isGuaranteedForCombo) {
+          rowBuyoutPercentage = rowBuyoutPercentage * 0.75 // Reduce by 25%
+          console.log(`🛡️ Guarantee applied: ${originalBuyoutPercentage}% → ${rowBuyoutPercentage}%`)
+        } else {
+          console.log(`🛡️ No guarantee: Using original ${rowBuyoutPercentage}%`)
+        }
         
         // Working Total = DayFee × (BuyoutPercentage/100) × ProductFactor
         const buyoutMultiplier = rowBuyoutPercentage / 100
@@ -1757,7 +1783,7 @@ export default class extends Controller {
           )
           return `<span class="inline-flex items-center px-1 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full">
             ${ex.name} ${ex.percentage}%
-            <button type="button" class="ml-1 text-yellow-600 hover:text-yellow-800 font-bold remove-exclusivity-pill" data-combo="${comboId}" data-index="${originalIndex}" title="Remove">×</button>
+            <button type="button" class="ml-1 text-yellow-600 hover:text-yellow-800 font-bold remove-exclusivity-pill" data-combo="${comboId}" data-index="${originalIndex}" data-category="${categoryId}" title="Remove from this row only">×</button>
           </span>`
         }).join('')
 
@@ -1777,19 +1803,70 @@ export default class extends Controller {
               </div>
             </td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${rowBuyoutPercentage.toFixed(1)}%</td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(totalRands / unit)}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right">R${this.formatNumber(totalRands)}</td>
           </tr>
         `)
       })
     })
 
+    // Add guarantee, total, and currency rows
+    if (totalAmount > 0) {
+      // Guarantee row
+      rows.push(`
+        <tr class="border-t border-gray-300 bg-gray-50">
+          <td class="py-2 px-3 text-sm text-gray-700" colspan="6">
+            <label class="flex items-center">
+              <input type="checkbox" class="guarantee-checkbox mr-2 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2" data-combo="${comboId}" ${isGuaranteedForCombo ? 'checked' : ''}>
+              <span class="text-sm font-medium text-gray-700">Would you like to guarantee?</span>
+            </label>
+          </td>
+          <td class="py-2 px-3 text-sm text-gray-900 text-right font-medium">
+            <span class="guarantee-amount" data-combo="${comboId}"></span>
+          </td>
+        </tr>
+      `)
+      
+      // Total row
+      rows.push(`
+        <tr class="bg-gray-50">
+          <td class="py-2 px-3 text-sm text-gray-700 font-medium" colspan="6">Total:</td>
+          <td class="py-2 px-3 text-sm text-gray-900 text-right font-medium">
+            <span class="total-zar-amount" data-combo="${comboId}" data-base-amount="${totalAmount}">R${this.formatNumber(totalAmount)}</span>
+          </td>
+        </tr>
+      `)
+      
+      // Currency row
+      rows.push(`
+        <tr class="border-b-2 border-gray-400 bg-gray-100 font-semibold">
+          <td class="py-3 px-3 text-sm text-gray-900" colspan="6">
+            <select class="currency-selector text-xs border border-gray-300 rounded px-auto py-1 bg-gray-50 text-gray-700 focus:border-gray-400 focus:outline-none" data-combo="${comboId}">
+              <option value="" selected>Select Currency</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
+          </td>
+          <td class="py-3 px-3 text-sm text-gray-900 text-right font-semibold">
+            <span class="currency-amount" data-combo="${comboId}" data-base-amount="${totalAmount}"></span>
+          </td>
+        </tr>
+      `)
+    }
+
     tbody.innerHTML = rows.join('')
     
-    // Update combo total
-    const totalElement = document.querySelector(`.combo-total[data-combo="${comboId}"]`)
-    if (totalElement) {
-      totalElement.textContent = `R${this.formatNumber(totalAmount)}`
+    // Initialize amounts with proper currency conversion
+    if (totalAmount > 0) {
+      this.updateAllAmounts(comboId)
     }
+    
+    // Remove external combo total since we're using the table total row now
+    // const totalElement = document.querySelector(`.combo-total[data-combo="${comboId}"]`)
+    // if (totalElement) {
+    //   totalElement.textContent = `R${this.formatNumber(totalAmount)}`
+    // }
   }
 
   getAllTalentLines() {
@@ -2220,12 +2297,16 @@ export default class extends Controller {
       if (e.target.classList.contains('remove-exclusivity-pill')) {
         const comboId = e.target.getAttribute('data-combo')
         const index = parseInt(e.target.getAttribute('data-index'))
-        this.removeExclusivityPill(comboId, index)
+        const categoryId = parseInt(e.target.getAttribute('data-category'))
+        this.removeExclusivityPill(comboId, index, categoryId)
       }
     })
   }
 
   showExclusivityPopup(comboId) {
+    // Get remembered category selections for this combo
+    const rememberedCategories = this.getRememberedCategories(comboId)
+    
     // Create modal overlay
     const modal = document.createElement('div')
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center modal-glass'
@@ -2266,23 +2347,23 @@ export default class extends Controller {
             <h4 class="text-sm font-medium text-gray-700 mb-2">Apply to Talent Categories</h4>
             <div class="grid grid-cols-2 gap-2">
               <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="1" checked>
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="1" ${rememberedCategories.includes(1) ? 'checked' : ''}>
                 <span class="text-xs">Lead (LD)</span>
               </label>
               <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="2" checked>
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="2" ${rememberedCategories.includes(2) ? 'checked' : ''}>
                 <span class="text-xs">Second Lead (2L)</span>
               </label>
               <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="3" checked>
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="3" ${rememberedCategories.includes(3) ? 'checked' : ''}>
                 <span class="text-xs">Featured Extra (FE)</span>
               </label>
               <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="4" checked>
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="4" ${rememberedCategories.includes(4) ? 'checked' : ''}>
                 <span class="text-xs">Teenager (TN)</span>
               </label>
               <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="5" checked>
+                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="5" ${rememberedCategories.includes(5) ? 'checked' : ''}>
                 <span class="text-xs">Kid (KD)</span>
               </label>
               <div class="flex items-center">
@@ -2316,6 +2397,9 @@ export default class extends Controller {
 
     document.body.appendChild(modal)
 
+    // Populate existing exclusivities in the modal
+    this.populateExistingExclusivities(modal, comboId)
+
     // Add event listeners for the modal
     this.setupExclusivityModalEvents(modal, comboId)
   }
@@ -2334,25 +2418,32 @@ export default class extends Controller {
     // Add admin exclusivity
     modal.querySelectorAll('.add-admin-exclusivity').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        console.log('🖱️ Admin exclusivity button clicked')
         const container = e.target.closest('.flex.items-center.justify-between')
         const name = container.querySelector('span').textContent
         const percentage = parseInt(container.querySelector('input[type="number"]').value) || 0
+        console.log(`📝 Admin exclusivity details: ${name}, ${percentage}%`)
         this.addExclusivityToList(modal, comboId, name, percentage)
       })
     })
 
     // Add custom exclusivity
     modal.querySelector('.add-custom-exclusivity').addEventListener('click', () => {
+      console.log('🖱️ Custom exclusivity button clicked')
       const nameInput = modal.querySelector('#custom-exclusivity-name')
       const percentageInput = modal.querySelector('#custom-exclusivity-percentage')
       
       const name = nameInput.value.trim()
       const percentage = parseInt(percentageInput.value) || 0
       
+      console.log(`📝 Custom exclusivity details: ${name}, ${percentage}%`)
+      
       if (name) {
         this.addExclusivityToList(modal, comboId, name, percentage)
         nameInput.value = ''
         percentageInput.value = '50'
+      } else {
+        console.log('⚠️ No name provided for custom exclusivity')
       }
     })
 
@@ -2377,14 +2468,21 @@ export default class extends Controller {
   }
 
   addExclusivityToList(modal, comboId, name, percentage) {
+    console.log(`🔄 Adding exclusivity: ${name} ${percentage}% to combo ${comboId}`)
+    
     // Get selected categories
     const selectedCategories = Array.from(modal.querySelectorAll('.category-checkbox:checked'))
       .map(cb => parseInt(cb.value))
+    
+    console.log(`📋 Selected categories:`, selectedCategories)
     
     if (selectedCategories.length === 0) {
       alert('Please select at least one talent category to apply this exclusivity to.')
       return
     }
+
+    // Remember these category selections for future use
+    this.rememberCategories(comboId, selectedCategories)
 
     const list = modal.querySelector('.exclusivity-selected-list')
     const item = document.createElement('div')
@@ -2420,19 +2518,59 @@ export default class extends Controller {
     let total = 0
     
     items.forEach(item => {
-      const text = item.querySelector('span').textContent
-      const match = text.match(/\((\d+)%\)/)
-      if (match) {
-        total += parseInt(match[1])
+      const fontMediumDiv = item.querySelector('.font-medium')
+      if (fontMediumDiv) {
+        const text = fontMediumDiv.textContent
+        const match = text.match(/\((\d+)%\)/)
+        if (match) {
+          total += parseInt(match[1])
+        }
       }
     })
     
     modal.querySelector('.exclusivity-total').textContent = `${total}%`
   }
 
+  populateExistingExclusivities(modal, comboId) {
+    const existingExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
+    const list = modal.querySelector('.exclusivity-selected-list')
+    
+    // Clear existing items first to avoid duplicates
+    list.innerHTML = ''
+    
+    // Only show exclusivities that still have categories
+    existingExclusivities.filter(ex => ex.categories && ex.categories.length > 0).forEach(ex => {
+      const categoryNames = {1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD'}
+      const categoryLabels = ex.categories.map(id => categoryNames[id]).join(', ')
+      
+      const item = document.createElement('div')
+      item.className = 'flex items-center justify-between p-2 bg-gray-50 rounded text-sm'
+      item.innerHTML = `
+        <div>
+          <div class="font-medium">${ex.name} (${ex.percentage}%)</div>
+          <div class="text-xs text-gray-500">Applies to: ${categoryLabels}</div>
+        </div>
+        <button type="button" class="text-red-600 hover:text-red-800 text-sm remove-exclusivity">Remove</button>
+      `
+      
+      // Store category data on the item
+      item.dataset.categories = JSON.stringify(ex.categories)
+      
+      // Add remove functionality
+      item.querySelector('.remove-exclusivity').addEventListener('click', () => {
+        item.remove()
+        this.updateExclusivityTotal(modal)
+      })
+      
+      list.appendChild(item)
+    })
+    
+    this.updateExclusivityTotal(modal)
+  }
+
   saveExclusivities(modal, comboId) {
     const items = modal.querySelectorAll('.exclusivity-selected-list > div')
-    const exclusivities = []
+    const newExclusivities = []
     
     items.forEach(item => {
       const nameDiv = item.querySelector('.font-medium')
@@ -2443,7 +2581,7 @@ export default class extends Controller {
       const categories = JSON.parse(item.dataset.categories || '[]')
       
       if (nameMatch && categories.length > 0) {
-        exclusivities.push({
+        newExclusivities.push({
           name: nameMatch[1],
           percentage: parseInt(nameMatch[2]),
           categories: categories
@@ -2451,15 +2589,15 @@ export default class extends Controller {
       }
     })
     
+    // Store the updated exclusivities (this replaces the list with what's in the modal)
+    if (!window.exclusivityData) window.exclusivityData = {}
+    window.exclusivityData[comboId] = newExclusivities
+    
     // Update the exclusivity tags in the quote preview
-    this.updateExclusivityTags(comboId, exclusivities)
+    this.updateExclusivityTags(comboId, newExclusivities)
     
     // Create or update hidden form fields for database storage
-    this.updateExclusivityFormFields(comboId, exclusivities)
-    
-    // Store for later use
-    if (!window.exclusivityData) window.exclusivityData = {}
-    window.exclusivityData[comboId] = exclusivities
+    this.updateExclusivityFormFields(comboId, newExclusivities)
     
     // Recalculate the buyout percentage to include new exclusivity percentages
     this.populateAllTables()
@@ -2540,26 +2678,141 @@ export default class extends Controller {
     this.populateComboTable(comboId)
   }
 
-  removeExclusivityPill(comboId, index) {
+  removeExclusivityPill(comboId, index, categoryId) {
     // Get current exclusivities from storage
     const currentExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
     
-    // Remove the item at the specified index
+    // Find the exclusivity to modify
     if (index >= 0 && index < currentExclusivities.length) {
-      currentExclusivities.splice(index, 1)
+      const exclusivity = currentExclusivities[index]
       
-      // Update storage
+      // If this exclusivity has categories, remove only the specific category
+      if (exclusivity.categories && exclusivity.categories.length > 0) {
+        const categoryIndex = exclusivity.categories.indexOf(categoryId)
+        if (categoryIndex > -1) {
+          exclusivity.categories.splice(categoryIndex, 1)
+          
+          // If no categories left, remove the entire exclusivity
+          if (exclusivity.categories.length === 0) {
+            currentExclusivities.splice(index, 1)
+          }
+        }
+      } else {
+        // If no specific categories (applies to all), remove the entire exclusivity
+        currentExclusivities.splice(index, 1)
+      }
+      
+      // Clean up exclusivities with no categories and update storage
+      const cleanedExclusivities = currentExclusivities.filter(ex => 
+        !ex.categories || ex.categories.length > 0
+      )
+      
       if (!window.exclusivityData) window.exclusivityData = {}
-      window.exclusivityData[comboId] = currentExclusivities
+      window.exclusivityData[comboId] = cleanedExclusivities
       
       // Update the visual tags
-      this.updateExclusivityTags(comboId, currentExclusivities)
+      this.updateExclusivityTags(comboId, cleanedExclusivities)
       
       // Update form fields
-      this.updateExclusivityFormFields(comboId, currentExclusivities)
+      this.updateExclusivityFormFields(comboId, cleanedExclusivities)
       
       // Recalculate the buyout percentage which now includes exclusivity
       this.populateAllTables()
+    }
+  }
+
+  // Helper functions for category selection memory
+  getRememberedCategories(comboId) {
+    if (!window.categoryMemory) window.categoryMemory = {}
+    // Default to all categories checked if no memory exists
+    return window.categoryMemory[comboId] || [1, 2, 3, 4, 5]
+  }
+
+  rememberCategories(comboId, selectedCategories) {
+    if (!window.categoryMemory) window.categoryMemory = {}
+    window.categoryMemory[comboId] = [...selectedCategories]
+  }
+
+  setupCurrencyAndGuaranteeListeners() {
+    // Use event delegation for currency selectors and guarantee checkboxes
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('currency-selector')) {
+        const comboId = e.target.getAttribute('data-combo')
+        this.handleCurrencyChange(comboId, e.target.value)
+      }
+      
+      if (e.target.classList.contains('guarantee-checkbox')) {
+        const comboId = e.target.getAttribute('data-combo')
+        this.handleGuaranteeChange(comboId, e.target.checked)
+      }
+    })
+  }
+
+  async handleCurrencyChange(comboId, selectedCurrency) {
+    console.log(`💱 Currency changed to ${selectedCurrency} for combo ${comboId}`)
+    
+    // Update all amounts with new currency
+    this.updateAllAmounts(comboId)
+  }
+
+  handleGuaranteeChange(comboId, isGuaranteed) {
+    console.log(`🛡️ Guarantee ${isGuaranteed ? 'enabled' : 'disabled'} for combo ${comboId}`)
+    
+    // Recalculate the entire table since guarantee affects buyout percentages
+    // Pass the guarantee state to avoid timing issues
+    this.populateComboTable(comboId, isGuaranteed)
+  }
+
+  async getExchangeRate(fromCurrency, toCurrency) {
+    // Using exchangerate-api.com (free tier allows 1500 requests/month)
+    const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${fromCurrency}`)
+    const data = await response.json()
+    
+    if (data.rates && data.rates[toCurrency]) {
+      return data.rates[toCurrency]
+    } else {
+      throw new Error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`)
+    }
+  }
+
+  async updateAllAmounts(comboId) {
+    // Get currency elements only since guarantee affects table calculation directly
+    const totalZarSpan = document.querySelector(`.total-zar-amount[data-combo="${comboId}"]`)
+    const currencyAmountSpan = document.querySelector(`.currency-amount[data-combo="${comboId}"]`)
+    const currencySelector = document.querySelector(`.currency-selector[data-combo="${comboId}"]`)
+    
+    if (!totalZarSpan) return
+    
+    const baseAmount = parseFloat(totalZarSpan.getAttribute('data-base-amount'))
+    const selectedCurrency = currencySelector ? currencySelector.value : ''
+    
+    // Update currency amount (convert the final ZAR amount)
+    if (currencyAmountSpan) {
+      if (!selectedCurrency || selectedCurrency === '') {
+        // Show blank when no currency selected
+        currencyAmountSpan.textContent = ''
+      } else {
+        try {
+          const exchangeRate = await this.getExchangeRate('ZAR', selectedCurrency)
+          const convertedAmount = baseAmount * exchangeRate
+          
+          const currencySymbols = {
+            'USD': '$',
+            'EUR': '€',
+            'GBP': '£'
+          }
+          
+          const symbol = currencySymbols[selectedCurrency] || selectedCurrency
+          currencyAmountSpan.textContent = `${symbol}${this.formatNumber(convertedAmount)}`
+        } catch (error) {
+          console.error('Failed to get exchange rate:', error)
+          // Fallback to USD display with estimated rate
+          const fallbackRate = 0.055 // Approximate ZAR to USD rate
+          const convertedAmount = baseAmount * fallbackRate
+          currencyAmountSpan.textContent = `$${this.formatNumber(convertedAmount)}`
+          if (currencySelector) currencySelector.value = 'USD'
+        }
+      }
     }
   }
 }

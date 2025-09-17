@@ -505,18 +505,19 @@
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Unit</th>
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Exclusivity</th>
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Buyout %</th>
+                      <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Per Talent</th>
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Total (R)</th>
                     </tr>
                   </thead>
                   <tbody class="quote-preview-rows" data-combo="1">
                     <!-- Talent lines will be populated here -->
                   </tbody>
-                  <tfoot>
+                  <%# <tfoot>
                     <tr class="border-t border-gray-400 font-semibold bg-gray-50">
                       <td colspan="5" class="text-right py-2 px-3 text-sm text-gray-800 border-r border-gray-300">Total:</td>
-                      <td class="text-right py-2 px-3 text-sm text-gray-800 combo-total" data-combo="1">R0</td>
+                      
                     </tr>
-                  </tfoot>
+                  </tfoot> %>
                 </table>
               </div>
             </div>
@@ -721,18 +722,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Unit</th>
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Exclusivity</th>
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Buyout %</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Per Talent</th>
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Total (R)</th>
               </tr>
             </thead>
             <tbody class="quote-preview-rows" data-combo="${comboId}">
               <!-- Talent lines will be populated here -->
             </tbody>
-            <tfoot>
-              <tr class="border-t border-gray-400 font-semibold bg-gray-50">
-                <td colspan="5" class="text-right py-2 px-3 text-sm text-gray-800 border-r border-gray-300">Total:</td>
-                <td class="text-right py-2 px-3 text-sm text-gray-800 combo-total" data-combo="${comboId}">R0</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>
