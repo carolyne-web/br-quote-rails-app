@@ -25,8 +25,21 @@ class QuotationsController < ApplicationController
   end
 
   def create
+    # DEBUG: Log all parameters to see what we're receiving
+    puts "=== CREATE QUOTATION DEBUG ==="
+    puts "All params keys: #{params.keys}"
+    puts "Talent params present: #{params[:talent].present?}"
+    puts "Territories params present: #{params[:territories].present?}"
+    puts "Media types params present: #{params[:media_types].present?}"
+    puts "Combinations params present: #{params[:combinations].present?}"
+    if params[:combinations].present?
+      puts "Combinations structure: #{params[:combinations].to_unsafe_h}"
+    end
+    puts "Quotation params: #{quotation_params}"
+    puts "=== END DEBUG ==="
+
     @quotation = current_production_house.quotations.build(quotation_params)
-    
+
     # Use campaign_name as project_name if project_name is blank
     if @quotation.project_name.blank? && @quotation.campaign_name.present?
       @quotation.project_name = @quotation.campaign_name
@@ -34,10 +47,23 @@ class QuotationsController < ApplicationController
 
     if @quotation.save
       # Store media types from form
-      if params[:media_types].present?
-        @quotation.quotation_detail.update(selected_media_types: params[:media_types])
+      media_types = []
+      if params[:combinations].present?
+        params[:combinations].each do |combo_id, combo_data|
+          if combo_data[:media_types].present?
+            media_types.concat(combo_data[:media_types])
+          end
+        end
+      elsif params[:media_types].present?
+        media_types = params[:media_types]
       end
-      
+
+      if media_types.present?
+        # Ensure quotation_detail exists before updating
+        @quotation.quotation_detail ||= @quotation.build_quotation_detail
+        @quotation.quotation_detail.update(selected_media_types: media_types)
+      end
+
       process_talent_categories
       process_territories
       
@@ -68,10 +94,23 @@ class QuotationsController < ApplicationController
   def update
     if @quotation.update(quotation_params)
       # Store media types from form
-      if params[:media_types].present?
-        @quotation.quotation_detail.update(selected_media_types: params[:media_types])
+      media_types = []
+      if params[:combinations].present?
+        params[:combinations].each do |combo_id, combo_data|
+          if combo_data[:media_types].present?
+            media_types.concat(combo_data[:media_types])
+          end
+        end
+      elsif params[:media_types].present?
+        media_types = params[:media_types]
       end
-      
+
+      if media_types.present?
+        # Ensure quotation_detail exists before updating
+        @quotation.quotation_detail ||= @quotation.build_quotation_detail
+        @quotation.quotation_detail.update(selected_media_types: media_types)
+      end
+
       # Process territories (still needed as it's not nested attributes)
       process_territories
 
@@ -249,11 +288,24 @@ class QuotationsController < ApplicationController
   end
 
   def process_territories
-    return unless params[:territories]
+    # Check for territories in combinations structure first
+    territory_ids = []
+
+    if params[:combinations].present?
+      params[:combinations].each do |combo_id, combo_data|
+        if combo_data[:territories].present?
+          territory_ids.concat(combo_data[:territories])
+        end
+      end
+    elsif params[:territories].present?
+      territory_ids = params[:territories]
+    end
+
+    return if territory_ids.empty?
 
     @quotation.quotation_territories.destroy_all
 
-    params[:territories].each do |territory_id|
+    territory_ids.each do |territory_id|
       territory = Territory.find(territory_id)
       @quotation.quotation_territories.create(
         territory: territory,

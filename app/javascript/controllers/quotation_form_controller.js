@@ -294,9 +294,18 @@ export default class extends Controller {
 
   addTalentLine(categoryId) {
     console.log(`addTalentLine called for category: ${categoryId}`)
+
+    // Debounce: prevent rapid clicks
+    if (this.addingLine) {
+      console.log('⚠️ Already adding line, ignoring click')
+      return
+    }
+    this.addingLine = true
+
     const additionalLinesContainer = document.querySelector(`[data-category="${categoryId}"].additional-lines`)
     if (!additionalLinesContainer) {
       console.error(`Could not find additional lines container for category ${categoryId}`)
+      this.addingLine = false
       return
     }
     
@@ -399,8 +408,13 @@ export default class extends Controller {
         this.toggleNightButton(newNightBtn)
       })
     }
-    
+
     this.calculateCategoryTotal(categoryId)
+
+    // Reset debounce flag after a short delay
+    setTimeout(() => {
+      this.addingLine = false
+    }, 200)
   }
 
   setupCategoryEventListeners(categoryId) {

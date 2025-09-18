@@ -510,10 +510,7 @@
         <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3 sm:justify-end">
           <%= link_to "Cancel", quotations_path, 
               class: "px-6 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition text-center" %>
-          <%= button_tag "Save as Draft", type: "button", 
-              class: "px-6 py-2 border border-blue-300 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition",
-              onclick: "saveDraft()" %>
-          <%= f.submit "Generate Final Quote", 
+          <%= f.submit "Generate Quote", 
               class: "px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition" %>
         </div>
       </div>
@@ -873,20 +870,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <!-- Territories List -->
           <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
             <div class="territories-list space-y-1 p-2" data-combo="${comboId}">
-              <% @territories.group_by(&:group_name).each do |group_name, territories| %>
-                <% territories.each do |territory| %>
-                  <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
-                    <div class="flex items-center">
-                      <input type="checkbox" name="combinations[${comboId}][territories][]" value="<%= territory.id %>" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-territory-checkbox" data-territory-id="<%= territory.id %>" data-territory-name="<%= territory.name %>" data-percentage="<%= territory.percentage %>" data-combo="${comboId}">
-                      <div class="text-sm">
-                        <div class="font-medium text-gray-900"><%= territory.name %></div>
-                        <div class="text-xs text-gray-500"><%= group_name %></div>
-                      </div>
-                    </div>
-                    <div class="text-sm font-medium text-blue-600"><%= territory.percentage %>%</div>
-                  </label>
-                <% end %>
-              <% end %>
+              <!-- Territories will be populated by JavaScript -->
             </div>
           </div>
         </div>
@@ -942,7 +926,15 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
     `;
-    
+
+    // Populate territories list with JavaScript after DOM creation
+    setTimeout(() => {
+      const territoriesList = content.querySelector(`.territories-list[data-combo="${comboId}"]`);
+      if (territoriesList) {
+        territoriesList.innerHTML = generateTerritoriesHTML(comboId);
+      }
+    }, 0);
+
     return content;
   }
 
@@ -1765,6 +1757,33 @@ document.querySelectorAll('.rate-plus-btn, .rate-minus-btn').forEach(btn => {
     }
   });
 });
+
+// Territories data for JavaScript
+const territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
+  [group_name, territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
+}.to_h.to_json.html_safe %>;
+
+// Helper function to generate territories HTML for a given combo ID
+function generateTerritoriesHTML(comboId) {
+  let html = '';
+  Object.entries(territoriesData).forEach(([groupName, territories]) => {
+    territories.forEach(territory => {
+      html += `
+        <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="${territory.name.toLowerCase()}">
+          <div class="flex items-center">
+            <input type="checkbox" name="combinations[${comboId}][territories][]" value="${territory.id}" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-territory-checkbox" data-territory-id="${territory.id}" data-territory-name="${territory.name}" data-percentage="${territory.percentage}" data-combo="${comboId}">
+            <div class="text-sm">
+              <div class="font-medium text-gray-900">${territory.name}</div>
+              <div class="text-xs text-gray-500">${groupName}</div>
+            </div>
+          </div>
+          <div class="text-sm font-medium text-blue-600">${territory.percentage}%</div>
+        </label>
+      `;
+    });
+  });
+  return html;
+}
 
 function updateAdjustedRate(categoryId) {
   const baseRates = {
