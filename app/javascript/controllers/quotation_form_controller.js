@@ -250,7 +250,6 @@ export default class extends Controller {
     
     // Setup add combination buttons using event delegation
     document.addEventListener('click', (e) => {
-      console.log('Document click event triggered, target:', e.target.className)
       if (e.target.closest('.add-combination-btn')) {
         const btn = e.target.closest('.add-combination-btn')
         const categoryId = btn.dataset.category

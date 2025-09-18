@@ -295,11 +295,11 @@
             <div class="flex items-center space-x-2 border-b border-gray-200">
               <div id="combination-tabs" class="flex space-x-2">
                 <button type="button" class="combination-tab px-4 py-2 border-b-2 border-blue-500 text-blue-600 font-medium text-sm" data-combo="1">
-                  Combo 1
+                  Group 1
                 </button>
               </div>
               <button type="button" id="add-combination" class="ml-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors">
-                + Add Combination
+                + Add Group
               </button>
             </div>
           </div>
@@ -330,7 +330,7 @@
 
                 <!-- Territory Selection for this Combination -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Combo 1</label>
+                  <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Group 1</label>
                   
                   <!-- Selected Territory Tags -->
                   <div>
@@ -339,11 +339,11 @@
                     </div>
                   </div>
                   
-                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 hidden">
+                  <!-- <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 hidden">
                     <div class="text-sm text-blue-800">
                       <strong>Territory Logic:</strong> Multiple territories are additive. Example: East Europe (400%) + Pan African (400%) = 800% total.
                     </div>
-                  </div>
+                  </div> -->
                   
                   <!-- Search Bar -->
                   <div class="mb-4">
@@ -400,14 +400,14 @@
                     </label>
                   </div>
                   
-                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 hidden">
+                  <!-- <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 hidden">
                     <div class="text-sm text-blue-800">
                       <strong>Media Multiplier Logic:</strong> All Media = 100%, All Moving Media alone = 75%, All Moving Media + 1 other = 75%, 1 other media = 50%, 3+ media = 100%
                     </div>
                     <div class="text-xs text-blue-600 mt-1">
                       Current multiplier: <span class="media-multiplier-display" data-combo="1">100%</span>
                     </div>
-                  </div>
+                  </div> -->
                 </div>
                 
                 
@@ -465,11 +465,11 @@
         <span class="text-sm text-gray-400">Step 4 of 4</span>
         </div>
         
-        <!-- Combo Tables Container -->
+        <!-- Group Tables Container -->
         <div id="combo-tables-container">
-          <!-- Combo 1 -->
+          <!-- Group 1 -->
           <div class="combo-table-section mb-6" data-combo="1">
-            <!-- Dynamic Combo Pills -->
+            <!-- Dynamic Group Pills -->
             <div class="combo-summary-pills mb-4 flex flex-wrap gap-2" data-combo="1">
               <!-- Pills will be populated by JavaScript -->
             </div>
@@ -597,7 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Calculate next combo ID based on existing combos (not a global counter)
       const existingTabs = document.querySelectorAll('.combination-tab');
       const newComboId = existingTabs.length + 1;
-      console.log('Creating new combo with ID:', newComboId);
+      console.log('Creating new group with ID:', newComboId);
       
       // Add new tab
       const tabsContainer = document.getElementById('combination-tabs');
@@ -605,10 +605,10 @@ document.addEventListener('DOMContentLoaded', function() {
       newTab.type = 'button';
       newTab.className = 'combination-tab px-4 py-2 border-b-2 border-transparent text-gray-500 text-sm hover:text-blue-600';
       newTab.setAttribute('data-combo', newComboId);
-      newTab.textContent = `Combo ${newComboId}`;
+      newTab.textContent = `Group ${newComboId}`;
       
       // Add remove button directly to the tab
-      newTab.innerHTML = `Combo ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
+      newTab.innerHTML = `Group ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
       
       tabsContainer.appendChild(newTab);
       
@@ -655,8 +655,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function removeCombination(comboId) {
     console.log('Removing combination:', comboId);
     if (comboId == 1) {
-      console.log('Cannot remove combo 1');
-      return; // Cannot remove combo 1
+      console.log('Cannot remove group 1');
+      return; // Cannot remove group 1
     }
     
     // Remove tab
@@ -683,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Renumber all remaining tabs and content sequentially
     renumberCombinations();
     
-    // Switch to combo 1 if no active tab remains
+    // Switch to group 1 if no active tab remains
     const activeTab = document.querySelector('.combination-tab.border-blue-500');
     console.log('Active tab after removal:', activeTab);
     if (!activeTab) {
@@ -706,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
     comboTableSection.setAttribute('data-combo', comboId);
     
     comboTableSection.innerHTML = `
-      <!-- Dynamic Combo Pills -->
+      <!-- Dynamic Group Pills -->
       <div class="combo-summary-pills mb-4 flex flex-wrap gap-2" data-combo="${comboId}">
         <!-- Pills will be populated by JavaScript -->
       </div>
@@ -751,11 +751,11 @@ document.addEventListener('DOMContentLoaded', function() {
     allTabs.forEach((tab, index) => {
       const newComboId = index + 1;
       const oldComboId = tab.getAttribute('data-combo');
-      console.log(`Renumbering combo ${oldComboId} to ${newComboId}`);
+      console.log(`Renumbering group ${oldComboId} to ${newComboId}`);
       
       // Update tab attributes and content
       tab.setAttribute('data-combo', newComboId);
-      tab.innerHTML = `Combo ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
+      tab.innerHTML = `Group ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
       
       // Find and update corresponding content
       const content = document.querySelector(`div[data-combo="${oldComboId}"].combination-content`);
@@ -850,7 +850,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <!-- Territory Selection for this Combination -->
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Combo ${comboId}</label>
+          <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Group ${comboId}</label>
           
           <!-- Selected Territory Tags -->
           <div>
@@ -859,11 +859,11 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           </div>
           
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <!-- <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
             <div class="text-sm text-blue-800">
               <strong>Territory Logic:</strong> Multiple territories are additive. Example: East Europe (400%) + Pan African (400%) = 800% total.
             </div>
-          </div>
+          </div> -->
           
           <!-- Search Bar -->
           <div class="mb-4">
@@ -920,14 +920,14 @@ document.addEventListener('DOMContentLoaded', function() {
             </label>
           </div>
           
-          <div class="media-multiplier-logic-block bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <!-- <div class="media-multiplier-logic-block bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
             <div class="text-sm text-blue-800">
               <strong>Media Multiplier Logic:</strong> All Media = 100%, All Moving Media alone = 75%, All Moving Media + 1 other = 75%, 1 other media = 50%, 3+ media = 100%
             </div>
             <div class="text-xs text-blue-600 mt-1">
               Current multiplier: <span class="media-multiplier-display" data-combo="${comboId}">100%</span>
             </div>
-          </div>
+          </div> -->
         </div>
         
         <div class="space-y-2">
@@ -1138,7 +1138,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
     
-    // Update combo 1 total
+    // Update group 1 total
     if (combo1TotalElement) {
       combo1TotalElement.textContent = `R${combo1Total.toLocaleString()}`;
     }
@@ -1170,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalMultiplier = combo.territoryMultiplier * combo.mediaMultiplier * combo.durationMultiplier * combo.exclusivityMultiplier;
         let comboUsageTotal = 0;
         
-        usageBreakdownHtml.push(`<div class="font-medium text-gray-800 mt-2">Combo ${combo.id}:</div>`);
+        usageBreakdownHtml.push(`<div class="font-medium text-gray-800 mt-2">Group ${combo.id}:</div>`);
         
         talentCategoryBreakdown.forEach(category => {
           let categoryUsage = category.baseFees * totalMultiplier;
