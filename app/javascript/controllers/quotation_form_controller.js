@@ -12,6 +12,10 @@ export default class extends Controller {
 
     // Initialize arrays first
     this.baseRates = {}
+
+    // Initialize flags to prevent duplicate event listeners
+    this.eventListenersSetup = this.eventListenersSetup || false
+    this.exclusivityListenersSetup = this.exclusivityListenersSetup || false
     
     this.setupTalentButtons()
     this.setupMediaTypeLogic()
@@ -37,8 +41,25 @@ export default class extends Controller {
       console.log('Testing getAllTalentLines...')
       return this.getAllTalentLines()
     }
+
+    // Initialize debugging tools
+    this.setupDebuggingTools()
     
     this.loadBaseRates()
+  }
+
+  disconnect() {
+    console.log('Quotation form controller disconnected')
+    // Reset flags to allow setup on reconnection
+    this.eventListenersSetup = false
+    this.exclusivityListenersSetup = false
+    // Clean up global references
+    if (window.quotationFormController === this) {
+      window.quotationFormController = null
+    }
+    if (window.quotationController === this) {
+      window.quotationController = null
+    }
   }
 
   setupMainRowEventListeners() {
@@ -248,14 +269,29 @@ export default class extends Controller {
       })
     })
     
-    // Setup add combination buttons using event delegation
-    document.addEventListener('click', (e) => {
-      if (e.target.closest('.add-combination-btn')) {
-        const btn = e.target.closest('.add-combination-btn')
-        const categoryId = btn.dataset.category
-        this.addCombination(categoryId)
+    // Setup add combination buttons using event delegation (only once)
+    if (!this.eventListenersSetup) {
+      document.addEventListener('click', (e) => {
+
+      // Handle Add Group button (#add-combination) in the controller
+      if (e.target.closest('#add-combination')) {
+        console.log('🚀 Add Group button clicked from controller')
+        console.log('🚀 Event target:', e.target)
+        console.log('🚀 Closest element:', e.target.closest('#add-combination'))
+        this.handleAddCombination(e)
+        return
       }
-      
+
+      // Handle combination tab clicks
+      if (e.target.classList.contains('combination-tab')) {
+        const comboId = e.target.getAttribute('data-combo')
+        console.log('🔄 Tab clicked for combo:', comboId)
+        this.switchToCombination(comboId)
+        return
+      }
+
+      // Territory search is handled by separate input event listener below
+
       // Handle remove category buttons
       if (e.target.closest('[data-remove-category]')) {
         const btn = e.target.closest('[data-remove-category]')
@@ -266,10 +302,25 @@ export default class extends Controller {
       
       // Setup + Line button functionality
       if (e.target.closest('.add-line-btn')) {
+        e.preventDefault()
+        e.stopPropagation()
         console.log('Add line button clicked!')
         const btn = e.target.closest('.add-line-btn')
         const categoryId = btn.dataset.category
         console.log(`Button categoryId: ${categoryId}`)
+
+        // Additional safety check - ensure we're not processing duplicate clicks
+        if (btn.dataset.processing === 'true') {
+          console.log('⚠️ Button already processing, ignoring click')
+          return
+        }
+
+        // Mark button as processing
+        btn.dataset.processing = 'true'
+        setTimeout(() => {
+          btn.dataset.processing = 'false'
+        }, 500)
+
         this.addTalentLine(categoryId)
       }
       
@@ -290,17 +341,38 @@ export default class extends Controller {
       // Night buttons now handled by direct event listeners in initializeNightButtonStates()
       // No delegation needed to avoid conflicts
     })
+
+      // Set up territory search input event listener
+      document.addEventListener('input', (e) => {
+        if (e.target.classList.contains('territory-search')) {
+          console.log('Territory search input detected, value:', e.target.value)
+          this.handleTerritorySearch(e.target)
+        }
+      })
+
+      // Mark event listeners as set up
+      this.eventListenersSetup = true
+    }
   }
 
   addTalentLine(categoryId) {
     console.log(`addTalentLine called for category: ${categoryId}`)
 
-    // Debounce: prevent rapid clicks
-    if (this.addingLine) {
+    // Enhanced debounce: prevent rapid clicks with both global and category-specific flags
+    const categoryKey = `adding_line_${categoryId}`
+    const globalKey = `adding_line_global`
+
+    if (this.addingLine || this[categoryKey] || this[globalKey]) {
       console.log('⚠️ Already adding line, ignoring click')
       return
     }
+
+    // Set all flags immediately
     this.addingLine = true
+    this[categoryKey] = true
+    this[globalKey] = true
+
+    console.log(`🛡️ Debounce flags set - proceeding with line addition for category ${categoryId}`)
 
     const additionalLinesContainer = document.querySelector(`[data-category="${categoryId}"].additional-lines`)
     if (!additionalLinesContainer) {
@@ -411,10 +483,240 @@ export default class extends Controller {
 
     this.calculateCategoryTotal(categoryId)
 
-    // Reset debounce flag after a short delay
+    // Reset debounce flags after a short delay
     setTimeout(() => {
       this.addingLine = false
-    }, 200)
+      this[categoryKey] = false
+      this[globalKey] = false
+      console.log(`🛡️ Debounce flags reset for category ${categoryId}`)
+    }, 500)
+  }
+
+  handleAddCombination(event) {
+    event.preventDefault()
+    console.log('🚀 handleAddCombination called')
+    console.log('🚀 Event object:', event)
+
+    // Calculate next combo ID based on existing combos
+    const existingTabs = document.querySelectorAll('.combination-tab')
+    const newComboId = existingTabs.length + 1
+    console.log('🚀 Existing tabs found:', existingTabs.length)
+    console.log('🚀 Creating new group with ID:', newComboId)
+
+    // Add new tab
+    const tabsContainer = document.getElementById('combination-tabs')
+    if (tabsContainer) {
+      const newTab = document.createElement('button')
+      newTab.type = 'button'
+      newTab.className = 'combination-tab px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 border-b-2 border-transparent hover:border-blue-300'
+      newTab.dataset.combo = newComboId
+      newTab.innerHTML = `Group ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`
+
+      tabsContainer.appendChild(newTab)
+    }
+
+    // Add new content panel
+    const contentContainer = document.getElementById('combinations-content')
+    if (contentContainer) {
+      // Clone the first combination panel as template
+      const firstPanel = document.querySelector('.combination-content')
+      if (firstPanel) {
+        const newPanel = firstPanel.cloneNode(true)
+        newPanel.dataset.combo = newComboId
+        newPanel.id = `combination-${newComboId}`
+        newPanel.classList.remove('active')
+        newPanel.style.display = 'none'
+
+        // Update all form field names to use new combo ID and completely reset state
+        newPanel.querySelectorAll('input, select, textarea').forEach(input => {
+          if (input.name) {
+            input.name = input.name.replace(/\[1\]/g, `[${newComboId}]`)
+
+            // Completely reset form fields
+            if (input.type === 'checkbox' || input.type === 'radio') {
+              input.checked = false
+            } else if (input.tagName === 'SELECT') {
+              input.selectedIndex = 0 // Reset to first option
+            } else {
+              input.value = '' // Clear text/number inputs
+            }
+
+            // Clear any placeholder text that might be showing old values
+            if (input.placeholder && input.placeholder.includes('Search')) {
+              input.placeholder = input.placeholder.replace(/\d+/, newComboId)
+            }
+          }
+        })
+
+        // Update data-combo attributes for all elements
+        newPanel.querySelectorAll('[data-combo]').forEach(element => {
+          element.setAttribute('data-combo', newComboId)
+        })
+
+        // Clear any territory search results and selected territory tags
+        const territorySearch = newPanel.querySelector('.territory-search')
+        if (territorySearch) {
+          territorySearch.value = ''
+        }
+
+        // Clear selected territory tags container
+        const selectedTags = newPanel.querySelector('.selected-territory-tags')
+        if (selectedTags) {
+          selectedTags.innerHTML = ''
+        }
+
+        // Reset territory list visibility - make sure all territories are shown
+        const territoryItems = newPanel.querySelectorAll('.territory-item')
+        territoryItems.forEach(item => {
+          item.style.display = 'flex' // Make sure all territories are visible
+        })
+
+        // Reset any media multiplier displays
+        const mediaDisplay = newPanel.querySelector('.media-multiplier-display')
+        if (mediaDisplay) {
+          mediaDisplay.textContent = '100%'
+        }
+
+        // Clear any territory checkboxes that might be checked
+        newPanel.querySelectorAll('.combination-territory-checkbox').forEach(checkbox => {
+          checkbox.checked = false
+          // Remove any visual feedback that might remain
+          const label = checkbox.closest('label')
+          if (label) {
+            label.classList.remove('bg-blue-50', 'border-blue-200')
+          }
+        })
+
+        // Clear any media type checkboxes that might be checked (IMPORTANT: reset all media selections)
+        newPanel.querySelectorAll('.combination-media').forEach(checkbox => {
+          checkbox.checked = false
+          checkbox.removeAttribute('checked') // Ensure the DOM attribute is also removed
+          checkbox.defaultChecked = false // Reset the default state too
+        })
+
+        // Force reset the number of commercials to default value
+        const commercialsInput = newPanel.querySelector('.combination-commercials')
+        if (commercialsInput) {
+          commercialsInput.value = '1' // Reset to default value of 1
+        }
+
+        // Reset any notice containers that might be showing
+        newPanel.querySelectorAll('[id*="territory-override-notice"]').forEach(notice => {
+          notice.remove()
+        })
+
+        contentContainer.appendChild(newPanel)
+        console.log('✅ Added new combination panel with ID:', newComboId)
+      } else {
+        console.error('❌ Could not find first combination panel to clone')
+      }
+    } else {
+      console.error('❌ Could not find combinations-content container')
+    }
+
+    // Create the combo table for the new group
+    if (typeof createComboTable === 'function') {
+      createComboTable(newComboId)
+      console.log('✅ Created combo table for new group:', newComboId)
+    } else {
+      console.error('❌ createComboTable function not available')
+    }
+
+    // Update combo summary for the new group (this will create fresh summary with no previous data)
+    if (typeof window.quotationController !== 'undefined' && window.quotationController.updateComboSummary) {
+      setTimeout(() => {
+        window.quotationController.updateComboSummary(newComboId)
+        console.log('✅ Updated combo summary for new group:', newComboId)
+      }, 100) // Small delay to ensure DOM is ready
+    }
+
+    // Switch to the new tab after everything is created
+    this.switchToCombination(newComboId)
+
+    // Final cleanup: force reset the new combo's form state
+    setTimeout(() => {
+      this.finalCleanupNewCombo(newComboId)
+    }, 150)
+
+    // Trigger table population
+    this.populateAllTables()
+  }
+
+  finalCleanupNewCombo(comboId) {
+    console.log(`🧹 Final cleanup for combo ${comboId}`)
+
+    // Find the combo content panel
+    const comboPanel = document.querySelector(`[data-combo="${comboId}"].combination-content`)
+    if (!comboPanel) return
+
+    // Force clear all media checkboxes again - simple but thorough
+    comboPanel.querySelectorAll('.combination-media').forEach(checkbox => {
+      checkbox.checked = false
+      checkbox.removeAttribute('checked')
+      checkbox.defaultChecked = false
+    })
+
+    // Reset media multiplier display to default
+    const mediaMultiplierDisplay = comboPanel.querySelector('.media-multiplier-display')
+    if (mediaMultiplierDisplay) {
+      mediaMultiplierDisplay.textContent = '100%'
+    }
+
+    // Force clear territory search and reset territory list
+    const territorySearch = comboPanel.querySelector('.territory-search')
+    if (territorySearch) {
+      territorySearch.value = ''
+      // Trigger a search reset to show all territories
+      const event = new Event('input', { bubbles: true })
+      territorySearch.dispatchEvent(event)
+    }
+
+    // Force reset number of commercials
+    const commercialsInput = comboPanel.querySelector('.combination-commercials')
+    if (commercialsInput) {
+      commercialsInput.value = '1'
+    }
+
+    // Force update combo summary to reflect clean state
+    if (this.updateComboSummary) {
+      this.updateComboSummary(comboId)
+    }
+
+    console.log(`✅ Final cleanup completed for combo ${comboId}`)
+  }
+
+  switchToCombination(comboId) {
+    console.log('🔄 Switching to combination:', comboId)
+
+    // Update tab styles
+    document.querySelectorAll('.combination-tab').forEach(tab => {
+      tab.classList.remove('border-blue-500', 'text-blue-600', 'font-medium')
+      tab.classList.add('border-transparent', 'text-gray-500')
+    })
+
+    const activeTab = document.querySelector(`[data-combo="${comboId}"].combination-tab`)
+    if (activeTab) {
+      activeTab.classList.add('border-blue-500', 'text-blue-600', 'font-medium')
+      activeTab.classList.remove('border-transparent', 'text-gray-500')
+      console.log('✅ Tab styling updated for combo:', comboId)
+    } else {
+      console.error('❌ Could not find tab for combo:', comboId)
+    }
+
+    // Update content visibility
+    document.querySelectorAll('.combination-content').forEach(content => {
+      content.classList.remove('active')
+      content.style.display = 'none'
+    })
+
+    const activeContent = document.querySelector(`[data-combo="${comboId}"].combination-content`)
+    if (activeContent) {
+      activeContent.classList.add('active')
+      activeContent.style.display = 'block'
+      console.log('✅ Content visibility updated for combo:', comboId)
+    } else {
+      console.error('❌ Could not find content for combo:', comboId)
+    }
   }
 
   setupCategoryEventListeners(categoryId) {
@@ -920,9 +1222,15 @@ export default class extends Controller {
         this.populateAllTables()
       }
       
-      // Listen for both click and change events to ensure immediate response
+      // Listen for multiple events to ensure immediate response
       radio.addEventListener('click', handleProductTypeChange)
       radio.addEventListener('change', handleProductTypeChange)
+      radio.addEventListener('input', handleProductTypeChange)
+
+      // Debug: Test if radio is checked on page load
+      if (radio.checked) {
+        console.log(`🔍 Product type ${radio.value} is checked on page load`)
+      }
     })
   }
 
@@ -1375,11 +1683,11 @@ export default class extends Controller {
   searchTerritories(event) {
     const searchTerm = event.target.value.toLowerCase()
     const territories = this.territoryListTarget.querySelectorAll('.territory-item')
-    
+
     territories.forEach(territory => {
       const name = territory.dataset.name.toLowerCase()
       const code = territory.dataset.code?.toLowerCase() || ''
-      
+
       if (searchTerm.length >= 1) {
         if (name.includes(searchTerm) || code.includes(searchTerm)) {
           territory.style.display = 'block'
@@ -1390,6 +1698,37 @@ export default class extends Controller {
         territory.style.display = 'block'
       }
     })
+  }
+
+  handleTerritorySearch(searchInput) {
+    const searchTerm = searchInput.value.toLowerCase()
+    const comboId = searchInput.dataset.combo
+
+    // Find the territories list for this specific combo
+    const territoriesList = document.querySelector(`.territories-list[data-combo="${comboId}"]`)
+    if (!territoriesList) {
+      console.error(`Could not find territories list for combo ${comboId}`)
+      return
+    }
+
+    const territories = territoriesList.querySelectorAll('.territory-item')
+
+    territories.forEach(territory => {
+      const name = territory.dataset.name.toLowerCase()
+      const code = territory.dataset.code?.toLowerCase() || ''
+
+      if (searchTerm.length >= 1) {
+        if (name.includes(searchTerm) || code.includes(searchTerm)) {
+          territory.style.display = ''
+        } else {
+          territory.style.display = 'none'
+        }
+      } else {
+        territory.style.display = ''
+      }
+    })
+
+    console.log(`Territory search completed for combo ${comboId}, ${territories.length} territories checked`)
   }
 
 
@@ -2422,8 +2761,9 @@ export default class extends Controller {
   }
 
   setupExclusivityPopup() {
-    // Event delegation for the plus buttons since they are dynamically created
-    document.addEventListener('click', (e) => {
+    // Event delegation for the plus buttons since they are dynamically created (only once)
+    if (!this.exclusivityListenersSetup) {
+      document.addEventListener('click', (e) => {
       if (e.target.classList.contains('exclusivity-plus-btn') || e.target.closest('.exclusivity-plus-btn')) {
         const btn = e.target.closest('.exclusivity-plus-btn')
         const comboId = btn.getAttribute('data-combo')
@@ -2438,6 +2778,9 @@ export default class extends Controller {
         this.removeExclusivityPill(comboId, index, categoryId)
       }
     })
+      // Mark exclusivity event listeners as set up
+      this.exclusivityListenersSetup = true
+    }
   }
 
   showLineExclusivityPopup(categoryId, lineIndex, talentDescription) {
@@ -2527,137 +2870,108 @@ export default class extends Controller {
   showExclusivityPopup(comboId) {
     // Get remembered category selections for this combo
     const rememberedCategories = this.getRememberedCategories(comboId)
-    
+
     // Create modal overlay
     const modal = document.createElement('div')
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center modal-glass'
     modal.innerHTML = `
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col border border-black">
-        <!-- Fixed Header -->
-        <div class="p-4 border-b flex-shrink-0 relative flex justify-between">
-          <h3 class="text-lg font-semibold">Add Exclusivity</h3>
-          <button type="button" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 exclusivity-close">
-            ✕
+      <div class="bg-white rounded-xl shadow-2xl w-1/2 max-w-md mx-4 max-h-[90vh] flex flex-col border-0">
+        <!-- Clean Header -->
+        <div class="p-6 border-b border-gray-100 flex-shrink-0 relative">
+          <h3 class="text-xl font-semibold text-gray-900">Add Exclusivity</h3>
+          <button type="button" class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 exclusivity-close">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
           </button>
         </div>
-        
+
         <!-- Scrollable Content -->
         <div class="flex-1 overflow-y-auto" style="max-height: calc(90vh - 140px);">
-          <div class="p-4">
-          <!-- Step 1: Choose Scope -->
-          <div class="mb-6">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">1</span>
-              Choose Scope
-            </h4>
-            <div class="grid grid-cols-1 gap-3 mb-4">
-              <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input type="radio" name="exclusivity_scope" value="categories" class="mr-3 text-blue-600 focus:ring-blue-500 exclusivity-scope-radio" checked>
+          <div class="p-6 space-y-6">
+
+          <!-- Scope Selection -->
+          <div>
+            <h4 class="font-medium text-gray-900 mb-4">Choose Scope</h4>
+            <div class="grid grid-cols-1 gap-3">
+              <label class="flex items-start p-4 border border-gray-200 rounded-lg hover:border-purple-200 hover:bg-purple-50 cursor-pointer transition-colors">
+                <input type="radio" name="exclusivity_scope" value="categories" class="mt-1 mr-3 text-purple-600 focus:ring-purple-500 exclusivity-scope-radio" checked>
                 <div>
-                  <div class="font-medium text-sm">Apply to Entire Talent Categories</div>
-                  <div class="text-xs text-gray-500">Exclusivity will apply to all talent in selected categories (Lead, Kids, etc.)</div>
+                  <div class="font-medium text-sm text-gray-900">Apply to Talent Categories</div>
                 </div>
               </label>
-              <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input type="radio" name="exclusivity_scope" value="specific_line" class="mr-3 text-blue-600 focus:ring-blue-500 exclusivity-scope-radio">
+              <label class="flex items-start p-4 border border-gray-200 rounded-lg hover:border-purple-200 hover:bg-purple-50 cursor-pointer transition-colors">
+                <input type="radio" name="exclusivity_scope" value="specific_line" class="mt-1 mr-3 text-purple-600 focus:ring-purple-500 exclusivity-scope-radio">
                 <div>
-                  <div class="font-medium text-sm">Apply to Specific Talent Line</div>
-                  <div class="text-xs text-gray-500">Exclusivity will apply only to one specific talent line (e.g., "KD - Chocolate Cake")</div>
+                  <div class="font-medium text-sm text-gray-900">Apply to Specific Talent Line</div>
                 </div>
               </label>
+              
             </div>
           </div>
 
-          <!-- Step 2A: Apply to Talent Categories (shown when scope is 'categories') -->
-          <div class="mb-6 scope-categories-section">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
-              Apply to Talent Categories
-            </h4>
+          <!-- Talent Categories Selection -->
+          <div class="scope-categories-section">
+            <h4 class="font-medium text-gray-900 mb-4">Select Categories</h4>
             <div class="grid grid-cols-2 gap-2">
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="1" ${rememberedCategories.includes(1) ? 'checked' : ''}>
-                <span class="text-xs">Lead (LD)</span>
-              </label>
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="2" ${rememberedCategories.includes(2) ? 'checked' : ''}>
-                <span class="text-xs">Second Lead (2L)</span>
-              </label>
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="3" ${rememberedCategories.includes(3) ? 'checked' : ''}>
-                <span class="text-xs">Featured Extra (FE)</span>
-              </label>
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="4" ${rememberedCategories.includes(4) ? 'checked' : ''}>
-                <span class="text-xs">Teenager (TN)</span>
-              </label>
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="5" ${rememberedCategories.includes(5) ? 'checked' : ''}>
-                <span class="text-xs">Kid (KD)</span>
-              </label>
-              <div class="flex items-center">
-                <button type="button" class="text-xs text-blue-600 hover:text-blue-800 select-all-categories">Select All</button>
-                <span class="mx-1 text-gray-400">|</span>
-                <button type="button" class="text-xs text-blue-600 hover:text-blue-800 deselect-all-categories">None</button>
-              </div>
+              ${this.generateFilteredCategoryCheckboxes(rememberedCategories)}
             </div>
           </div>
 
-          <!-- Step 2B: Select Specific Talent Line (shown when scope is 'specific_line') -->
-          <div class="mb-6 scope-specific-line-section" style="display: none;">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
-              Select Specific Talent Line
-            </h4>
-            <select class="w-full px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 talent-line-select" data-combo="${comboId}">
+          <!-- Specific Talent Line Selection -->
+          <div class="scope-specific-line-section" style="display: none;">
+            <h4 class="font-medium text-gray-900 mb-4">Select Talent Line</h4>
+            <select class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 talent-line-select" data-combo="${comboId}">
               <option value="">Choose a talent line...</option>
-              <!-- Talent lines will be populated by JavaScript -->
             </select>
             <div class="text-xs text-gray-500 mt-2">Select which specific talent line this exclusivity should apply to</div>
           </div>
 
-          <!-- Step 3: Standard Exclusivity Types -->
-          <div class="mb-6">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">3</span>
-              Standard Exclusivity Types
-            </h4>
-            <div class="space-y-2" id="admin-exclusivity-options">
-              ${this.generateAdminExclusivityOptions()}
+          <!-- Add Exclusivity -->
+          <div>
+            <h4 class="font-medium text-gray-900 mb-4">Add Exclusivity</h4>
+
+            <!-- Custom Entry Bar -->
+            <div class="bg-gray-50 p-4 rounded-lg mb-4">
+              <div class="flex items-center gap-3">
+                <input type="text" placeholder="e.g., cookies, car, pharmaceuticals" class="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" id="custom-exclusivity-name">
+                <div class="flex items-center gap-1">
+                  <input type="number" value="50" min="0" step="5" class="w-16 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center" id="custom-exclusivity-percentage">
+                  <span class="text-sm text-gray-500">%</span>
+                </div>
+                <button type="button" class="add-custom-exclusivity px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg font-medium transition-colors">
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <!-- Standard Exclusivity Cards -->
+            <div class="grid grid-cols-2 gap-3" id="admin-exclusivity-options">
+              ${this.generateAdminExclusivityCards()}
             </div>
           </div>
 
-          <!-- Step 4: Custom Entry -->
-          <div class="mb-6">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">4</span>
-              Custom Entry
-            </h4>
-            <div class="flex items-center gap-2">
-              <input type="text" placeholder="e.g., cookies, car" class="flex-1 px-3 py-2 text-sm border rounded" id="custom-exclusivity-name">
-              <input type="number" value="50" min="0" step="10" class="w-16 px-2 py-1 text-sm border rounded" id="custom-exclusivity-percentage">
-              <span class="text-xs text-gray-500">%</span>
-              <button type="button" class="add-custom-exclusivity px-3 py-2 bg-green-500 text-white text-xs rounded">Add</button>
-            </div>
-          </div>
-
-          <!-- Selected Exclusivities (Editable) -->
-          <div class="mb-4">
-            <h4 class="text-sm font-medium text-gray-700 mb-2">Selected Exclusivities</h4>
+          <!-- Selected Exclusivities -->
+          <div>
+            <h4 class="font-medium text-gray-900 mb-3">Selected Exclusivities</h4>
             <div class="exclusivity-selected-list space-y-2" data-combo="${comboId}">
               <!-- Selected exclusivities will appear here -->
             </div>
-            <div class="text-sm text-gray-600 mt-2 hidden">
-              Total: <span class="exclusivity-total font-semibold">0%</span>
+            <div class="text-sm text-gray-600 mt-3 hidden">
+              Total: <span class="exclusivity-total font-semibold text-gray-900">0%</span>
             </div>
           </div>
           </div>
         </div>
-        
-        <!-- Fixed Footer -->
-        <div class="p-4 border-t flex justify-end gap-2 flex-shrink-0">
-          <button type="button" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 exclusivity-close">Cancel</button>
-          <button type="button" class="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 exclusivity-save">Save</button>
+
+        <!-- Clean Footer -->
+        <div class="p-6 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
+          <button type="button" class="px-4 py-2.5 text-sm text-gray-600 hover:text-gray-800 font-medium exclusivity-close">
+            Cancel
+          </button>
+          <button type="button" class="px-4 py-2.5 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors exclusivity-save">
+            Save Exclusivities
+          </button>
         </div>
       </div>
     `
@@ -2672,6 +2986,90 @@ export default class extends Controller {
 
     // Add event listeners for the modal
     this.setupExclusivityModalEvents(modal, comboId)
+
+    // Refresh the category checkboxes on initial load to reflect current talent counts
+    this.refreshCategoryCheckboxes(modal)
+  }
+
+  // Helper function to get current talent count for a specific category
+  getCategoryTalentCount(categoryId) {
+    const categorySection = document.querySelector(`#talent-category-${categoryId}`)
+    if (!categorySection) return 0
+
+    let totalCount = 0
+    const talentRows = categorySection.querySelectorAll('.talent-input-row')
+
+    talentRows.forEach(row => {
+      const talentCountInput = row.querySelector('.talent-count, [name*="talent_count"]')
+      const talentCount = talentCountInput ? parseInt(talentCountInput.value) || 0 : 0
+      totalCount += talentCount
+    })
+
+    return totalCount
+  }
+
+  // Helper function to get current talent count for a specific line
+  getLineTalentCount(categoryId, lineIndex) {
+    const categorySection = document.querySelector(`#talent-category-${categoryId}`)
+    if (!categorySection) return 0
+
+    const talentRows = categorySection.querySelectorAll('.talent-input-row')
+    if (!talentRows[lineIndex]) return 0
+
+    const talentCountInput = talentRows[lineIndex].querySelector('.talent-count, [name*="talent_count"]')
+    return talentCountInput ? parseInt(talentCountInput.value) || 0 : 0
+  }
+
+  // Helper function to generate filtered category checkboxes with updated styling
+  generateFilteredCategoryCheckboxes(rememberedCategories) {
+    const categoryNames = {1: 'Lead (LD)', 2: 'Second Lead (2L)', 3: 'Featured Extra (FE)', 4: 'Teenager (TN)', 5: 'Kid (KD)'}
+    let html = ''
+
+    for (let categoryId = 1; categoryId <= 5; categoryId++) {
+      const talentCount = this.getCategoryTalentCount(categoryId)
+
+      // Only show categories with talent count > 0
+      if (talentCount > 0) {
+        const isChecked = rememberedCategories.includes(categoryId) ? 'checked' : ''
+        html += `
+          <label class="flex items-center p-3 border border-gray-200 rounded-lg hover:border-orange-200 hover:bg-orange-50 cursor-pointer transition-colors">
+            <input type="checkbox" class="mr-2 rounded text-orange-600 focus:ring-orange-500 category-checkbox" value="${categoryId}" ${isChecked}>
+            <span class="text-sm font-medium text-gray-800">${categoryNames[categoryId]}</span>
+          </label>
+        `
+      }
+    }
+
+    // If no categories have talent count > 0, show a message
+    if (html === '') {
+      html = '<div class="text-sm text-gray-500 p-4 text-center border border-gray-200 rounded-lg">No talent categories with talent count > 0 found.</div>'
+    } else {
+      // Add Select All / None buttons only if there are categories
+      html += `
+        <div class="col-span-2 flex items-center justify-center gap-4 mt-2">
+          <button type="button" class="text-sm text-orange-600 hover:text-orange-800 font-medium select-all-categories">Select All</button>
+          <span class="text-gray-300">|</span>
+          <button type="button" class="text-sm text-orange-600 hover:text-orange-800 font-medium deselect-all-categories">Clear</button>
+        </div>
+      `
+    }
+
+    return html
+  }
+
+  // Helper function to generate admin exclusivity cards
+  generateAdminExclusivityCards() {
+    if (typeof exclusivitySettings !== 'undefined' && exclusivitySettings.length > 0) {
+      return exclusivitySettings.map(setting => `
+        <button type="button" class="admin-exclusivity-card p-4 border border-gray-200 rounded-lg hover:border-blue-200 hover:bg-blue-50 text-left transition-colors cursor-pointer" data-name="${setting.name}" data-percentage="${setting.percentage}">
+          <div class="font-medium text-sm text-gray-900">${setting.name}</div>
+          <div class="text-xl font-bold text-blue-600 mt-1">${setting.percentage}%</div>
+        </button>
+      `).join('')
+    } else {
+      // Fallback message if no settings found
+      return '<div class="col-span-2 text-sm text-gray-500 p-4 text-center border border-gray-200 rounded-lg">No standard exclusivity types configured.</div>'
+    }
   }
 
   populateTalentLinesDropdown(modal, comboId) {
@@ -2724,17 +3122,12 @@ export default class extends Controller {
           const talentCount = talentCountInput ? parseInt(talentCountInput.value) || 0 : 0
           const rate = rateInput ? parseInt(rateInput.value) || 0 : 0
           const days = daysInput ? parseInt(daysInput.value) || 0 : 0
-          const rehearsalDays = rehearsalInput ? parseInt(rehearsalInput.value) || 0 : 0
-          const downDays = downInput ? parseInt(downInput.value) || 0 : 0
-          const travelDays = travelInput ? parseInt(travelInput.value) || 0 : 0
-          const overtimeHours = overtimeInput ? parseFloat(overtimeInput.value) || 0 : 0
+          // Note: We only care about talent count for filtering, other values not used here
 
-          // Check if this line has any actual data (non-zero values OR has a description)
-          const hasData = talentDescription.length > 0 || talentCount > 0 || rate > 0 || days > 0 || rehearsalDays > 0 || downDays > 0 || travelDays > 0 || overtimeHours > 0
+          // Only show lines with talent count > 0 (changed from hasData to specific talent count check)
+          console.log(`   Row ${lineIndex}: desc="${talentDescription}", count=${talentCount}, rate=${rate}, days=${days}`)
 
-          console.log(`   Row ${lineIndex}: desc="${talentDescription}", count=${talentCount}, rate=${rate}, days=${days}, hasData=${hasData}`)
-
-          if (hasData) {
+          if (talentCount > 0) {
             // Determine display name
             let displayName
             if (talentDescription) {
@@ -2796,13 +3189,12 @@ export default class extends Controller {
       })
     })
 
-    // Add admin exclusivity
-    modal.querySelectorAll('.add-admin-exclusivity').forEach(btn => {
+    // Add admin exclusivity cards
+    modal.querySelectorAll('.admin-exclusivity-card').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        console.log('🖱️ Admin exclusivity button clicked')
-        const container = e.target.closest('.flex.items-center.justify-between')
-        const name = container.querySelector('span').textContent
-        const percentage = parseInt(container.querySelector('input[type="number"]').value) || 0
+        console.log('🖱️ Admin exclusivity card clicked')
+        const name = btn.dataset.name
+        const percentage = parseInt(btn.dataset.percentage) || 0
         console.log(`📝 Admin exclusivity details: ${name}, ${percentage}%`)
         this.addExclusivityToModal(modal, comboId, name, percentage)
       })
@@ -2828,18 +3220,8 @@ export default class extends Controller {
       }
     })
 
-    // Category selection buttons
-    modal.querySelector('.select-all-categories').addEventListener('click', () => {
-      modal.querySelectorAll('.category-checkbox').forEach(checkbox => {
-        checkbox.checked = true
-      })
-    })
-
-    modal.querySelector('.deselect-all-categories').addEventListener('click', () => {
-      modal.querySelectorAll('.category-checkbox').forEach(checkbox => {
-        checkbox.checked = false
-      })
-    })
+    // Setup category checkbox events
+    this.setupCategoryCheckboxEvents(modal)
 
     // Save exclusivities
     modal.querySelector('.exclusivity-save').addEventListener('click', () => {
@@ -2923,6 +3305,45 @@ export default class extends Controller {
     this.updateExclusivityTotal(modal)
   }
 
+  // Helper function to setup category checkbox events
+  setupCategoryCheckboxEvents(modal) {
+    // Category selection buttons
+    const selectAllBtn = modal.querySelector('.select-all-categories')
+    const deselectAllBtn = modal.querySelector('.deselect-all-categories')
+
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', () => {
+        modal.querySelectorAll('.category-checkbox').forEach(checkbox => {
+          checkbox.checked = true
+        })
+      })
+    }
+
+    if (deselectAllBtn) {
+      deselectAllBtn.addEventListener('click', () => {
+        modal.querySelectorAll('.category-checkbox').forEach(checkbox => {
+          checkbox.checked = false
+        })
+      })
+    }
+  }
+
+  // Helper function to refresh category checkboxes dynamically
+  refreshCategoryCheckboxes(modal) {
+    const categoriesGrid = modal.querySelector('.scope-categories-section .grid')
+    if (categoriesGrid) {
+      // Get currently remembered categories
+      const comboId = modal.querySelector('.talent-line-select')?.dataset.combo || '1'
+      const rememberedCategories = this.getRememberedCategories(comboId)
+
+      // Regenerate and update the HTML
+      categoriesGrid.innerHTML = this.generateFilteredCategoryCheckboxes(rememberedCategories)
+
+      // Re-setup event listeners for the new checkboxes
+      this.setupCategoryCheckboxEvents(modal)
+    }
+  }
+
   handleScopeChange(modal, scopeValue) {
     console.log(`🔄 Scope changed to: ${scopeValue}`)
 
@@ -2933,6 +3354,9 @@ export default class extends Controller {
       console.log('👥 Showing categories section')
       categoriesSection.style.display = 'block'
       specificLineSection.style.display = 'none'
+      // Refresh the category checkboxes to reflect current talent counts
+      console.log('🔄 Refreshing category checkboxes...')
+      this.refreshCategoryCheckboxes(modal)
     } else if (scopeValue === 'specific_line') {
       console.log('🎯 Showing specific line section')
       categoriesSection.style.display = 'none'
@@ -3730,5 +4154,506 @@ export default class extends Controller {
         }
       }
     }
+  }
+
+  // Debugging tools for edit page and general quotation debugging
+  setupDebuggingTools() {
+    console.log('🔧 Setting up debugging tools...')
+
+    // Global debugging utilities
+    window.DebugUtils = {
+      log: (message, data = null, level = 'info') => {
+        const timestamp = new Date().toLocaleTimeString()
+        const styles = {
+          info: 'color: #2196F3; font-weight: bold',
+          warn: 'color: #FF9800; font-weight: bold',
+          error: 'color: #F44336; font-weight: bold',
+          success: 'color: #4CAF50; font-weight: bold'
+        }
+        console.log(`%c[${timestamp}] ${message}`, styles[level])
+        if (data) console.log(data)
+      }
+    }
+
+    // Quotation debugging
+    window.QuotationDebug = {
+      getFormState: () => {
+        const formData = new FormData(document.querySelector('form'))
+        return Object.fromEntries(formData.entries())
+      },
+
+      debugCalculation: () => {
+        console.group('🧮 Calculation Debug')
+        try {
+          const formData = QuotationDebug.getFormState()
+          console.log('📋 Form Data:', formData)
+
+          const talentSections = document.querySelectorAll('[id^="talent-category-"]')
+          console.log('👥 Talent Sections:', talentSections.length)
+
+          talentSections.forEach(section => {
+            const categoryId = section.id.replace('talent-category-', '')
+            const isVisible = !section.classList.contains('hidden')
+            const inputs = section.querySelectorAll('input')
+            const populatedInputs = Array.from(inputs).filter(input => input.value)
+
+            console.log(`Category ${categoryId}:`, {
+              visible: isVisible,
+              totalInputs: inputs.length,
+              populatedInputs: populatedInputs.length
+            })
+          })
+
+          if (window.quotationFormController?.baseRates) {
+            console.log('💰 Base Rates:', window.quotationFormController.baseRates)
+          }
+
+        } catch (error) {
+          console.error('❌ Calculation debug failed:', error)
+        }
+        console.groupEnd()
+      },
+
+      exportQuotationData: () => {
+        const data = {
+          timestamp: new Date().toISOString(),
+          url: window.location.href,
+          formData: QuotationDebug.getFormState(),
+          baseRates: window.quotationFormController?.baseRates,
+          existingData: typeof existingQuotationData !== 'undefined' ? existingQuotationData : null
+        }
+        console.log('📊 Quotation Data Export:', data)
+
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(JSON.stringify(data, null, 2))
+            .then(() => console.log('✅ Data copied to clipboard'))
+            .catch(() => console.log('❌ Could not copy to clipboard'))
+        }
+        return data
+      }
+    }
+
+    // Edit page specific debugging
+    if (window.location.pathname.includes('/edit')) {
+      window.EditPageDebug = {
+        diagnose: () => {
+          console.clear()
+          console.log('🔧 EDIT PAGE DIAGNOSIS')
+          console.log('=====================')
+
+          // Check existing data
+          if (typeof existingQuotationData !== 'undefined') {
+            console.log('✅ existingQuotationData found:', existingQuotationData)
+
+            if (existingQuotationData.talent_categories) {
+              console.log('👥 Talent Categories:', existingQuotationData.talent_categories.length)
+            }
+          } else {
+            console.error('❌ existingQuotationData not found!')
+          }
+
+          // Check form population
+          const campaignName = document.querySelector('input[name="quotation[campaign_name]"]')
+          console.log('Campaign Name populated:', !!campaignName?.value)
+
+          const productType = document.querySelector('input[name="quotation[product_type]"]:checked')
+          console.log('Product Type selected:', !!productType)
+
+          const talentSections = document.querySelectorAll('[id^="talent-category-"]')
+          const visibleSections = Array.from(talentSections).filter(s => !s.classList.contains('hidden'))
+          console.log(`Talent sections: ${visibleSections.length}/${talentSections.length} visible`)
+
+          QuotationDebug.debugCalculation()
+        },
+
+        fix: () => {
+          console.log('🔧 Attempting to fix edit page issues...')
+
+          // Enhanced fix: Show ALL sections with populated data, not just those in existingQuotationData
+          const allSections = document.querySelectorAll('[id^="talent-category-"]')
+          let fixedCount = 0
+
+          allSections.forEach(section => {
+            const categoryId = section.id.replace('talent-category-', '')
+            const inputs = section.querySelectorAll('input')
+            const populatedInputs = Array.from(inputs).filter(input => input.value && input.value.trim() !== '')
+            const isHidden = section.classList.contains('hidden')
+
+            // If section has significant data but is hidden, show it
+            if (isHidden && populatedInputs.length > 5) { // Threshold of 5+ populated inputs
+              section.classList.remove('hidden')
+              console.log(`✅ Showed hidden category ${categoryId} (had ${populatedInputs.length} populated inputs)`)
+              fixedCount++
+
+              // Also activate the corresponding button
+              const button = document.querySelector(`.talent-btn[data-category="${categoryId}"]`)
+              if (button) {
+                button.classList.add('border-blue-500', 'bg-blue-50')
+                console.log(`✅ Activated button for category ${categoryId}`)
+              }
+            } else if (!isHidden && populatedInputs.length > 5) {
+              // Ensure visible sections with data have activated buttons
+              const button = document.querySelector(`.talent-btn[data-category="${categoryId}"]`)
+              if (button && !button.classList.contains('border-blue-500')) {
+                button.classList.add('border-blue-500', 'bg-blue-50')
+                console.log(`✅ Activated button for visible category ${categoryId}`)
+              }
+            }
+          })
+
+          // Also handle the original existingQuotationData approach for safety
+          if (typeof existingQuotationData !== 'undefined' && existingQuotationData.talent_categories) {
+            existingQuotationData.talent_categories.forEach(category => {
+              const categoryId = category.category_type
+              const section = document.getElementById(`talent-category-${categoryId}`)
+              const button = document.querySelector(`.talent-btn[data-category="${categoryId}"]`)
+
+              if (section && section.classList.contains('hidden')) {
+                section.classList.remove('hidden')
+                console.log(`✅ Showed talent category ${categoryId} (from existingQuotationData)`)
+                fixedCount++
+              }
+
+              if (button && !button.classList.contains('border-blue-500')) {
+                button.classList.add('border-blue-500', 'bg-blue-50')
+                console.log(`✅ Activated talent button ${categoryId} (from existingQuotationData)`)
+              }
+            })
+          }
+
+          console.log(`✅ Enhanced fix completed - revealed ${fixedCount} hidden sections`)
+        }
+      }
+
+      // Set up edit page shortcuts
+      window.editDebug = window.EditPageDebug
+      window.diagnoseEdit = () => window.EditPageDebug.diagnose()
+      window.fixEdit = () => window.EditPageDebug.fix()
+
+      // Auto-diagnose and auto-fix after page loads
+      setTimeout(() => {
+        console.log('🔍 Edit Page Auto-Diagnosis:')
+        window.EditPageDebug.diagnose()
+
+        // Auto-fix if there are hidden sections with data
+        const hiddenSections = document.querySelectorAll('[id^="talent-category-"].hidden')
+        let sectionsNeedingFix = 0
+
+        hiddenSections.forEach(section => {
+          const inputs = section.querySelectorAll('input')
+          const populatedInputs = Array.from(inputs).filter(input => input.value && input.value.trim() !== '')
+          if (populatedInputs.length > 5) {
+            sectionsNeedingFix++
+          }
+        })
+
+        if (sectionsNeedingFix > 0) {
+          console.log(`🔧 Auto-fixing ${sectionsNeedingFix} hidden sections with data...`)
+          window.EditPageDebug.fix()
+
+          // Auto-convert to tabs after fixing
+          setTimeout(() => {
+            console.log('🔄 Auto-converting to tabbed layout...')
+            window.convertToTabs()
+          }, 500)
+        } else {
+          // Convert to tabs even if no fix needed (sections already visible)
+          setTimeout(() => {
+            const visibleSections = document.querySelectorAll('[id^="talent-category-"]:not(.hidden)')
+            if (visibleSections.length > 1) {
+              console.log('🔄 Auto-converting to tabbed layout...')
+              window.convertToTabs()
+            }
+          }, 500)
+        }
+
+        // Auto-fix form submission issues
+        setTimeout(() => {
+          console.log('🔧 Auto-fixing form submission...')
+          window.fixFormSubmission()
+        }, 1000)
+      }, 2000)
+    }
+
+    // Global shortcuts
+    window.dbg = window.DebugUtils
+    window.calcDebug = () => window.QuotationDebug.debugCalculation()
+    window.exportQuote = () => window.QuotationDebug.exportQuotationData()
+
+    // Add group debugging
+    window.debugAddGroup = () => {
+      console.group('🚀 Add Group Debug')
+
+      const addButton = document.getElementById('add-combination')
+      console.log('Add button element:', addButton)
+      console.log('Add button exists:', !!addButton)
+
+      const tabsContainer = document.getElementById('combination-tabs')
+      console.log('Tabs container:', tabsContainer)
+      console.log('Tabs container exists:', !!tabsContainer)
+
+      const existingTabs = document.querySelectorAll('.combination-tab')
+      console.log('Existing tabs:', existingTabs.length)
+      existingTabs.forEach((tab, index) => {
+        console.log(`Tab ${index + 1}:`, tab.textContent, 'ID:', tab.dataset.combo)
+      })
+
+      const combinations = document.querySelectorAll('[id^="combination-"]')
+      console.log('Combination sections:', combinations.length)
+      combinations.forEach((combo, index) => {
+        console.log(`Combo ${index + 1}:`, combo.id, 'Visible:', !combo.classList.contains('hidden'))
+      })
+
+      console.groupEnd()
+    }
+
+    window.testAddGroup = () => {
+      console.log('🧪 Testing add group functionality...')
+      const addButton = document.getElementById('add-combination')
+      if (addButton) {
+        console.log('✅ Simulating click on add button')
+        addButton.click()
+      } else {
+        console.error('❌ Add button not found')
+      }
+    }
+
+    // Talent category tab conversion using existing buttons
+    window.convertToTabs = () => {
+      console.log('🔄 Converting talent categories to tabbed layout...')
+
+      const talentContainer = document.querySelector('.selected-talent-categories')
+      if (!talentContainer) {
+        console.error('❌ Talent categories container not found')
+        return
+      }
+
+      const visibleSections = document.querySelectorAll('[id^="talent-category-"]:not(.hidden)')
+      if (visibleSections.length === 0) {
+        console.warn('⚠️ No visible talent sections found')
+        return
+      }
+
+      // Modify existing talent buttons to work as tabs
+      const talentButtonsContainer = document.querySelector('.flex.flex-wrap.gap-2')
+      if (!talentButtonsContainer) {
+        console.error('❌ Talent buttons container not found')
+        return
+      }
+
+      // Style the buttons container as tab navigation
+      talentButtonsContainer.className = 'flex space-x-1 border-b border-gray-200 mb-6'
+
+      let firstTabId = null
+      let activeButtons = []
+
+      // Update existing buttons to work as tabs
+      visibleSections.forEach((section, index) => {
+        const categoryId = section.id.replace('talent-category-', '')
+        const button = document.querySelector(`.talent-btn[data-category="${categoryId}"]`)
+
+        if (button) {
+          if (index === 0) firstTabId = categoryId
+
+          // Style button as tab
+          button.className = `talent-tab whitespace-nowrap py-2 px-4 border-b-2 font-medium text-sm cursor-pointer transition-colors ${
+            index === 0
+              ? 'border-blue-500 text-blue-600 bg-blue-50'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+          }`
+
+          // Remove existing click handlers and add tab functionality
+          const newButton = button.cloneNode(true)
+          button.parentNode.replaceChild(newButton, button)
+
+          newButton.addEventListener('click', (e) => {
+            e.preventDefault()
+
+            // Switch active tab styling
+            document.querySelectorAll('.talent-tab').forEach(t => {
+              t.className = t.className.replace('border-blue-500 text-blue-600 bg-blue-50', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50')
+            })
+            newButton.className = newButton.className.replace('border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50', 'border-blue-500 text-blue-600 bg-blue-50')
+
+            // Switch visible section
+            document.querySelectorAll('[id^="talent-category-"]').forEach(s => {
+              s.style.display = 'none'
+            })
+            const targetSection = document.getElementById(`talent-category-${categoryId}`)
+            if (targetSection) {
+              targetSection.style.display = 'block'
+            }
+
+            console.log(`Switched to talent category: ${newButton.textContent.trim()}`)
+
+            // Trigger quote preview update when switching tabs
+            setTimeout(() => {
+              if (typeof updateQuotePreview === 'function') {
+                console.log('🔄 Updating quote preview after tab switch...')
+                updateQuotePreview()
+              }
+            }, 100)
+          })
+
+          activeButtons.push(newButton)
+          console.log(`✅ Converted button to tab: ${newButton.textContent.trim()}`)
+        }
+      })
+
+      // Hide unused buttons
+      document.querySelectorAll('.talent-btn').forEach(btn => {
+        const categoryId = btn.dataset.category
+        const section = document.getElementById(`talent-category-${categoryId}`)
+        if (!section || section.style.display === 'none' || section.classList.contains('hidden')) {
+          btn.style.display = 'none'
+        }
+      })
+
+      // Hide all sections except first
+      visibleSections.forEach((section, index) => {
+        section.style.display = index === 0 ? 'block' : 'none'
+      })
+
+      console.log(`✅ Converted ${activeButtons.length} talent buttons to tabbed layout`)
+      console.log(`✅ Active tab: Category ${firstTabId}`)
+
+      // Trigger quote preview update after tab conversion
+      setTimeout(() => {
+        if (typeof updateQuotePreview === 'function') {
+          console.log('🔄 Updating quote preview after tab conversion...')
+          updateQuotePreview()
+        }
+      }, 200)
+    }
+
+    // Quote preview debugging
+    window.debugPreview = () => {
+      console.group('📊 Quote Preview Debug')
+
+      console.log('updateQuotePreview function available:', typeof updateQuotePreview === 'function')
+
+      const previewElements = {
+        table: document.querySelector('.quote-preview-table'),
+        talentBody: document.querySelector('#talent-lines-body'),
+        usageBody: document.querySelector('#usage-buyout-body'),
+        adjustmentsBody: document.querySelector('#adjustments-body'),
+        totalRow: document.querySelector('#total-amount')
+      }
+
+      Object.entries(previewElements).forEach(([key, element]) => {
+        console.log(`${key}:`, element ? '✅ Found' : '❌ Missing', element)
+      })
+
+      const visibleSections = document.querySelectorAll('[id^="talent-category-"]:not(.hidden)')
+      console.log('Visible talent sections:', visibleSections.length)
+
+      visibleSections.forEach(section => {
+        const categoryId = section.id.replace('talent-category-', '')
+        const inputs = section.querySelectorAll('input[value]:not([value=""])')
+        console.log(`Category ${categoryId}: ${inputs.length} populated inputs`)
+      })
+
+      if (typeof updateQuotePreview === 'function') {
+        console.log('🔄 Manually triggering updateQuotePreview...')
+        updateQuotePreview()
+      }
+
+      console.groupEnd()
+    }
+
+    // Fix form submission issues
+    window.fixFormSubmission = () => {
+      console.log('🔧 Fixing form submission issues...')
+
+      const form = document.querySelector('form')
+      if (!form) {
+        console.error('❌ No form found')
+        return
+      }
+
+      // Find and fix any submit button issues
+      const submitButtons = document.querySelectorAll('input[type="submit"], button[type="submit"]')
+      console.log(`Found ${submitButtons.length} submit buttons:`, submitButtons)
+
+      // Ensure form can be submitted
+      submitButtons.forEach((btn, index) => {
+        console.log(`Button ${index + 1}:`, btn.textContent || btn.value, 'Disabled:', btn.disabled)
+
+        // Re-enable disabled buttons if needed
+        if (btn.disabled) {
+          btn.disabled = false
+          console.log(`✅ Re-enabled button: ${btn.textContent || btn.value}`)
+        }
+
+        // Add backup submit handler
+        btn.addEventListener('click', (e) => {
+          console.log('🚀 Submit button clicked:', btn.textContent || btn.value)
+
+          // Ensure form validation passes
+          if (form.checkValidity && !form.checkValidity()) {
+            console.warn('⚠️ Form validation failed')
+            return
+          }
+
+          // Force form submission if needed
+          setTimeout(() => {
+            if (!form.submitted) {
+              console.log('🔄 Force submitting form...')
+              form.submit()
+            }
+          }, 100)
+        })
+      })
+
+      console.log('✅ Form submission fix applied')
+    }
+
+    // Debug JavaScript syntax errors
+    window.debugSyntaxErrors = () => {
+      console.log('🔍 Checking for JavaScript syntax errors...')
+
+      // Override window.onerror temporarily to catch syntax errors
+      const originalOnError = window.onerror
+      window.onerror = function(message, source, lineno, colno, error) {
+        console.error('🚨 JavaScript Error:', {
+          message,
+          source,
+          line: lineno,
+          column: colno,
+          error
+        })
+        return false
+      }
+
+      // Check for common syntax error patterns
+      const scripts = document.querySelectorAll('script')
+      console.log(`Found ${scripts.length} script tags`)
+
+      // Restore original error handler
+      setTimeout(() => {
+        window.onerror = originalOnError
+      }, 1000)
+    }
+
+    window.help = () => {
+      console.log(`
+🔧 DEBUGGING COMMANDS:
+  help() - Show this help
+  calcDebug() - Debug calculations
+  exportQuote() - Export quotation data
+  debugAddGroup() - Debug add group functionality
+  testAddGroup() - Test adding a new group
+  convertToTabs() - Convert talent categories to tabbed layout
+  debugPreview() - Debug quote preview population
+  fixFormSubmission() - Fix form submission issues
+  debugSyntaxErrors() - Debug JavaScript syntax errors
+
+📋 Edit Page (when on edit page):
+  diagnoseEdit() - Diagnose edit issues
+  fixEdit() - Attempt to fix issues
+      `)
+    }
+
+    console.log('✅ Debugging tools ready! Type help() for commands')
   }
 }

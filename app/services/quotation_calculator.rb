@@ -71,12 +71,14 @@ class QuotationCalculator
       base_talent_cost: base_talent_cost.round(2),
       standby_cost: standby_cost.round(2),
       overtime_cost: overtime_cost.round(2),
+      rehearsal_travel_cost: standby_cost.round(2), # standby_cost includes rehearsal/travel/down days
       total_talent_fee: total_talent_fee.round(2),
       territory_multiplier: territory_multiplier,
       media_multiplier: media_multiplier,
       duration_multiplier: duration_multiplier,
       exclusivity_multiplier: exclusivity_multiplier,
       usage_buyout_total: usage_buyout_total.round(2),
+      usage_fee: usage_buyout_total.round(2), # Alias for show page compatibility
       additional_fees: additional_fees.round(2),
       manual_adjustment: manual_adjustment.round(2),
       total: total.round(2)

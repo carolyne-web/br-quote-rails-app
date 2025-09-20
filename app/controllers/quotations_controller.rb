@@ -25,20 +25,10 @@ class QuotationsController < ApplicationController
   end
 
   def create
-    # DEBUG: Log all parameters to see what we're receiving
-    puts "=== CREATE QUOTATION DEBUG ==="
-    puts "All params keys: #{params.keys}"
-    puts "Talent params present: #{params[:talent].present?}"
-    puts "Territories params present: #{params[:territories].present?}"
-    puts "Media types params present: #{params[:media_types].present?}"
-    puts "Combinations params present: #{params[:combinations].present?}"
-    if params[:combinations].present?
-      puts "Combinations structure: #{params[:combinations].to_unsafe_h}"
-    end
-    puts "Quotation params: #{quotation_params}"
-    puts "=== END DEBUG ==="
-
     @quotation = current_production_house.quotations.build(quotation_params)
+
+    # Ensure quotation_detail exists if not created through nested attributes
+    @quotation.build_quotation_detail unless @quotation.quotation_detail
 
     # Use campaign_name as project_name if project_name is blank
     if @quotation.project_name.blank? && @quotation.campaign_name.present?
@@ -59,9 +49,12 @@ class QuotationsController < ApplicationController
       end
 
       if media_types.present?
-        # Ensure quotation_detail exists before updating
-        @quotation.quotation_detail ||= @quotation.build_quotation_detail
-        @quotation.quotation_detail.update(selected_media_types: media_types)
+        # Ensure quotation_detail exists and is saved before updating
+        if @quotation.quotation_detail
+          @quotation.quotation_detail.update(selected_media_types: media_types)
+        else
+          Rails.logger.error "quotation_detail is nil after quotation save"
+        end
       end
 
       process_talent_categories
@@ -106,9 +99,12 @@ class QuotationsController < ApplicationController
       end
 
       if media_types.present?
-        # Ensure quotation_detail exists before updating
-        @quotation.quotation_detail ||= @quotation.build_quotation_detail
-        @quotation.quotation_detail.update(selected_media_types: media_types)
+        # Ensure quotation_detail exists and is saved before updating
+        if @quotation.quotation_detail
+          @quotation.quotation_detail.update(selected_media_types: media_types)
+        else
+          Rails.logger.error "quotation_detail is nil in update action"
+        end
       end
 
       # Process territories (still needed as it's not nested attributes)
@@ -187,7 +183,8 @@ class QuotationsController < ApplicationController
   end
 
   def quotation_params
-    params.require(:quotation).permit(
+    # Transform quotation_detail to quotation_detail_attributes if needed
+    permitted_params = params.require(:quotation).permit(
       :project_name,
       :campaign_name,
       :product_type,
@@ -210,6 +207,19 @@ class QuotationsController < ApplicationController
         :id, :description, :percentage, :adjustment_type, :_destroy
       ]
     )
+
+    # Handle quotation_detail sent as flat structure instead of nested attributes
+    if params[:quotation_detail].present? && !permitted_params[:quotation_detail_attributes].present?
+      detail_params = params.require(:quotation_detail).permit(
+        :shoot_days, :rehearsal_days, :travel_days, :down_days,
+        :exclusivity_type, :exclusivity_level, :pharmaceutical,
+        :duration, :media_type, :unlimited_stills, :unlimited_versions,
+        :overtime_hours, { selected_media_types: [] }
+      )
+      permitted_params[:quotation_detail_attributes] = detail_params
+    end
+
+    permitted_params
   end
 
   def load_form_data
@@ -237,53 +247,47 @@ class QuotationsController < ApplicationController
     return unless params[:talent]
 
     params[:talent].each do |category_id, category_data|
-      next unless category_data[:combinations].present?
-      
+      # Skip if no talent count specified
+      talent_count = category_data[:talent_count].to_i
+      next if talent_count == 0
+
       # Create or find talent category
       talent_category = @quotation.talent_categories.find_or_create_by(
         category_type: category_id
       )
 
-      # Clear existing day_on_sets (old structure)
+      # Clear existing day_on_sets
       talent_category.day_on_sets.destroy_all
 
-      # Calculate totals from combinations
-      total_count = 0
-      total_talent_days = 0
-      weighted_rate = 0
-      
-      category_data[:combinations].each do |index, combination|
-        rate = combination[:rate].to_f
-        count = combination[:count].to_i
-        days = combination[:days].to_i
-        
-        next if count == 0 || days == 0
-        
-        total_count += count
-        total_talent_days += (count * days)
-        weighted_rate += (rate * count)
-        
-        # Create day_on_sets entries to maintain compatibility with existing calculator
-        talent_category.day_on_sets.create(
-          talent_count: count,
-          days_count: days,
-          # Store the custom rate in a way that can be retrieved
-        )
-      end
-      
-      # Set average rate and total count for compatibility
-      avg_rate = total_count > 0 ? weighted_rate / total_count : get_daily_rate(category_id)
-      
+      # Create day_on_sets entry for this talent category
+      talent_category.day_on_sets.create(
+        talent_count: talent_count,
+        days_count: category_data[:days_count].to_i
+      )
+
+      # Update talent category with form data
       talent_category.update(
-        initial_count: total_count,
+        initial_count: talent_count,
         daily_rate: get_daily_rate(category_id),
-        adjusted_rate: avg_rate,
-        # Store standby/overtime data
+        adjusted_rate: category_data[:adjusted_rate].to_f,
         overtime_hours: category_data[:overtime_hours].to_f,
-        standby_days: (category_data[:rehearsal_days].to_i + 
-                      category_data[:down_days].to_i + 
+        standby_days: (category_data[:rehearsal_days].to_i +
+                      category_data[:down_days].to_i +
                       category_data[:travel_days].to_i)
       )
+
+      # Process lines if they exist (sub-talent within a category)
+      if category_data[:lines].present?
+        category_data[:lines].each do |line_id, line_data|
+          line_count = line_data[:talent_count].to_i
+          next if line_count == 0
+
+          talent_category.day_on_sets.create(
+            talent_count: line_count,
+            days_count: line_data[:days_count].to_i
+          )
+        end
+      end
     end
   end
 

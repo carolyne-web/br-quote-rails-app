@@ -68,53 +68,158 @@
           </dl>
         </div>
 
-        <!-- Talent Categories -->
+        <!-- Talent Section -->
         <div class="bg-white rounded-xl shadow-lg p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Talent Breakdown</h2>
+          <div class="flex items-center mb-4">
+            <svg class="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+            </svg>
+            <h2 class="text-xl font-semibold text-gray-900">Talent</h2>
+          </div>
+
+          <!-- Talent Table -->
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="w-full border-collapse border border-gray-300">
               <thead>
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Daily Rate</th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Days</th>
-                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                <tr class="bg-gray-100 border-b border-gray-300">
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Talent Category</th>
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Day Fee</th>
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Count</th>
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Days</th>
+                  <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Total (R)</th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
+              <tbody class="bg-white">
                 <% @talent_categories.each do |category| %>
-                  <tr>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      <div class="flex items-center">
-                        <div class="w-8 h-8 bg-indigo-100 rounded flex items-center justify-center text-indigo-600 font-bold text-xs mr-3">
-                          <%= category.icon %>
-                        </div>
-                        <%= category.display_name %>
-                      </div>
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right"><%= category.initial_count %></td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right">R<%= number_with_delimiter(category.daily_rate || category.default_daily_rate) %></td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right"><%= category.total_talent_days %></td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">R<%= number_with_delimiter(category.total_cost) %></td>
-                  </tr>
-
-                  <!-- Days on Set breakdown if exists -->
                   <% if category.day_on_sets.any? %>
-                    <tr>
-                      <td colspan="5" class="px-4 py-2 bg-gray-50">
-                        <div class="text-xs text-gray-600">
-                          Days allocation:
-                          <% category.day_on_sets.each do |dos| %>
-                            <span class="ml-2"><%= dos.talent_count %> talent × <%= dos.days_count %> days</span>
-                          <% end %>
+                    <% category.day_on_sets.each do |dos| %>
+                      <tr class="border-b border-gray-300">
+                        <td class="py-2 px-3 text-sm text-gray-800 border-r border-gray-300">
+                          <div class="flex items-center">
+                            <div class="w-6 h-6 bg-indigo-100 rounded flex items-center justify-center text-indigo-600 font-bold text-xs mr-2">
+                              <%= category.icon %>
+                            </div>
+                            <%= category.display_name %>
+                          </div>
+                        </td>
+                        <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">R<%= number_with_delimiter(category.daily_rate || category.default_daily_rate) %></td>
+                        <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300"><%= dos.talent_count %></td>
+                        <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300"><%= dos.days_count %></td>
+                        <td class="py-2 px-3 text-sm text-gray-800 text-right">R<%= number_with_delimiter(dos.talent_count * dos.days_count * (category.daily_rate || category.default_daily_rate)) %></td>
+                      </tr>
+                    <% end %>
+                  <% else %>
+                    <tr class="border-b border-gray-300">
+                      <td class="py-2 px-3 text-sm text-gray-800 border-r border-gray-300">
+                        <div class="flex items-center">
+                          <div class="w-6 h-6 bg-indigo-100 rounded flex items-center justify-center text-indigo-600 font-bold text-xs mr-2">
+                            <%= category.icon %>
+                          </div>
+                          <%= category.display_name %>
                         </div>
                       </td>
+                      <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">R<%= number_with_delimiter(category.daily_rate || category.default_daily_rate) %></td>
+                      <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300"><%= category.initial_count %></td>
+                      <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300"><%= @quotation_detail&.shoot_days || 1 %></td>
+                      <td class="py-2 px-3 text-sm text-gray-800 text-right">R<%= number_with_delimiter(category.total_cost) %></td>
                     </tr>
                   <% end %>
                 <% end %>
+
+                <!-- Talent Subtotal Row -->
+                <tr class="border-t border-gray-400 font-semibold bg-gray-50">
+                  <td colspan="4" class="text-right py-2 px-3 text-sm text-gray-800 border-r border-gray-300">Talent Subtotal:</td>
+                  <td class="py-2 px-3 text-sm text-gray-800 text-right">R<%= number_with_delimiter(@calculation[:base_talent_cost]) %></td>
+                </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- Usage Section -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <div class="flex items-center mb-4">
+            <svg class="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <h2 class="text-xl font-semibold text-gray-900">Usage & Buyout</h2>
+          </div>
+
+          <!-- Usage Details Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <!-- Territories -->
+            <% if @territories.any? %>
+              <div class="bg-blue-50 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-blue-900 mb-2">Territories</h3>
+                <div class="space-y-1">
+                  <% @territories.each do |territory| %>
+                    <div class="flex justify-between items-center text-sm">
+                      <span class="text-blue-800"><%= territory.name %></span>
+                      <span class="font-medium text-blue-900"><%= territory.percentage %>%</span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Duration -->
+            <% if @quotation_detail&.duration %>
+              <div class="bg-green-50 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-green-900 mb-2">Duration</h3>
+                <div class="text-lg font-semibold text-green-800">
+                  <%= @quotation_detail.duration.humanize %>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Media Type -->
+            <% if @quotation_detail&.media_type %>
+              <div class="bg-purple-50 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-purple-900 mb-2">Media Type</h3>
+                <div class="text-lg font-semibold text-purple-800">
+                  <%= @quotation_detail.media_type.humanize %>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Exclusivity -->
+            <% if @quotation_detail&.exclusivity_type %>
+              <div class="bg-orange-50 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-orange-900 mb-2">Exclusivity</h3>
+                <div class="text-lg font-semibold text-orange-800">
+                  <%= @quotation_detail.exclusivity_type.humanize %>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Product Type -->
+            <% if @quotation.product_type %>
+              <div class="bg-indigo-50 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-indigo-900 mb-2">Product Type</h3>
+                <div class="text-lg font-semibold text-indigo-800">
+                  <%= @quotation.product_type.humanize %>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Buyout Percentage -->
+            <div class="bg-gray-50 rounded-lg p-4">
+              <h3 class="text-sm font-medium text-gray-900 mb-2">Buyout Rate</h3>
+              <div class="text-lg font-semibold text-gray-800">
+                <%= @calculation[:territory_multiplier] ? ((@calculation[:territory_multiplier] - 1) * 100).round : 0 %>%
+              </div>
+            </div>
+          </div>
+
+          <!-- Usage Fee Calculation -->
+          <div class="bg-purple-50 rounded-lg p-4">
+            <div class="flex justify-between items-center">
+              <span class="text-lg font-medium text-purple-900">Usage/Buyout Total</span>
+              <span class="text-2xl font-bold text-purple-800">R<%= number_with_delimiter(@calculation[:usage_fee]) %></span>
+            </div>
+            <div class="text-sm text-purple-700 mt-1">
+              Based on talent fees × buyout percentage
+            </div>
           </div>
         </div>
 
@@ -139,54 +244,6 @@
           </div>
         <% end %>
 
-        <!-- Usage & Licensing -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Usage & Licensing</h2>
-          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <% if @quotation_detail %>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Duration</dt>
-                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.duration %></dd>
-              </div>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Media Type</dt>
-                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.media_type&.humanize %></dd>
-              </div>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Exclusivity</dt>
-                <dd class="mt-1 text-sm text-gray-900"><%= @quotation_detail.exclusivity_type&.humanize || 'None' %></dd>
-              </div>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Options</dt>
-                <dd class="mt-1 text-sm text-gray-900">
-                  <% if @quotation_detail.unlimited_stills %>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
-                      Unlimited Stills
-                    </span>
-                  <% end %>
-                  <% if @quotation_detail.unlimited_versions %>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Unlimited Versions
-                    </span>
-                  <% end %>
-                </dd>
-              </div>
-            <% end %>
-          </dl>
-
-          <% if @territories.any? %>
-            <div class="mt-4">
-              <dt class="text-sm font-medium text-gray-500 mb-2">Territories</dt>
-              <dd class="flex flex-wrap gap-2">
-                <% @territories.each do |territory| %>
-                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
-                    <%= territory.name %> (<%= territory.percentage %>%)
-                  </span>
-                <% end %>
-              </dd>
-            </div>
-          <% end %>
-        </div>
 
         <!-- Adjustments -->
         <% if @adjustments.any? %>
@@ -215,23 +272,18 @@
 
           <div class="space-y-3">
             <div class="flex justify-between text-sm">
-              <span class="text-indigo-100">Base Talent Cost</span>
+              <span class="text-indigo-100">A) Talent Fees</span>
               <span class="font-semibold">R<%= number_with_delimiter(@calculation[:base_talent_cost]) %></span>
             </div>
 
             <div class="flex justify-between text-sm">
-              <span class="text-indigo-100">Rehearsal/Travel</span>
-              <span class="font-semibold">R<%= number_with_delimiter(@calculation[:rehearsal_travel_cost]) %></span>
-            </div>
-
-            <div class="flex justify-between text-sm">
-              <span class="text-indigo-100">Usage Fee</span>
+              <span class="text-indigo-100">B) Usage/Buyout</span>
               <span class="font-semibold">R<%= number_with_delimiter(@calculation[:usage_fee]) %></span>
             </div>
 
             <% if @calculation[:manual_adjustment] != 0 %>
               <div class="flex justify-between text-sm">
-                <span class="text-indigo-100">Adjustments</span>
+                <span class="text-indigo-100">C) Adjustments</span>
                 <span class="font-semibold">R<%= number_with_delimiter(@calculation[:manual_adjustment]) %></span>
               </div>
             <% end %>
@@ -242,26 +294,28 @@
                 <span class="text-3xl font-bold">R<%= number_with_delimiter(@calculation[:total]) %></span>
               </div>
             </div>
-          </div>
 
-          <div class="mt-6 pt-6 border-t border-indigo-400">
-            <h4 class="text-sm font-semibold mb-3">Multipliers Applied</h4>
-            <div class="space-y-2 text-xs">
-              <div class="flex justify-between">
-                <span class="text-indigo-100">Territory</span>
-                <span><%= (@calculation[:territory_multiplier] * 100).round %>%</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-indigo-100">Media</span>
-                <span><%= (@calculation[:media_multiplier] * 100).round %>%</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-indigo-100">Duration</span>
-                <span><%= (@calculation[:duration_multiplier] * 100).round %>%</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-indigo-100">Exclusivity</span>
-                <span><%= (@calculation[:exclusivity_multiplier] * 100).round %>%</span>
+            <!-- Key Details -->
+            <div class="pt-4 mt-4 border-t border-indigo-400">
+              <div class="space-y-1 text-xs">
+                <% if @quotation_detail&.duration %>
+                  <div class="flex justify-between">
+                    <span class="text-indigo-100">Duration:</span>
+                    <span><%= @quotation_detail.duration.humanize %></span>
+                  </div>
+                <% end %>
+                <% if @territories.any? %>
+                  <div class="flex justify-between">
+                    <span class="text-indigo-100">Territories:</span>
+                    <span><%= @territories.count %> selected</span>
+                  </div>
+                <% end %>
+                <% if @quotation_detail&.exclusivity_type %>
+                  <div class="flex justify-between">
+                    <span class="text-indigo-100">Exclusivity:</span>
+                    <span><%= @quotation_detail.exclusivity_type.humanize %></span>
+                  </div>
+                <% end %>
               </div>
             </div>
           </div>

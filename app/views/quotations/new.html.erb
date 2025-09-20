@@ -353,7 +353,7 @@
                   <!-- Territories List -->
                   <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
                     <div class="territories-list space-y-1 p-2" data-combo="1">
-                      <% @territories.group_by(&:group_name).each do |group_name, territories| %>
+                      <% @territories.group_by { |t| t.group_name.present? ? t.group_name : "Individual Countries" }.each do |group_name, territories| %>
                         <% territories.each do |territory| %>
                           <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
                             <div class="flex items-center">
@@ -588,9 +588,20 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Add new combination functionality
   const addCombinationBtn = document.getElementById('add-combination');
+  console.log('🔍 Looking for add-combination button:', addCombinationBtn);
+  console.log('🔍 Button exists:', !!addCombinationBtn);
+  console.log('🔍 Button disabled:', addCombinationBtn?.disabled);
+  console.log('🔍 Button classes:', addCombinationBtn?.className);
+
   if (addCombinationBtn) {
-    addCombinationBtn.addEventListener('click', function() {
-      console.log('Add combination button clicked');
+    console.log('✅ Add combination button found, adding listener');
+
+    // DISABLED: Now handled by Stimulus controller to prevent duplicate tabs
+    /*
+    addCombinationBtn.addEventListener('click', function(event) {
+      console.log('🚀🚀🚀 Add combination button clicked!');
+      console.log('🚀 Event details:', { type: event.type, target: event.target, currentTarget: event.currentTarget });
+      console.log('🚀 Button state:', { disabled: this.disabled, className: this.className });
       // Calculate next combo ID based on existing combos (not a global counter)
       const existingTabs = document.querySelectorAll('.combination-tab');
       const newComboId = existingTabs.length + 1;
@@ -644,7 +655,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (typeof updateQuotePreview === 'function') {
         updateQuotePreview();
       }
-    });
+    */
   } else {
     console.error('Add combination button not found!');
   }
@@ -738,6 +749,9 @@ document.addEventListener('DOMContentLoaded', function() {
       window.quotationController.updateComboSummary(comboId);
     }
   }
+
+  // Make createComboTable available globally for the Stimulus controller
+  window.createComboTable = createComboTable;
   
   function renumberCombinations() {
     console.log('Renumbering combinations...');
@@ -929,9 +943,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Populate territories list with JavaScript after DOM creation
     setTimeout(() => {
+      console.log('📝 Populating territories for combo:', comboId);
       const territoriesList = content.querySelector(`.territories-list[data-combo="${comboId}"]`);
+      console.log('Territories list element found:', !!territoriesList);
       if (territoriesList) {
-        territoriesList.innerHTML = generateTerritoriesHTML(comboId);
+        const html = generateTerritoriesHTML(comboId);
+        console.log('Generated HTML length:', html.length);
+        territoriesList.innerHTML = html;
+        console.log('✅ Territories populated for combo:', comboId);
+      } else {
+        console.error('❌ Could not find territories list for combo:', comboId);
       }
     }, 0);
 
@@ -944,9 +965,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // Territory search functionality for combinations
   document.addEventListener('input', function(e) {
     if (e.target.classList.contains('territory-search')) {
+      console.log('🔍 Territory search triggered');
       const comboId = e.target.getAttribute('data-combo');
       const searchTerm = e.target.value.toLowerCase();
+      console.log('Search term:', searchTerm, 'for combo:', comboId);
       const territoriesList = document.querySelector(`.territories-list[data-combo="${comboId}"]`);
+      console.log('Territories list found:', !!territoriesList);
       
       if (territoriesList) {
         const territoryItems = territoriesList.querySelectorAll('.territory-item');
@@ -955,14 +979,14 @@ document.addEventListener('DOMContentLoaded', function() {
           territoryItems.forEach(item => {
             const territoryName = item.dataset.name;
             if (territoryName && territoryName.toLowerCase().includes(searchTerm)) {
-              item.style.display = 'flex';
+              item.style.display = '';
             } else {
               item.style.display = 'none';
             }
           });
         } else {
           territoryItems.forEach(item => {
-            item.style.display = 'flex';
+            item.style.display = '';
           });
         }
       }
@@ -1756,15 +1780,31 @@ document.querySelectorAll('.rate-plus-btn, .rate-minus-btn').forEach(btn => {
   }
     }
   });
+
+  console.log('✅ DOMContentLoaded complete - all event listeners should be set up');
+
+  // Test button availability immediately
+  setTimeout(() => {
+    const btn = document.getElementById('add-combination');
+    console.log('🧪 Button test after 1 second:', !!btn);
+    if (btn) {
+      console.log('Button is clickable:', !btn.disabled);
+      console.log('Button classes:', btn.className);
+    }
+  }, 1000);
 });
 
 // Territories data for JavaScript
-const territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
+const territoriesData = <%= @territories.group_by { |t| t.group_name.present? ? t.group_name : "Individual Countries" }.map { |group_name, territories|
   [group_name, territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
 }.to_h.to_json.html_safe %>;
 
+console.log('territoriesData loaded:', territoriesData);
+
 // Helper function to generate territories HTML for a given combo ID
 function generateTerritoriesHTML(comboId) {
+  console.log('🌍 generateTerritoriesHTML called for combo:', comboId);
+  console.log('territoriesData available:', !!territoriesData);
   let html = '';
   Object.entries(territoriesData).forEach(([groupName, territories]) => {
     territories.forEach(territory => {

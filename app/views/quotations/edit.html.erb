@@ -361,7 +361,7 @@
                   <!-- Territories List -->
                   <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
                     <div class="territories-list space-y-1 p-2" data-combo="1">
-                      <% @territories.group_by(&:group_name).each do |group_name, territories| %>
+                      <% @territories.group_by { |t| t.group_name.present? ? t.group_name : "Individual Countries" }.each do |group_name, territories| %>
                         <% territories.each do |territory| %>
                           <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
                             <div class="flex items-center">
@@ -500,12 +500,12 @@
                   <tbody class="quote-preview-rows" data-combo="1">
                     <!-- Talent lines will be populated here -->
                   </tbody>
-                  <%# <tfoot>
+                  <tfoot>
                     <tr class="border-t border-gray-400 font-semibold bg-gray-50">
-                      <td colspan="5" class="text-right py-2 px-3 text-sm text-gray-800 border-r border-gray-300">Total:</td>
-                      
+                      <td colspan="6" class="text-right py-2 px-3 text-sm text-gray-800 border-r border-gray-300">Group 1 Total:</td>
+                      <td class="text-center py-2 px-3 text-sm font-bold text-gray-900" id="combo-1-total">R0</td>
                     </tr>
-                  </tfoot> %>
+                  </tfoot>
                 </table>
               </div>
             </div>
@@ -533,8 +533,12 @@ window.editModeExclusivityOptions = <%= @exclusivity_options.to_json.html_safe %
 // Make raw exclusivity settings available for popup (edit mode)
 window.editModeExclusivitySettings = <%= @exclusivity_settings.to_json.html_safe %>;
 
+// Global variable to store talent total for use across functions
+let talentTotal = 0;
+
 // EDIT MODE: Load existing quotation data
-const existingQuotationData = {
+if (typeof existingQuotationData === 'undefined') {
+  var existingQuotationData = {
   talent_categories: <%= @quotation.talent_categories.includes(:day_on_sets).map { |tc|
     {
       category_type: tc.category_type,
@@ -567,8 +571,10 @@ const existingQuotationData = {
     unlimited_versions: @quotation.quotation_detail&.unlimited_versions,
     overtime_hours: @quotation.quotation_detail&.overtime_hours
   }.to_json.html_safe %>
-};
+  };
+}
 
+console.log('🚀 EDIT SCRIPT STARTED 🚀');
 console.log('Existing quotation data:', existingQuotationData);
 console.log('Quotation ID:', '<%= @quotation.id %>');
 console.log('Quotation details:', existingQuotationData.quotation_detail);
@@ -578,81 +584,165 @@ console.log('Raw media types:', '<%= @quotation.quotation_detail&.selected_media
 
 // Function to populate form with existing data
 function populateExistingData() {
-  console.log('Populating existing data...');
+  console.log('🚀 Starting to populate existing data...');
+  console.log('📊 Data to populate:', existingQuotationData);
 
   // Debug: Log all available inputs to see what exists
   console.log('All territory inputs:', document.querySelectorAll('input[name*="territories"]'));
   console.log('All media type inputs:', document.querySelectorAll('input[name*="media_types"]'));
   console.log('All talent inputs:', document.querySelectorAll('input[name*="talent"]'));
 
+  // Populate basic quotation detail fields
+  if (existingQuotationData.quotation_detail) {
+    console.log('📝 Populating quotation detail fields...');
+    const shootDaysInput = document.querySelector('input[name="quotation_detail[shoot_days]"]');
+    if (shootDaysInput && existingQuotationData.quotation_detail.shoot_days) {
+      shootDaysInput.value = existingQuotationData.quotation_detail.shoot_days;
+      console.log('✅ Set shoot days:', existingQuotationData.quotation_detail.shoot_days);
+    }
+  }
+
   // Populate territories (they're in combinations[1][territories][])
   if (existingQuotationData.territories && existingQuotationData.territories.length > 0) {
-    console.log('Populating territories:', existingQuotationData.territories);
+    console.log('🌍 Populating territories:', existingQuotationData.territories);
     existingQuotationData.territories.forEach(territoryId => {
       // Look for territory checkboxes in combination 1
       let checkbox = document.querySelector(`input[value="${territoryId}"][name="combinations[1][territories][]"]`);
       if (checkbox) {
-        console.log('Found territory checkbox:', territoryId);
+        console.log('✅ Found and checked territory:', territoryId);
         checkbox.checked = true;
         checkbox.dispatchEvent(new Event('change'));
       } else {
-        console.log('Territory checkbox not found:', territoryId);
+        console.log('❌ Territory checkbox not found for ID:', territoryId);
+        // Debug: Show all available territory checkboxes
+        const allTerritoryCheckboxes = document.querySelectorAll('input[name="combinations[1][territories][]"]');
+        console.log('Available territory IDs:', Array.from(allTerritoryCheckboxes).map(cb => cb.value));
       }
     });
   }
 
   // Populate media types (they're in combinations[1][media_types][])
   if (existingQuotationData.media_types && existingQuotationData.media_types.length > 0) {
-    console.log('Populating media types:', existingQuotationData.media_types);
+    console.log('📺 Populating media types:', existingQuotationData.media_types);
     existingQuotationData.media_types.forEach(mediaType => {
       let checkbox = document.querySelector(`input[value="${mediaType}"][name="combinations[1][media_types][]"]`);
       if (checkbox) {
-        console.log('Found media type checkbox:', mediaType);
+        console.log('✅ Found and checked media type:', mediaType);
         checkbox.checked = true;
         checkbox.dispatchEvent(new Event('change'));
       } else {
-        console.log('Media type checkbox not found:', mediaType);
+        console.log('❌ Media type checkbox not found:', mediaType);
+        // Debug: Show all available media type checkboxes
+        const allMediaCheckboxes = document.querySelectorAll('input[name="combinations[1][media_types][]"]');
+        console.log('Available media types:', Array.from(allMediaCheckboxes).map(cb => cb.value));
       }
     });
   }
 
-  // Populate talent categories - this is more complex as it needs to create combinations
+  // Populate talent categories using the correct field names
   if (existingQuotationData.talent_categories && existingQuotationData.talent_categories.length > 0) {
     console.log('Populating talent categories:', existingQuotationData.talent_categories);
     existingQuotationData.talent_categories.forEach(category => {
-      // Try different selectors for talent inputs
-      const countInput = document.querySelector(`input[name="talent[${category.category_type}][combinations][1][count]"]`);
-      const rateInput = document.querySelector(`input[name="talent[${category.category_type}][combinations][1][rate]"]`);
-      const daysInput = document.querySelector(`input[name="talent[${category.category_type}][combinations][1][days]"]`);
+      // Use the correct field names for the current form structure
+      const countInput = document.querySelector(`input[name="talent[${category.category_type}][talent_count]"]`);
+      const rateInput = document.querySelector(`input[name="talent[${category.category_type}][adjusted_rate]"]`);
+      const daysInput = document.querySelector(`input[name="talent[${category.category_type}][days_count]"]`);
+      const descriptionInput = document.querySelector(`input[name="talent[${category.category_type}][description]"]`);
+      const overtimeInput = document.querySelector(`input[name="talent[${category.category_type}][overtime_hours]"]`);
 
-      console.log(`Category ${category.category_type} inputs:`, {
-        count: countInput,
-        rate: rateInput,
-        days: daysInput
+      console.log(`Category ${category.category_type} inputs found:`, {
+        count: !!countInput,
+        rate: !!rateInput,
+        days: !!daysInput,
+        description: !!descriptionInput
       });
 
       if (countInput) {
         countInput.value = category.initial_count || 0;
         countInput.dispatchEvent(new Event('input'));
+        console.log(`✅ Set talent count for category ${category.category_type}:`, category.initial_count);
       }
       if (rateInput) {
         rateInput.value = category.adjusted_rate || category.daily_rate || 0;
         rateInput.dispatchEvent(new Event('input'));
+        console.log(`✅ Set rate for category ${category.category_type}:`, category.adjusted_rate);
       }
       if (daysInput) {
-        daysInput.value = existingQuotationData.quotation_detail.shoot_days || 1;
+        // Use day_on_sets data if available, otherwise default to shoot_days
+        const days = category.day_on_sets && category.day_on_sets.length > 0
+          ? category.day_on_sets[0].days_count
+          : existingQuotationData.quotation_detail.shoot_days || 1;
+        daysInput.value = days;
         daysInput.dispatchEvent(new Event('input'));
+        console.log(`✅ Set days for category ${category.category_type}:`, days);
+      }
+      if (overtimeInput) {
+        overtimeInput.value = category.overtime_hours || 0;
+        overtimeInput.dispatchEvent(new Event('input'));
+      }
+
+      // Show the talent section for this category (remove hidden class)
+      const talentSection = document.getElementById(`talent-category-${category.category_type}`);
+      if (talentSection) {
+        talentSection.classList.remove('hidden');
+        console.log(`👁️ Showing talent section for category ${category.category_type}`);
       }
     });
   }
+
+  // Update quote preview after all data is populated
+  console.log('🎬 Calling populateAllTables after data population...');
+  if (typeof window.quotationFormController !== 'undefined' && window.quotationFormController.populateAllTables) {
+    window.quotationFormController.populateAllTables();
+  } else {
+    console.log('⚠️ quotationFormController.populateAllTables function not available yet');
+  }
 }
+
+// Call the population function immediately since DOM is already loaded
+console.log('🔧 Calling data population immediately...');
+// Try multiple times with increasing delays to ensure controller is ready
+function attemptDataPopulation(attempt = 1) {
+  console.log(`🔄 Attempt ${attempt} to populate data...`);
+
+  if (window.quotationFormController) {
+    console.log('✅ Controller found, populating data now...');
+    populateExistingData();
+  } else if (attempt < 5) {
+    console.log(`❌ Controller not ready, retrying in ${attempt * 500}ms...`);
+    setTimeout(() => attemptDataPopulation(attempt + 1), attempt * 500);
+  } else {
+    console.log('⚠️ Controller not found after 5 attempts, trying anyway...');
+    populateExistingData();
+  }
+}
+
+attemptDataPopulation();
 
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOMContentLoaded fired - checking elements...');
   console.log('add-combination button:', document.getElementById('add-combination'));
 
   // Populate existing data for edit mode
-  setTimeout(populateExistingData, 1000); // Delay to ensure quotation controller is ready
+  console.log('🔧 Setting up data population...');
+
+  // Try multiple times with increasing delays to ensure controller is ready
+  function attemptDataPopulation(attempt = 1) {
+    console.log(`🔄 Attempt ${attempt} to populate data...`);
+
+    if (window.quotationFormController && window.quotationFormController.connect) {
+      console.log('✅ Controller found, populating data now...');
+      populateExistingData();
+    } else if (attempt < 5) {
+      console.log(`❌ Controller not ready, retrying in ${attempt * 500}ms...`);
+      setTimeout(() => attemptDataPopulation(attempt + 1), attempt * 500);
+    } else {
+      console.log('⚠️ Controller not found after 5 attempts, trying anyway...');
+      populateExistingData();
+    }
+  }
+
+  attemptDataPopulation();
 
   // Sidebar navigation
   const sidebarItems = document.querySelectorAll('[data-section]');
@@ -715,12 +805,17 @@ document.addEventListener('DOMContentLoaded', function() {
   // Add new combination functionality
   const addCombinationBtn = document.getElementById('add-combination');
   if (addCombinationBtn) {
-    addCombinationBtn.addEventListener('click', function() {
-      console.log('Add combination button clicked');
-      // Calculate next combo ID based on existing combos (not a global counter)
-      const existingTabs = document.querySelectorAll('.combination-tab');
-      const newComboId = existingTabs.length + 1;
-      console.log('Creating new group with ID:', newComboId);
+    console.log('🎯 Adding click listener to Add Group button');
+    addCombinationBtn.addEventListener('click', function(e) {
+      console.log('🚀 Add combination button clicked!');
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        // Calculate next combo ID based on existing combos (not a global counter)
+        const existingTabs = document.querySelectorAll('.combination-tab');
+        const newComboId = existingTabs.length + 1;
+        console.log('Creating new group with ID:', newComboId);
       
       // Add new tab
       const tabsContainer = document.getElementById('combination-tabs');
@@ -769,6 +864,10 @@ document.addEventListener('DOMContentLoaded', function() {
       // Update quote preview
       if (typeof updateQuotePreview === 'function') {
         updateQuotePreview();
+      }
+
+      } catch (error) {
+        console.error('❌ Error in Add Group button click:', error);
       }
     });
   } else {
@@ -996,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <!-- Territories List -->
           <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
             <div class="territories-list space-y-1 p-2" data-combo="${comboId}">
-              <% @territories.group_by(&:group_name).each do |group_name, territories| %>
+              <% @territories.group_by { |t| t.group_name.present? ? t.group_name : "Individual Countries" }.each do |group_name, territories| %>
                 <% territories.each do |territory| %>
                   <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="<%= territory.name.downcase %>">
                     <div class="flex items-center">
@@ -1086,14 +1185,14 @@ document.addEventListener('DOMContentLoaded', function() {
           territoryItems.forEach(item => {
             const territoryName = item.dataset.name;
             if (territoryName && territoryName.toLowerCase().includes(searchTerm)) {
-              item.style.display = 'flex';
+              item.style.display = '';
             } else {
               item.style.display = 'none';
             }
           });
         } else {
           territoryItems.forEach(item => {
-            item.style.display = 'flex';
+            item.style.display = '';
           });
         }
       }
@@ -1204,19 +1303,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Enhanced calculation and preview functionality for multiple combinations
   function updateQuotePreview() {
-    let talentTotal = 0;
+    console.log('🎬 updateQuotePreview() started');
+    talentTotal = 0; // Reset global variable
     let combo1Total = 0;
-    
-    const previewRows = document.getElementById('quote-preview-rows');
+
+    const previewRows = document.querySelector('.quote-preview-rows[data-combo="1"]');
     const combo1TotalElement = document.getElementById('combo-1-total');
-    
+
+    console.log('🔍 Preview elements found:', {
+      previewRows: !!previewRows,
+      combo1TotalElement: !!combo1TotalElement
+    });
+
     // Clear existing rows
     if (previewRows) {
       previewRows.innerHTML = '';
+      console.log('🧹 Cleared existing preview rows');
     }
     
     // Calculate talent costs from active talent categories
+    const allTalentSections = document.querySelectorAll('[id^="talent-category-"]');
     const activeTalentSections = document.querySelectorAll('[id^="talent-category-"]:not(.hidden)');
+    console.log('🎭 Found talent sections:', {
+      total: allTalentSections.length,
+      visible: activeTalentSections.length,
+      hidden: allTalentSections.length - activeTalentSections.length
+    });
     let hasTalent = false;
     let baseTalentFeesOnly = 0; // Just the base fees for usage calculation
     let talentCategoryBreakdown = []; // Store breakdown for usage calculation
@@ -1261,7 +1373,8 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
     
-    // Update group 1 total
+    // Update group 1 total and set talentTotal
+    talentTotal = combo1Total; // Fix: Assign combo1Total to talentTotal
     if (combo1TotalElement) {
       combo1TotalElement.textContent = `R${combo1Total.toLocaleString()}`;
     }
@@ -1286,6 +1399,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Calculate Usage/Buyout for each combination (additive)
     let totalUsageBuyout = 0;
+    let totalAdditionalFees = 0;
     const usageBreakdownHtml = [];
 
     if (activeCombinations.length > 0) {
@@ -1360,16 +1474,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const avgExclusivityMultiplier = activeCombinations.length > 0 ? 
       activeCombinations.reduce((sum, combo) => sum + combo.exclusivityMultiplier, 0) / activeCombinations.length : 1.0;
     
-    document.getElementById('talent-total').textContent = `R ${talentFees.toLocaleString()}.00`;
-    document.getElementById('territory-multiplier').textContent = `${avgTerritoryMultiplier.toFixed(2)}x (avg)`;
-    document.getElementById('media-display-multiplier').textContent = `${avgMediaMultiplier.toFixed(2)}x (avg)`;
-    document.getElementById('duration-multiplier').textContent = `${avgDurationMultiplier.toFixed(2)}x (avg)`;
-    document.getElementById('exclusivity-multiplier').textContent = avgExclusivityMultiplier > 1 ? `+${Math.round((avgExclusivityMultiplier - 1) * 100)}% (avg)` : '+0%';
-    document.getElementById('usage-buyout-total').textContent = `R ${Math.round(usageBuyoutTotal).toLocaleString()}.00`;
-    document.getElementById('usage-buyout-breakdown').innerHTML = usageBreakdownHtml.join('');
-    document.getElementById('additional-fees').textContent = `R ${totalAdditionalFees.toLocaleString()}.00`;
-    document.getElementById('total-quote').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
-    document.getElementById('current-total').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
+    // Safely update elements that exist in the edit template
+    const talentTotalEl = document.getElementById('talent-total');
+    if (talentTotalEl) talentTotalEl.textContent = `R ${talentFees.toLocaleString()}.00`;
+
+    const territoryMultiplierEl = document.getElementById('territory-multiplier');
+    if (territoryMultiplierEl) territoryMultiplierEl.textContent = `${avgTerritoryMultiplier.toFixed(2)}x (avg)`;
+
+    const mediaDisplayMultiplierEl = document.getElementById('media-display-multiplier');
+    if (mediaDisplayMultiplierEl) mediaDisplayMultiplierEl.textContent = `${avgMediaMultiplier.toFixed(2)}x (avg)`;
+
+    const durationMultiplierEl = document.getElementById('duration-multiplier');
+    if (durationMultiplierEl) durationMultiplierEl.textContent = `${avgDurationMultiplier.toFixed(2)}x (avg)`;
+
+    const exclusivityMultiplierEl = document.getElementById('exclusivity-multiplier');
+    if (exclusivityMultiplierEl) exclusivityMultiplierEl.textContent = avgExclusivityMultiplier > 1 ? `+${Math.round((avgExclusivityMultiplier - 1) * 100)}% (avg)` : '+0%';
+
+    const usageBuyoutTotalEl = document.getElementById('usage-buyout-total');
+    if (usageBuyoutTotalEl) usageBuyoutTotalEl.textContent = `R ${Math.round(usageBuyoutTotal).toLocaleString()}.00`;
+
+    const usageBuyoutBreakdownEl = document.getElementById('usage-buyout-breakdown');
+    if (usageBuyoutBreakdownEl) usageBuyoutBreakdownEl.innerHTML = usageBreakdownHtml.join('');
+
+    const additionalFeesEl = document.getElementById('additional-fees');
+    if (additionalFeesEl) additionalFeesEl.textContent = `R ${totalAdditionalFees.toLocaleString()}.00`;
+
+    const totalQuoteEl = document.getElementById('total-quote');
+    if (totalQuoteEl) totalQuoteEl.textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
+
+    const currentTotalEl = document.getElementById('current-total');
+    if (currentTotalEl) currentTotalEl.textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
   
   
   // Add CSS for combination content visibility
@@ -1813,6 +1947,18 @@ document.addEventListener('DOMContentLoaded', function() {
   if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
   }
+
+  // Delayed call to ensure data population completes first
+  setTimeout(() => {
+    console.log('🎬 Delayed updateQuotePreview call for edit mode...');
+    if (typeof updateQuotePreview === 'function') {
+      console.log('✅ updateQuotePreview function found - calling now...');
+      updateQuotePreview();
+      console.log('✅ updateQuotePreview call completed');
+    } else {
+      console.log('❌ updateQuotePreview function still not available after delay');
+    }
+  }, 1500);
 });
 
 // Action button functions
@@ -1911,6 +2057,231 @@ function updateAdjustedRate(categoryId) {
   }
   
   return adjustedRate;
+}
+
+// Territories data for JavaScript (edit mode)
+if (typeof territoriesData === 'undefined') {
+  var territoriesData = <%= @territories.group_by { |t| t.group_name.present? ? t.group_name : "Individual Countries" }.map { |group_name, territories|
+    [group_name, territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
+  }.to_h.to_json.html_safe %>;
+}
+
+console.log('territoriesData loaded:', territoriesData);
+
+// Populate existing quotation data on page load
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('🔄 Populating existing quotation data...');
+
+  // Populate existing talent data from stored quotation
+  <% @quotation.talent_categories.each_with_index do |talent_category, tc_index| %>
+    (function() {
+      const categoryId = <%= talent_category.category_type %>;
+      console.log('Populating talent category:', categoryId);
+
+      // Find the main talent input for this category (not lines)
+      const talentCountInput = document.querySelector(`input[name="talent[${categoryId}][talent_count]"]`);
+      const daysInput = document.querySelector(`input[name="talent[${categoryId}][days_count]"]`);
+      const rateInput = document.querySelector(`input[name="talent[${categoryId}][adjusted_rate]"]`);
+      const descInput = document.querySelector(`input[name="talent[${categoryId}][description]"]`);
+      const rehearsalInput = document.querySelector(`input[name="talent[${categoryId}][rehearsal_days]"]`);
+      const downInput = document.querySelector(`input[name="talent[${categoryId}][down_days]"]`);
+      const travelInput = document.querySelector(`input[name="talent[${categoryId}][travel_days]"]`);
+      const overtimeInput = document.querySelector(`input[name="talent[${categoryId}][overtime_hours]"]`);
+
+      if (talentCountInput) talentCountInput.value = <%= talent_category.initial_count || 0 %>;
+      if (rateInput) rateInput.value = <%= talent_category.adjusted_rate || talent_category.daily_rate || 0 %>;
+      if (overtimeInput) overtimeInput.value = <%= talent_category.overtime_hours || 0 %>;
+      // Description field is for user input only, not populated from database
+
+      // Get days count from first day_on_set if available
+      <% if talent_category.day_on_sets.first %>
+        if (daysInput) daysInput.value = <%= talent_category.day_on_sets.first.days_count || 1 %>;
+      <% end %>
+
+      // Calculate standby days (rehearsal + down + travel)
+      const totalStandbyDays = <%= talent_category.standby_days || 0 %>;
+      // For now, distribute equally across the three types (this may need adjustment based on your needs)
+      const eachStandbyDays = Math.floor(totalStandbyDays / 3);
+      if (rehearsalInput) rehearsalInput.value = eachStandbyDays;
+      if (downInput) downInput.value = eachStandbyDays;
+      if (travelInput) travelInput.value = totalStandbyDays - (eachStandbyDays * 2); // remainder goes to travel
+
+      console.log(`Populated category ${categoryId}: count=${talentCountInput?.value}, rate=${rateInput?.value}`);
+    })();
+  <% end %>
+
+  // Populate existing combinations data
+  <% if @quotation.quotation_detail.present? %>
+    // Populate quotation detail fields
+    const shootDaysInput = document.querySelector('input[name="quotation_detail[shoot_days]"]');
+    if (shootDaysInput) shootDaysInput.value = <%= @quotation.quotation_detail.shoot_days || 1 %>;
+  <% end %>
+
+  // Populate existing territory selections
+  <% if @quotation.quotation_territories.any? %>
+    <% @quotation.quotation_territories.each do |qt| %>
+      (function() {
+        // Find territory checkbox and check it for combination 1
+        const territoryCheckbox = document.querySelector(`input[name="combinations[1][territories][]"][value="<%= qt.territory.id %>"]`);
+        if (territoryCheckbox) {
+          territoryCheckbox.checked = true;
+          console.log('Checked territory:', '<%= qt.territory.name %>');
+        }
+      })();
+    <% end %>
+  <% end %>
+
+  // Populate existing media types
+  <% if @quotation.quotation_detail&.selected_media_types&.any? %>
+    <% @quotation.quotation_detail.selected_media_types.each do |media_type| %>
+      (function() {
+        const mediaCheckbox = document.querySelector(`input[name="combinations[1][media_types][]"][value="<%= media_type %>"]`);
+        if (mediaCheckbox) {
+          mediaCheckbox.checked = true;
+          console.log('Checked media type:', '<%= media_type %>');
+        }
+      })();
+    <% end %>
+  <% end %>
+
+  // Populate duration and commercial count for combination 1 if they exist
+  // Note: This might need to be adjusted based on how combinations are stored
+  const durationSelect = document.querySelector('select[name="combinations[1][duration]"]');
+  const commercialInput = document.querySelector('input[name="combinations[1][number_of_commercials]"]');
+
+  if (durationSelect) durationSelect.value = '12_months'; // Default
+  if (commercialInput) commercialInput.value = 1; // Default
+
+  // Trigger calculations after populating data
+  setTimeout(() => {
+    console.log('🔄 Triggering calculations after data population...');
+
+    // Trigger talent calculations for populated categories
+    <% @quotation.talent_categories.each do |talent_category| %>
+      (function() {
+        const categoryId = <%= talent_category.category_type %>;
+        if (typeof updateCategoryTotal === 'function') {
+          updateCategoryTotal(categoryId);
+        }
+      })();
+    <% end %>
+
+    // Show existing talent categories and mark buttons as selected
+    <% @quotation.talent_categories.each do |talent_category| %>
+      (function() {
+        const categoryId = <%= talent_category.category_type %>;
+        const section = document.getElementById(`talent-category-${categoryId}`);
+        const button = document.querySelector(`.talent-btn[data-category="${categoryId}"]`);
+
+        if (section) {
+          section.classList.remove('hidden');
+        }
+        if (button) {
+          button.classList.add('border-blue-500', 'bg-blue-50');
+          button.classList.remove('border-gray-300');
+        }
+        console.log('Showing talent category:', categoryId);
+      })();
+    <% end %>
+
+    // Trigger quote preview update - use controller method
+    console.log('🎬 Calling populateAllTables to populate Quote Preview...');
+    if (typeof window.quotationFormController !== 'undefined' && window.quotationFormController.populateAllTables) {
+      window.quotationFormController.populateAllTables();
+    } else {
+      console.log('⚠️ quotationFormController.populateAllTables not available yet, retrying...');
+      // Retry after a longer delay to ensure controller is initialized
+      setTimeout(() => {
+        if (typeof window.quotationFormController !== 'undefined' && window.quotationFormController.populateAllTables) {
+          console.log('🔄 Retrying populateAllTables...');
+          window.quotationFormController.populateAllTables();
+        } else {
+          console.error('❌ quotationFormController.populateAllTables still not available');
+        }
+      }, 2000);
+    }
+
+    // Re-select territories after DOM updates (delayed to ensure territories are rendered)
+    setTimeout(() => {
+      console.log('Starting territory pre-selection...');
+      console.log('All territory checkboxes:', document.querySelectorAll('input[name="combinations[1][territories][]"]').length);
+
+      <% if @quotation.quotation_territories.any? %>
+        <% @quotation.quotation_territories.each do |qt| %>
+          (function() {
+            const territoryId = '<%= qt.territory.id %>';
+            const territoryName = '<%= qt.territory.name %>';
+            const selector = `input[name="combinations[1][territories][]"][value="${territoryId}"]`;
+            console.log('Looking for territory checkbox with selector:', selector);
+
+            const territoryCheckbox = document.querySelector(selector);
+            if (territoryCheckbox) {
+              territoryCheckbox.checked = true;
+              console.log('✅ Checked territory:', territoryName, 'ID:', territoryId);
+            } else {
+              console.log('❌ Territory checkbox not found for:', territoryName, 'ID:', territoryId);
+              // List all available territory checkboxes for debugging
+              const allCheckboxes = document.querySelectorAll('input[name="combinations[1][territories][]"]');
+              console.log('Available territory checkboxes:');
+              allCheckboxes.forEach(cb => console.log('  - Value:', cb.value, 'Name:', cb.dataset.territoryName));
+            }
+          })();
+        <% end %>
+      <% end %>
+    }, 1500); // Increased delay for territory rendering
+
+  }, 500); // Give time for DOM to settle
+
+  console.log('✅ Existing quotation data populated');
+});
+
+// Handle talent category selection
+document.querySelectorAll('.talent-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const categoryId = this.dataset.category;
+    const section = document.getElementById(`talent-category-${categoryId}`);
+
+    if (this.classList.contains('border-blue-500')) {
+      // Remove category
+      section.classList.add('hidden');
+      this.classList.remove('border-blue-500', 'bg-blue-50');
+      this.classList.add('border-gray-300');
+    } else {
+      // Add category
+      section.classList.remove('hidden');
+      this.classList.add('border-blue-500', 'bg-blue-50');
+      this.classList.remove('border-gray-300');
+    }
+
+    if (typeof updateQuotePreview === 'function') {
+      updateQuotePreview();
+    }
+  });
+});
+
+// Helper function to generate territories HTML for a given combo ID
+function generateTerritoriesHTML(comboId) {
+  console.log('🌍 generateTerritoriesHTML called for combo:', comboId);
+  console.log('territoriesData available:', !!territoriesData);
+  let html = '';
+  Object.entries(territoriesData).forEach(([groupName, territories]) => {
+    territories.forEach(territory => {
+      html += `
+        <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="${territory.name.toLowerCase()}">
+          <div class="flex items-center">
+            <input type="checkbox" name="combinations[${comboId}][territories][]" value="${territory.id}" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-territory-checkbox" data-territory-id="${territory.id}" data-territory-name="${territory.name}" data-percentage="${territory.percentage}" data-combo="${comboId}">
+            <div class="text-sm">
+              <div class="font-medium text-gray-900">${territory.name}</div>
+              <div class="text-xs text-gray-500">${groupName}</div>
+            </div>
+          </div>
+          <div class="text-sm font-medium text-blue-600">${territory.percentage}%</div>
+        </label>
+      `;
+    });
+  });
+  console.log('Generated HTML length:', html.length);
+  return html;
 }
 
 </script>
