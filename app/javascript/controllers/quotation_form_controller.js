@@ -1823,7 +1823,7 @@ export default class extends Controller {
                 </div>
               </div>
             </td>
-            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${rowBuyoutPercentage.toFixed(1)}%</td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${Math.floor(rowBuyoutPercentage)}%</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(totalRands / unit)}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right">R${this.formatNumber(totalRands)}</td>
           </tr>

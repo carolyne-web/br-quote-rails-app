@@ -219,7 +219,7 @@
                             actual_buyout_percentage = 0
                           end
                         %>
-                        <%= number_with_precision(actual_buyout_percentage, precision: 1) %>%
+                        <%= actual_buyout_percentage.floor %>%
                       </td>
                       <td class="px-3 py-2 text-right border">R<%= number_with_delimiter(line.usage_fee) %></td>
                       <td class="px-3 py-2 text-right border font-medium">R<%= number_with_delimiter(line.total_line_cost) %></td>

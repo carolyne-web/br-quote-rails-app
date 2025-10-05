@@ -1191,7 +1191,37 @@ document.addEventListener('turbo:load', function() {
   // Initialize first combination as active
   switchToCombination(1);
 
-  // Territory search functionality is now handled by the Stimulus controller
+  // Territory search functionality (fallback for when Stimulus controller fails)
+  document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('territory-search')) {
+      const searchTerm = e.target.value.toLowerCase()
+      const comboId = e.target.dataset.combo
+
+      // Find the specific territory list for this combo/group
+      const territoryList = document.querySelector(`.territories-list[data-combo="${comboId}"]`)
+      if (!territoryList) {
+        console.error(`Territory list not found for combo ${comboId}`)
+        return
+      }
+
+      const territories = territoryList.querySelectorAll('.territory-item')
+
+      territories.forEach(territory => {
+        const name = territory.dataset.name.toLowerCase()
+        const code = territory.dataset.code?.toLowerCase() || ''
+
+        if (searchTerm.length >= 1) {
+          if (name.includes(searchTerm) || code.includes(searchTerm)) {
+            territory.style.display = 'block'
+          } else {
+            territory.style.display = 'none'
+          }
+        } else {
+          territory.style.display = 'block'
+        }
+      })
+    }
+  })
 
 
   // Media multiplier calculation function for a specific combination (matching controller logic)
