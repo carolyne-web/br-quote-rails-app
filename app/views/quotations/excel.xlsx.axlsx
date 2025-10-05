@@ -1,0 +1,119 @@
+wb = xlsx_package.workbook
+
+wb.add_worksheet(name: "Quotation #{@quotation.project_number}") do |sheet|
+  # Add header styling
+  header_style = wb.styles.add_style(bg_color: "4472C4", fg_color: "FFFFFF", b: true, alignment: {horizontal: :center})
+  currency_style = wb.styles.add_style(format_code: '"R"#,##0.00')
+
+  # Header
+  sheet.add_row ["Quotation Details"], style: header_style
+  sheet.add_row []
+
+  # Project Information
+  sheet.add_row ["Project Information"], style: header_style
+  sheet.add_row ["Project Name", @quotation.project_name]
+  sheet.add_row ["Project Number", @quotation.project_number]
+  sheet.add_row ["Campaign Name", @quotation.campaign_name]
+  sheet.add_row ["Product Type", @quotation.product_type]
+  sheet.add_row ["Commercial Type", @quotation.commercial_type]
+  sheet.add_row ["Status", @quotation.status.capitalize]
+  sheet.add_row ["Created Date", @quotation.created_at.strftime("%B %d, %Y")]
+  sheet.add_row []
+
+  # Quotation Details
+  if @quotation_detail
+    sheet.add_row ["Quotation Details"], style: header_style
+    sheet.add_row ["Shoot Days", @quotation_detail.shoot_days]
+    sheet.add_row ["Rehearsal Days", @quotation_detail.rehearsal_days]
+    sheet.add_row ["Travel Days", @quotation_detail.travel_days]
+    sheet.add_row ["Down Days", @quotation_detail.down_days]
+    sheet.add_row ["Overtime Hours", @quotation_detail.overtime_hours]
+    sheet.add_row ["Exclusivity Type", @quotation_detail.exclusivity_type&.humanize]
+    sheet.add_row ["Duration", @quotation_detail.duration]
+    sheet.add_row ["Media Type", @quotation_detail.media_type&.humanize]
+    sheet.add_row ["Number of Commercials", @quotation_detail.number_of_commercials]
+    sheet.add_row []
+  end
+
+  # Talent Categories
+  if @talent_categories.any?
+    sheet.add_row ["Talent Categories"], style: header_style
+    sheet.add_row ["Category", "Description", "Day Fee", "Count", "Shoot Days", "Rehearsal", "Down Days", "Travel Days", "Overtime", "Night", "Total"], style: header_style
+
+    @talent_categories.each do |category|
+      if category.day_on_sets.any?
+        category.day_on_sets.each do |dos|
+          sheet.add_row [
+            category.display_name,
+            category.description,
+            category.daily_rate || category.default_daily_rate,
+            dos.talent_count,
+            dos.days_count,
+            @quotation_detail&.rehearsal_days || 0,
+            @quotation_detail&.down_days || 0,
+            @quotation_detail&.travel_days || 0,
+            category.overtime_hours || 0,
+            dos.night_premium ? "Yes" : "No",
+            dos.talent_count * dos.days_count * (category.daily_rate || category.default_daily_rate)
+          ], style: [nil, nil, currency_style, nil, nil, nil, nil, nil, nil, nil, currency_style]
+        end
+      else
+        sheet.add_row [
+          category.display_name,
+          category.description,
+          category.daily_rate || category.default_daily_rate,
+          category.initial_count,
+          @quotation_detail&.shoot_days || 1,
+          @quotation_detail&.rehearsal_days || 0,
+          @quotation_detail&.down_days || 0,
+          @quotation_detail&.travel_days || 0,
+          category.overtime_hours || 0,
+          "-",
+          category.total_cost
+        ], style: [nil, nil, currency_style, nil, nil, nil, nil, nil, nil, nil, currency_style]
+      end
+    end
+    sheet.add_row []
+  end
+
+  # Territories
+  if @territories.any?
+    sheet.add_row ["Territories"], style: header_style
+    sheet.add_row ["Territory", "Percentage", "Media Type"], style: header_style
+
+    @territories.each do |territory|
+      sheet.add_row [
+        territory.name,
+        "#{territory.percentage}%",
+        territory.media_type&.humanize
+      ]
+    end
+    sheet.add_row []
+  end
+
+  # Adjustments
+  if @adjustments.any?
+    sheet.add_row ["Adjustments"], style: header_style
+    sheet.add_row ["Description", "Type", "Percentage"], style: header_style
+
+    @adjustments.each do |adjustment|
+      sheet.add_row [
+        adjustment.description,
+        adjustment.adjustment_type&.humanize,
+        "#{adjustment.percentage}%"
+      ]
+    end
+    sheet.add_row []
+  end
+
+  # Calculation Summary
+  if @calculation
+    sheet.add_row ["Financial Summary"], style: header_style
+    sheet.add_row ["Talent Fee Total", @calculation[:talent_fee]], style: [nil, currency_style]
+    sheet.add_row ["Usage/Buyout Total", @calculation[:usage_fee]], style: [nil, currency_style]
+    sheet.add_row ["Final Total", @calculation[:total]], style: [nil, currency_style]
+  end
+
+  # Auto-fit columns
+  sheet.column_widths 20, 25, 15, 10, 12, 12, 12, 12, 12, 10, 15
+end

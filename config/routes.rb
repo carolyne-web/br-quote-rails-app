@@ -50,10 +50,19 @@ Rails.application.routes.draw do
     member do
       get :pdf
       post :duplicate
+      post :generate_final # Generate final quotation from form data
     end
     resources :talent_categories
     resources :quotation_territories
     resources :quotation_adjustments
+  end
+
+  # Final quotation routes for show/edit functionality
+  resources :final_quotations, only: [:show, :edit, :update] do
+    member do
+      get :pdf
+      post :duplicate
+    end
   end
   resources :support_requests, only: [:create, :new]
 

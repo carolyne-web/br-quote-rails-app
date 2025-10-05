@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_26_084559) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_30_051952) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,7 +20,96 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_26_084559) do
     t.integer "days_count"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "night_premium"
+    t.text "description"
+    t.decimal "adjusted_rate", precision: 8, scale: 2
+    t.integer "rehearsal_days"
+    t.integer "down_days"
+    t.integer "travel_days"
+    t.decimal "overtime_hours"
     t.index ["talent_category_id"], name: "index_day_on_sets_on_talent_category_id"
+  end
+
+  create_table "final_quotation_adjustments", force: :cascade do |t|
+    t.bigint "final_quotation_id", null: false
+    t.string "description"
+    t.string "adjustment_type"
+    t.decimal "percentage", precision: 5, scale: 2
+    t.decimal "amount", precision: 8, scale: 2
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["final_quotation_id"], name: "index_final_quotation_adjustments_on_final_quotation_id"
+  end
+
+  create_table "final_quotation_groups", force: :cascade do |t|
+    t.bigint "final_quotation_id", null: false
+    t.integer "group_number"
+    t.string "duration"
+    t.json "selected_territories"
+    t.json "selected_media_types"
+    t.decimal "territory_multiplier", precision: 6, scale: 4
+    t.decimal "media_multiplier", precision: 6, scale: 4
+    t.decimal "duration_multiplier", precision: 6, scale: 4
+    t.decimal "exclusivity_multiplier", precision: 6, scale: 4
+    t.decimal "group_usage_fee", precision: 10, scale: 2
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["final_quotation_id", "group_number"], name: "idx_on_final_quotation_id_group_number_19e08e6b9c"
+    t.index ["final_quotation_id"], name: "index_final_quotation_groups_on_final_quotation_id"
+  end
+
+  create_table "final_quotation_talent_lines", force: :cascade do |t|
+    t.bigint "final_quotation_group_id", null: false
+    t.string "description"
+    t.string "category_type"
+    t.integer "talent_count"
+    t.decimal "daily_rate", precision: 8, scale: 2
+    t.decimal "rate_adjustment", precision: 8, scale: 2
+    t.decimal "adjusted_rate", precision: 8, scale: 2
+    t.integer "shoot_days"
+    t.integer "rehearsal_days"
+    t.integer "travel_days"
+    t.integer "down_days"
+    t.integer "overtime_hours"
+    t.boolean "has_night_premium", default: false
+    t.decimal "night_premium_amount", precision: 8, scale: 2
+    t.decimal "base_fee", precision: 8, scale: 2
+    t.decimal "rehearsal_fee", precision: 8, scale: 2
+    t.decimal "travel_fee", precision: 8, scale: 2
+    t.decimal "down_fee", precision: 8, scale: 2
+    t.decimal "overtime_fee", precision: 8, scale: 2
+    t.decimal "night_fee", precision: 8, scale: 2
+    t.decimal "total_talent_fee", precision: 8, scale: 2
+    t.decimal "usage_fee", precision: 8, scale: 2
+    t.decimal "total_line_cost", precision: 8, scale: 2
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["final_quotation_group_id"], name: "index_final_quotation_talent_lines_on_final_quotation_group_id"
+  end
+
+  create_table "final_quotations", force: :cascade do |t|
+    t.bigint "quotation_id", null: false
+    t.string "project_name"
+    t.string "project_number"
+    t.string "product_type"
+    t.string "commercial_type"
+    t.boolean "is_guaranteed", default: false
+    t.integer "shoot_days"
+    t.integer "rehearsal_days"
+    t.integer "travel_days"
+    t.integer "down_days"
+    t.integer "overtime_hours"
+    t.string "exclusivity_type"
+    t.boolean "unlimited_stills"
+    t.boolean "unlimited_versions"
+    t.decimal "total_talent_fee", precision: 10, scale: 2
+    t.decimal "total_usage_fee", precision: 10, scale: 2
+    t.decimal "total_amount", precision: 10, scale: 2
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_final_quotations_on_created_at"
+    t.index ["project_number"], name: "index_final_quotations_on_project_number"
+    t.index ["quotation_id"], name: "index_final_quotations_on_quotation_id"
   end
 
   create_table "production_houses", force: :cascade do |t|
@@ -60,6 +149,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_26_084559) do
     t.boolean "unlimited_versions", default: false
     t.decimal "overtime_hours"
     t.text "selected_media_types"
+    t.integer "number_of_commercials"
     t.index ["quotation_id"], name: "index_quotation_details_on_quotation_id"
   end
 
@@ -97,6 +187,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_26_084559) do
     t.string "campaign_name"
     t.string "product_type"
     t.boolean "is_guaranteed", default: false
+    t.string "commercial_type"
     t.index ["production_house_id"], name: "index_quotations_on_production_house_id"
     t.index ["project_number"], name: "index_quotations_on_project_number", unique: true
     t.index ["status"], name: "index_quotations_on_status"
@@ -135,6 +226,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_26_084559) do
     t.datetime "updated_at", null: false
     t.decimal "overtime_hours"
     t.integer "standby_days"
+    t.text "description"
     t.index ["quotation_id", "category_type"], name: "index_talent_categories_on_quotation_id_and_category_type", unique: true
     t.index ["quotation_id"], name: "index_talent_categories_on_quotation_id"
   end
@@ -153,6 +245,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_26_084559) do
   end
 
   add_foreign_key "day_on_sets", "talent_categories"
+  add_foreign_key "final_quotation_adjustments", "final_quotations"
+  add_foreign_key "final_quotation_groups", "final_quotations"
+  add_foreign_key "final_quotation_talent_lines", "final_quotation_groups"
+  add_foreign_key "final_quotations", "quotations"
   add_foreign_key "quotation_adjustments", "quotations"
   add_foreign_key "quotation_details", "quotations"
   add_foreign_key "quotation_histories", "quotations"

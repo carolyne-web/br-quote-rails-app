@@ -1,19 +1,40 @@
 class QuotationsController < ApplicationController
   before_action :require_login
-  before_action :set_quotation, only: [ :show, :edit, :update, :destroy, :pdf, :duplicate ]
+  before_action :set_quotation, only: [ :show, :edit, :update, :destroy, :pdf, :duplicate, :generate_final ]
 
   def index
     @quotations = current_production_house.quotations.order(created_at: :desc)
   end
 
   def show
-    @talent_categories = @quotation.talent_categories.includes(:day_on_sets)
-    @quotation_detail = @quotation.quotation_detail
-    @territories = @quotation.territories
-    @adjustments = @quotation.quotation_adjustments
+    # Get combinations data from params or session
+    combinations_data = params[:combinations] || session[:combinations_data]
 
-    # Calculate totals
-    @calculation = QuotationCalculator.new(@quotation).calculate
+    puts "=== QUOTATIONS CONTROLLER SHOW DEBUG ==="
+    puts "Params keys: #{params.keys}"
+    puts "Combinations in params: #{params[:combinations].present?}"
+    puts "Combinations in session: #{session[:combinations_data].present?}"
+    puts "Combinations data: #{combinations_data.inspect}"
+    puts "Combinations data class: #{combinations_data.class}"
+    puts "Combinations data present?: #{combinations_data.present?}"
+    puts "=== END CONTROLLER DEBUG ==="
+
+    # Check if a final quotation already exists for this quotation
+    if @quotation.final_quotations.any?
+      redirect_to @quotation.final_quotations.last
+    else
+      # Automatically generate final quotation and redirect
+      final_quotation = FinalQuotationGenerator.new(@quotation, combinations_data).generate
+
+      # Clear session data after using it
+      session.delete(:combinations_data)
+      if final_quotation.persisted?
+        redirect_to final_quotation
+      else
+        flash[:alert] = "Failed to generate final quotation"
+        redirect_to quotations_path
+      end
+    end
   end
 
   def new
@@ -79,6 +100,9 @@ class QuotationsController < ApplicationController
         data: { total: calculation[:total] }
       )
 
+      # Store combinations data in session for the show action to use
+      session[:combinations_data] = params[:combinations] if params[:combinations].present?
+
       flash[:notice] = "Quotation created successfully"
       redirect_to @quotation
     else
@@ -125,8 +149,12 @@ class QuotationsController < ApplicationController
         data: { total: calculation[:total] }
       )
 
+      # Regenerate final quotation with updated data
+      @quotation.final_quotations.destroy_all  # Remove old final quotations
+      final_quotation = FinalQuotationGenerator.new(@quotation, params[:combinations]).generate
+
       flash[:notice] = "Quotation updated successfully"
-      redirect_to @quotation
+      redirect_to final_quotation
     else
       load_form_data
       render :edit
@@ -180,6 +208,19 @@ class QuotationsController < ApplicationController
               disposition: "inline"
   end
 
+  def generate_final
+    # Generate final quotation from current form data
+    final_quotation = FinalQuotationGenerator.new(@quotation, params[:combinations]).generate
+
+    if final_quotation.persisted?
+      flash[:notice] = "Final quotation generated successfully"
+      redirect_to final_quotation
+    else
+      flash[:alert] = "Failed to generate final quotation"
+      redirect_to @quotation
+    end
+  end
+
   private
 
   def set_quotation
@@ -191,6 +232,7 @@ class QuotationsController < ApplicationController
       :project_name,
       :campaign_name,
       :product_type,
+      :commercial_type,
       :is_guaranteed,
       :status,
       quotation_detail_attributes: [
@@ -201,7 +243,7 @@ class QuotationsController < ApplicationController
       ],
       talent_categories_attributes: [
         :id, :category_type, :initial_count, :daily_rate,
-        :adjusted_rate, :overtime_hours, :standby_days, :_destroy,
+        :adjusted_rate, :overtime_hours, :standby_days, :description, :_destroy,
         day_on_sets_attributes: [
           :id, :talent_count, :days_count, :_destroy
         ]
@@ -236,55 +278,95 @@ class QuotationsController < ApplicationController
   def process_talent_categories
     return unless params[:talent]
 
+    puts "=== PROCESSING TALENT CATEGORIES ==="
+    puts "Talent params structure: #{params[:talent].to_unsafe_h}"
+
     params[:talent].each do |category_id, category_data|
-      next unless category_data[:combinations].present?
-      
+      puts "Processing category #{category_id}: #{category_data}"
+
+      # Handle the current form structure: talent[category_id][field_name]
+      description = category_data[:description]
+      talent_count = category_data[:talent_count].to_i
+      adjusted_rate = category_data[:adjusted_rate].to_f
+      days_count = category_data[:days_count].to_i
+      rehearsal_days = category_data[:rehearsal_days].to_i
+      travel_days = category_data[:travel_days].to_i
+      down_days = category_data[:down_days].to_i
+      overtime_hours = category_data[:overtime_hours].to_f
+
+      # Skip if no meaningful data
+      next if talent_count == 0 && adjusted_rate == 0 && description.blank?
+
+      puts "Creating talent category: count=#{talent_count}, rate=#{adjusted_rate}, desc=#{description}"
+
       # Create or find talent category
       talent_category = @quotation.talent_categories.find_or_create_by(
         category_type: category_id
       )
 
-      # Clear existing day_on_sets (old structure)
+      # Update talent category fields
+      talent_category.update!(
+        description: description,
+        adjusted_rate: adjusted_rate,
+        overtime_hours: overtime_hours,
+        initial_count: talent_count
+      )
+
+      # Clear existing day_on_sets and create new one
       talent_category.day_on_sets.destroy_all
 
-      # Calculate totals from combinations
-      total_count = 0
-      total_talent_days = 0
-      weighted_rate = 0
-      
-      category_data[:combinations].each do |index, combination|
-        rate = combination[:rate].to_f
-        count = combination[:count].to_i
-        days = combination[:days].to_i
-        
-        next if count == 0 || days == 0
-        
-        total_count += count
-        total_talent_days += (count * days)
-        weighted_rate += (rate * count)
-        
-        # Create day_on_sets entries to maintain compatibility with existing calculator
-        talent_category.day_on_sets.create(
-          talent_count: count,
-          days_count: days,
-          # Store the custom rate in a way that can be retrieved
+      # Create day_on_sets entry if we have talent count
+      if talent_count > 0
+        day_on_set = talent_category.day_on_sets.create!(
+          talent_count: talent_count,
+          days_count: days_count > 0 ? days_count : 1,
+          description: description,
+          adjusted_rate: adjusted_rate,
+          rehearsal_days: rehearsal_days,
+          down_days: down_days,
+          travel_days: travel_days,
+          overtime_hours: overtime_hours,
+          night_premium: category_data[:night_premium] == "true" || category_data[:night_premium] == "1"
         )
+        puts "Created day_on_set: #{day_on_set.attributes}"
       end
-      
-      # Set average rate and total count for compatibility
-      avg_rate = total_count > 0 ? weighted_rate / total_count : get_daily_rate(category_id)
-      
-      talent_category.update(
-        initial_count: total_count,
-        daily_rate: get_daily_rate(category_id),
-        adjusted_rate: avg_rate,
-        # Store standby/overtime data
-        overtime_hours: category_data[:overtime_hours].to_f,
-        standby_days: (category_data[:rehearsal_days].to_i + 
-                      category_data[:down_days].to_i + 
-                      category_data[:travel_days].to_i)
-      )
+
+      # Process additional talent lines if present
+      if category_data[:lines].present?
+        category_data[:lines].each do |line_index, line_data|
+          line_description = line_data[:description]
+          line_talent_count = line_data[:talent_count].to_i
+          line_adjusted_rate = line_data[:adjusted_rate].to_f
+          line_days_count = line_data[:days_count].to_i
+          line_rehearsal_days = line_data[:rehearsal_days].to_i
+          line_down_days = line_data[:down_days].to_i
+          line_travel_days = line_data[:travel_days].to_i
+          line_overtime_hours = line_data[:overtime_hours].to_f
+
+          # Skip empty lines
+          next if line_talent_count == 0 && line_adjusted_rate == 0 && line_description.blank?
+
+          puts "Creating additional line: count=#{line_talent_count}, rate=#{line_adjusted_rate}, desc=#{line_description}, rehearsal=#{line_rehearsal_days}, down=#{line_down_days}, travel=#{line_travel_days}, overtime=#{line_overtime_hours}"
+
+          # Create additional day_on_set for this line with individual details
+          talent_category.day_on_sets.create!(
+            talent_count: line_talent_count,
+            days_count: line_days_count > 0 ? line_days_count : 1,
+            description: line_description,
+            adjusted_rate: line_adjusted_rate,
+            rehearsal_days: line_rehearsal_days,
+            down_days: line_down_days,
+            travel_days: line_travel_days,
+            overtime_hours: line_overtime_hours,
+            night_premium: line_data[:night_premium] == "true" || line_data[:night_premium] == "1"
+          )
+        end
+      end
+
+      puts "Finished processing category #{category_id}"
     end
+
+    puts "=== FINISHED PROCESSING ALL TALENT CATEGORIES ==="
   end
 
   def process_territories

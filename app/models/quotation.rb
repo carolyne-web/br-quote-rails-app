@@ -7,6 +7,7 @@ class Quotation < ApplicationRecord
   has_many :quotation_adjustments, dependent: :destroy
   has_many :quotation_histories, dependent: :destroy
   has_one :quotation_detail, dependent: :destroy
+  has_many :final_quotations, dependent: :destroy
 
   # Accept nested attributes for proper form processing
   accepts_nested_attributes_for :quotation_detail, allow_destroy: true

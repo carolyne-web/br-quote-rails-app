@@ -10,6 +10,12 @@ export default class extends Controller {
     // Make controller available globally for HTML callback functions
     window.quotationFormController = this
 
+    // Clear exclusivity data for new quotes to prevent persistence
+    if (window.location.pathname.includes('/quotations/new')) {
+      console.log('New quotation detected - clearing exclusivity data')
+      window.exclusivityData = {}
+    }
+
     // Initialize arrays first
     this.baseRates = {}
     
@@ -1374,12 +1380,21 @@ export default class extends Controller {
 
   searchTerritories(event) {
     const searchTerm = event.target.value.toLowerCase()
-    const territories = this.territoryListTarget.querySelectorAll('.territory-item')
-    
+    const comboId = event.target.dataset.combo
+
+    // Find the specific territory list for this combo/group
+    const territoryList = document.querySelector(`.territories-list[data-combo="${comboId}"]`)
+    if (!territoryList) {
+      console.error(`Territory list not found for combo ${comboId}`)
+      return
+    }
+
+    const territories = territoryList.querySelectorAll('.territory-item')
+
     territories.forEach(territory => {
       const name = territory.dataset.name.toLowerCase()
       const code = territory.dataset.code?.toLowerCase() || ''
-      
+
       if (searchTerm.length >= 1) {
         if (name.includes(searchTerm) || code.includes(searchTerm)) {
           territory.style.display = 'block'
@@ -2469,28 +2484,25 @@ export default class extends Controller {
         <div class="flex-1 overflow-y-auto" style="max-height: calc(90vh - 180px);">
           <div class="p-4">
 
-          <!-- Step 1: Standard Exclusivity Types -->
+          <!-- Step 1: Select Exclusivity Type -->
           <div class="mb-6">
             <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
               <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">1</span>
-              Standard Exclusivity Types
+              Select Exclusivity Type
             </h4>
-            <div class="space-y-2" id="admin-exclusivity-options-line">
+            <!-- Standard Options -->
+            <div class="space-y-2 mb-4" id="admin-exclusivity-options-line">
               ${this.generateAdminExclusivityOptions()}
             </div>
-          </div>
-
-          <!-- Step 2: Custom Entry -->
-          <div class="mb-6">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
-              Custom Entry
-            </h4>
-            <div class="flex items-center gap-2">
-              <input type="text" placeholder="e.g., cookies, car" class="flex-1 px-3 py-2 text-sm border rounded" id="custom-exclusivity-name-line">
-              <input type="number" value="50" min="0" step="10" class="w-16 px-2 py-1 text-sm border rounded" id="custom-exclusivity-percentage-line">
-              <span class="text-xs text-gray-500">%</span>
-              <button type="button" class="add-custom-exclusivity-line px-3 py-2 bg-green-500 text-white text-xs rounded">Add</button>
+            <!-- Custom Entry -->
+            <div class="border-t pt-4">
+              <h5 class="text-sm font-medium text-gray-600 mb-2">Or add custom exclusivity:</h5>
+              <div class="flex items-center gap-2">
+                <input type="text" placeholder="e.g., cookies, car" class="flex-1 px-3 py-2 text-sm border rounded" id="custom-exclusivity-name-line">
+                <input type="number" value="50" min="0" step="10" class="w-16 px-2 py-1 text-sm border rounded" id="custom-exclusivity-percentage-line">
+                <span class="text-xs text-gray-500">%</span>
+                <button type="button" class="add-custom-exclusivity-line px-3 py-2 bg-green-500 text-white text-xs rounded">Add</button>
+              </div>
             </div>
           </div>
 
@@ -2555,53 +2567,19 @@ export default class extends Controller {
                 <input type="radio" name="exclusivity_scope" value="categories" class="mr-3 text-blue-600 focus:ring-blue-500 exclusivity-scope-radio" checked>
                 <div>
                   <div class="font-medium text-sm">Apply to Entire Talent Categories</div>
-                  <div class="text-xs text-gray-500">Exclusivity will apply to all talent in selected categories (Lead, Kids, etc.)</div>
                 </div>
               </label>
               <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
                 <input type="radio" name="exclusivity_scope" value="specific_line" class="mr-3 text-blue-600 focus:ring-blue-500 exclusivity-scope-radio">
                 <div>
                   <div class="font-medium text-sm">Apply to Specific Talent Line</div>
-                  <div class="text-xs text-gray-500">Exclusivity will apply only to one specific talent line (e.g., "KD - Chocolate Cake")</div>
                 </div>
               </label>
             </div>
           </div>
 
-          <!-- Step 2A: Apply to Talent Categories (shown when scope is 'categories') -->
-          <div class="mb-6 scope-categories-section">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
-              Apply to Talent Categories
-            </h4>
-            <div class="grid grid-cols-2 gap-2">
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="1" ${rememberedCategories.includes(1) ? 'checked' : ''}>
-                <span class="text-xs">Lead (LD)</span>
-              </label>
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="2" ${rememberedCategories.includes(2) ? 'checked' : ''}>
-                <span class="text-xs">Second Lead (2L)</span>
-              </label>
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="3" ${rememberedCategories.includes(3) ? 'checked' : ''}>
-                <span class="text-xs">Featured Extra (FE)</span>
-              </label>
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="4" ${rememberedCategories.includes(4) ? 'checked' : ''}>
-                <span class="text-xs">Teenager (TN)</span>
-              </label>
-              <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="5" ${rememberedCategories.includes(5) ? 'checked' : ''}>
-                <span class="text-xs">Kid (KD)</span>
-              </label>
-              <div class="flex items-center">
-                <button type="button" class="text-xs text-blue-600 hover:text-blue-800 select-all-categories">Select All</button>
-                <span class="mx-1 text-gray-400">|</span>
-                <button type="button" class="text-xs text-blue-600 hover:text-blue-800 deselect-all-categories">None</button>
-              </div>
-            </div>
-          </div>
+          <!-- Step 2A: Apply to Talent Categories (dynamically generated) -->
+          ${this.generateCategoriesHTML(comboId, rememberedCategories)}
 
           <!-- Step 2B: Select Specific Talent Line (shown when scope is 'specific_line') -->
           <div class="mb-6 scope-specific-line-section" style="display: none;">
@@ -2613,31 +2591,29 @@ export default class extends Controller {
               <option value="">Choose a talent line...</option>
               <!-- Talent lines will be populated by JavaScript -->
             </select>
-            <div class="text-xs text-gray-500 mt-2">Select which specific talent line this exclusivity should apply to</div>
           </div>
 
-          <!-- Step 3: Standard Exclusivity Types -->
+          <!-- Step 3: Select Exclusivity Type -->
           <div class="mb-6">
             <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
               <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">3</span>
-              Standard Exclusivity Types
+              Select Exclusivity Type
             </h4>
-            <div class="space-y-2" id="admin-exclusivity-options">
+
+            <!-- Standard Options -->
+            <div class="space-y-2 mb-4" id="admin-exclusivity-options">
               ${this.generateAdminExclusivityOptions()}
             </div>
-          </div>
 
-          <!-- Step 4: Custom Entry -->
-          <div class="mb-6">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">4</span>
-              Custom Entry
-            </h4>
-            <div class="flex items-center gap-2">
-              <input type="text" placeholder="e.g., cookies, car" class="flex-1 px-3 py-2 text-sm border rounded" id="custom-exclusivity-name">
-              <input type="number" value="50" min="0" step="10" class="w-16 px-2 py-1 text-sm border rounded" id="custom-exclusivity-percentage">
-              <span class="text-xs text-gray-500">%</span>
-              <button type="button" class="add-custom-exclusivity px-3 py-2 bg-green-500 text-white text-xs rounded">Add</button>
+            <!-- Custom Entry -->
+            <div class="border-t pt-4">
+              <h5 class="text-sm font-medium text-gray-600 mb-2">Or add custom exclusivity:</h5>
+              <div class="flex items-center gap-2">
+                <input type="text" placeholder="e.g., cookies, car" class="flex-1 px-3 py-2 text-sm border rounded" id="custom-exclusivity-name">
+                <input type="number" value="50" min="0" step="10" class="w-16 px-2 py-1 text-sm border rounded" id="custom-exclusivity-percentage">
+                <span class="text-xs text-gray-500">%</span>
+                <button type="button" class="add-custom-exclusivity px-3 py-2 bg-green-500 text-white text-xs rounded">Add</button>
+              </div>
             </div>
           </div>
 
@@ -2672,6 +2648,98 @@ export default class extends Controller {
 
     // Add event listeners for the modal
     this.setupExclusivityModalEvents(modal, comboId)
+  }
+
+  generateCategoriesHTML(comboId, rememberedCategories) {
+    console.log('🎨 Generating dynamic categories HTML...')
+    const categoriesWithTalent = this.getCategoriesWithTalent()
+
+    if (categoriesWithTalent.length === 0) {
+      return `
+        <div class="mb-6 scope-categories-section">
+          <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+            <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
+            Apply to Talent Categories
+          </h4>
+          <div class="text-sm text-gray-500 p-4 bg-gray-50 rounded border">
+            No talent categories have talent assigned yet. Please add talent to categories first.
+          </div>
+        </div>
+      `
+    }
+
+    let categoriesHTML = categoriesWithTalent.map(category => {
+      const isChecked = rememberedCategories.includes(category.id) ? 'checked' : ''
+      return `
+        <label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
+          <input type="checkbox" class="mr-2 rounded text-blue-600 focus:ring-blue-500 category-checkbox" value="${category.id}" ${isChecked}>
+          <span class="text-xs">${category.name} (${category.abbrev}) - ${category.talentCount} talent</span>
+        </label>
+      `
+    }).join('')
+
+    return `
+      <div class="mb-6 scope-categories-section">
+        <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+          <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
+          Apply to Talent Categories
+        </h4>
+        <div class="grid grid-cols-2 gap-2">
+          ${categoriesHTML}
+          <div class="flex items-center">
+            <button type="button" class="text-xs text-blue-600 hover:text-blue-800 select-all-categories">Select All</button>
+            <span class="mx-1 text-gray-400">|</span>
+            <button type="button" class="text-xs text-blue-600 hover:text-blue-800 deselect-all-categories">None</button>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  getCategoriesWithTalent() {
+    console.log('🔍 Getting categories with talent count > 0...')
+    const categoriesWithTalent = []
+    const categoryNames = {1: 'Lead', 2: 'Second Lead', 3: 'Featured Extra', 4: 'Teenager', 5: 'Kid'}
+    const categoryAbbrevs = {1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD'}
+
+    // Check each category (1-5) for talent count > 0
+    for (let categoryId = 1; categoryId <= 5; categoryId++) {
+      const categorySection = document.querySelector(`#talent-category-${categoryId}`)
+      if (categorySection) {
+        // Get total talent count for this category
+        let totalTalentCount = 0
+
+        // Check main row
+        const mainRow = categorySection.querySelector('.talent-input-row')
+        if (mainRow) {
+          const talentCountInput = mainRow.querySelector('.talent-count, [name*="talent_count"]')
+          totalTalentCount += parseInt(talentCountInput?.value) || 0
+        }
+
+        // Check additional lines
+        const additionalLines = categorySection.querySelectorAll('[data-line-index] .talent-count')
+        additionalLines.forEach(input => {
+          totalTalentCount += parseInt(input.value) || 0
+        })
+
+        console.log(`   Category ${categoryId} (${categoryNames[categoryId]}): total talent = ${totalTalentCount}`)
+
+        if (totalTalentCount > 0) {
+          categoriesWithTalent.push({
+            id: categoryId,
+            name: categoryNames[categoryId],
+            abbrev: categoryAbbrevs[categoryId],
+            talentCount: totalTalentCount
+          })
+          console.log(`   ✅ Added category ${categoryId}`)
+        } else {
+          console.log(`   ❌ Skipped category ${categoryId} - no talent`)
+        }
+      }
+    }
+
+    console.log(`✅ Found ${categoriesWithTalent.length} categories with talent`)
+    return categoriesWithTalent
   }
 
   populateTalentLinesDropdown(modal, comboId) {
@@ -2729,10 +2797,12 @@ export default class extends Controller {
           const travelDays = travelInput ? parseInt(travelInput.value) || 0 : 0
           const overtimeHours = overtimeInput ? parseFloat(overtimeInput.value) || 0 : 0
 
-          // Check if this line has any actual data (non-zero values OR has a description)
-          const hasData = talentDescription.length > 0 || talentCount > 0 || rate > 0 || days > 0 || rehearsalDays > 0 || downDays > 0 || travelDays > 0 || overtimeHours > 0
+          // Only show lines where talent count > 0 (not empty lines)
+          const hasData = talentCount > 0
 
           console.log(`   Row ${lineIndex}: desc="${talentDescription}", count=${talentCount}, rate=${rate}, days=${days}, hasData=${hasData}`)
+          console.log(`   -> TalentCount check: ${talentCount} > 0 = ${talentCount > 0}`)
+          console.log(`   -> DEBUG: talentCount type=${typeof talentCount}, value=${talentCount}`)
 
           if (hasData) {
             // Determine display name

@@ -1,0 +1,280 @@
+<% content_for :title, "Edit Final Quotation" %>
+
+<div class="max-w-4xl mx-auto p-6 bg-white">
+  <div class="border-b pb-6 mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">Edit Final Quotation</h1>
+    <p class="text-lg text-gray-600"><%= @final_quotation.project_name %> - Project #<%= @final_quotation.project_number %></p>
+  </div>
+
+  <%= form_with model: @final_quotation, local: true, class: "space-y-8" do |form| %>
+    <% if @final_quotation.errors.any? %>
+      <div class="bg-red-50 border border-red-200 rounded-md p-4">
+        <h3 class="text-sm font-medium text-red-800">
+          <%= pluralize(@final_quotation.errors.count, "error") %> prohibited this final quotation from being saved:
+        </h3>
+        <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
+          <% @final_quotation.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <!-- Project Information -->
+    <div class="bg-gray-50 rounded-lg p-6">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Project Information</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <%= form.label :project_name, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_field :project_name, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+        </div>
+        <div>
+          <%= form.label :project_number, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_field :project_number, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+        </div>
+        <div>
+          <%= form.label :product_type, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.select :product_type,
+              options_for_select([
+                ['Kids', 'kids'],
+                ['Family', 'family'],
+                ['Adult', 'adult']
+              ], @final_quotation.product_type),
+              { prompt: 'Select Product Type' },
+              { class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" } %>
+        </div>
+        <div>
+          <%= form.label :commercial_type, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_field :commercial_type, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <label class="flex items-center">
+          <%= form.check_box :is_guaranteed, class: "rounded border-gray-300 text-blue-600 focus:ring-blue-500" %>
+          <span class="ml-2 text-sm text-gray-700">Guaranteed (25% discount on usage fees)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Shooting Details -->
+    <div class="bg-gray-50 rounded-lg p-6">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Shooting Details</h2>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div>
+          <%= form.label :shoot_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.number_field :shoot_days, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+        </div>
+        <div>
+          <%= form.label :rehearsal_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.number_field :rehearsal_days, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+        </div>
+        <div>
+          <%= form.label :travel_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.number_field :travel_days, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+        </div>
+        <div>
+          <%= form.label :down_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.number_field :down_days, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+        </div>
+        <div>
+          <%= form.label :overtime_hours, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.number_field :overtime_hours, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contract Details -->
+    <div class="bg-gray-50 rounded-lg p-6">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Contract Details</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <%= form.label :exclusivity_type, class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.select :exclusivity_type,
+              options_for_select([
+                ['None', 'none'],
+                ['Level 1', 'level_1'],
+                ['Level 2', 'level_2'],
+                ['Level 3', 'level_3'],
+                ['Level 4', 'level_4'],
+                ['Pharma 1', 'pharma_1'],
+                ['Pharma 2', 'pharma_2'],
+                ['Pharma 3', 'pharma_3'],
+                ['Pharma 4', 'pharma_4']
+              ], @final_quotation.exclusivity_type),
+              { prompt: 'Select Exclusivity' },
+              { class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" } %>
+        </div>
+        <div class="flex items-center">
+          <label class="flex items-center">
+            <%= form.check_box :unlimited_stills, class: "rounded border-gray-300 text-blue-600 focus:ring-blue-500" %>
+            <span class="ml-2 text-sm text-gray-700">Unlimited Stills</span>
+          </label>
+        </div>
+        <div class="flex items-center">
+          <label class="flex items-center">
+            <%= form.check_box :unlimited_versions, class: "rounded border-gray-300 text-blue-600 focus:ring-blue-500" %>
+            <span class="ml-2 text-sm text-gray-700">Unlimited Versions</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Groups Section -->
+    <div id="groups-section">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Groups</h2>
+      <%= form.fields_for :final_quotation_groups do |group_form| %>
+        <div class="border rounded-lg p-6 mb-6 bg-white">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Group <%= group_form.object.group_number %></h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <%= group_form.label :duration, class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= group_form.select :duration,
+                  options_for_select([
+                    ['3 Months', '3_months'],
+                    ['6 Months', '6_months'],
+                    ['12 Months', '12_months'],
+                    ['18 Months', '18_months'],
+                    ['24 Months', '24_months'],
+                    ['36 Months', '36_months']
+                  ], group_form.object.duration),
+                  { prompt: 'Select Duration' },
+                  { class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" } %>
+            </div>
+          </div>
+
+          <!-- Talent Lines -->
+          <div class="talent-lines">
+            <h4 class="font-medium text-gray-900 mb-3">Talent Lines</h4>
+            <%= group_form.fields_for :final_quotation_talent_lines do |line_form| %>
+              <div class="talent-line border rounded p-4 mb-4 bg-gray-50">
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  <div>
+                    <%= line_form.label :description, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.text_field :description, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                  <div>
+                    <%= line_form.label :category_type, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.select :category_type,
+                        options_for_select([
+                          ['Lead 1', 'Lead 1'],
+                          ['Lead 2', 'Lead 2'],
+                          ['Featured Extra', 'Featured Extra'],
+                          ['Teenagers', 'Teenagers'],
+                          ['Kids', 'Kids'],
+                          ['Walk-on', 'Walk-on'],
+                          ['Extras', 'Extras']
+                        ], line_form.object.category_type),
+                        { prompt: 'Select Category' },
+                        { class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" } %>
+                  </div>
+                  <div>
+                    <%= line_form.label :talent_count, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.number_field :talent_count, min: 1, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                  <div>
+                    <%= line_form.label :daily_rate, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.number_field :daily_rate, step: 0.01, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                  <div>
+                    <%= line_form.label :rate_adjustment, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.number_field :rate_adjustment, step: 0.01, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
+                  <div>
+                    <%= line_form.label :shoot_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.number_field :shoot_days, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                  <div>
+                    <%= line_form.label :rehearsal_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.number_field :rehearsal_days, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                  <div>
+                    <%= line_form.label :travel_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.number_field :travel_days, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                  <div>
+                    <%= line_form.label :down_days, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.number_field :down_days, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                  <div>
+                    <%= line_form.label :overtime_hours, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.number_field :overtime_hours, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div class="flex items-center">
+                    <%= line_form.label :has_night_premium, class: "flex items-center" do %>
+                      <%= line_form.check_box :has_night_premium, class: "rounded border-gray-300 text-blue-600 focus:ring-blue-500" %>
+                      <span class="ml-2 text-sm text-gray-700">Night Premium</span>
+                    <% end %>
+                  </div>
+                  <div>
+                    <%= line_form.label :night_premium_amount, class: "block text-sm font-medium text-gray-700 mb-1" %>
+                    <%= line_form.number_field :night_premium_amount, step: 0.01, class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+                  </div>
+                </div>
+
+                <div class="mt-4 text-right">
+                  <%= line_form.label :_destroy, class: "inline-flex items-center" do %>
+                    <%= line_form.check_box :_destroy, class: "rounded border-gray-300 text-red-600 focus:ring-red-500" %>
+                    <span class="ml-2 text-sm text-red-700">Remove this talent line</span>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Adjustments -->
+    <div class="bg-gray-50 rounded-lg p-6">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Manual Adjustments</h2>
+      <%= form.fields_for :final_quotation_adjustments do |adj_form| %>
+        <div class="adjustment border rounded p-4 mb-4 bg-white">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-2">
+              <%= adj_form.label :description, class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= adj_form.text_field :description, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+            </div>
+            <div>
+              <%= adj_form.label :adjustment_type, class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= adj_form.select :adjustment_type,
+                  options_for_select([
+                    ['Discount', 'discount'],
+                    ['Surcharge', 'surcharge']
+                  ], adj_form.object.adjustment_type),
+                  { prompt: 'Select Type' },
+                  { class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" } %>
+            </div>
+            <div>
+              <%= adj_form.label :percentage, class: "block text-sm font-medium text-gray-700 mb-1" %>
+              <%= adj_form.number_field :percentage, step: 0.01, min: 0, class: "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
+            </div>
+          </div>
+          <div class="mt-4 text-right">
+            <%= adj_form.label :_destroy, class: "inline-flex items-center" do %>
+              <%= adj_form.check_box :_destroy, class: "rounded border-gray-300 text-red-600 focus:ring-red-500" %>
+              <span class="ml-2 text-sm text-red-700">Remove this adjustment</span>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex justify-between items-center pt-6 border-t">
+      <%= link_to "Cancel", @final_quotation, class: "btn btn-secondary" %>
+      <div class="flex gap-3">
+        <%= form.submit "Update Final Quotation", class: "btn btn-primary" %>
+      </div>
+    </div>
+  <% end %>
+</div>
