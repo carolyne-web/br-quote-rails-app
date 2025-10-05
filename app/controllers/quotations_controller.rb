@@ -1,6 +1,6 @@
 class QuotationsController < ApplicationController
   before_action :require_login
-  before_action :set_quotation, only: [ :show, :edit, :update, :destroy, :pdf, :duplicate, :generate_final ]
+  before_action :set_quotation, only: [ :show, :destroy, :pdf, :duplicate, :generate_final ]
 
   def index
     @quotations = current_production_house.quotations.order(created_at: :desc)
@@ -111,55 +111,6 @@ class QuotationsController < ApplicationController
     end
   end
 
-  def edit
-    load_form_data
-  end
-
-  def update
-    if @quotation.update(quotation_params)
-      # Store media types from form
-      media_types = []
-      if params[:combinations].present?
-        params[:combinations].each do |combo_id, combo_data|
-          if combo_data[:media_types].present?
-            media_types.concat(combo_data[:media_types])
-          end
-        end
-      elsif params[:media_types].present?
-        media_types = params[:media_types]
-      end
-
-      if media_types.present?
-        # Ensure quotation_detail exists before updating
-        @quotation.quotation_detail ||= @quotation.build_quotation_detail
-        @quotation.quotation_detail.update(selected_media_types: media_types)
-      end
-
-      # Process territories (still needed as it's not nested attributes)
-      process_territories
-
-      # Recalculate
-      calculation = QuotationCalculator.new(@quotation).calculate
-      @quotation.update(total_amount: calculation[:total])
-
-      # Create history entry
-      @quotation.quotation_histories.create(
-        action: "updated",
-        user: current_production_house.name,
-        data: { total: calculation[:total] }
-      )
-
-      # Regenerate final quotation with updated data
-      @quotation.final_quotations.destroy_all  # Remove old final quotations
-      final_quotation = FinalQuotationGenerator.new(@quotation, params[:combinations]).generate
-
-      flash[:notice] = "Quotation updated successfully"
-      redirect_to final_quotation
-    else
-      load_form_data
-      render :edit
-    end
-  end
 
   def destroy
     @quotation.destroy
@@ -193,7 +144,7 @@ class QuotationsController < ApplicationController
       end
 
       flash[:notice] = "Quotation duplicated successfully"
-      redirect_to edit_quotation_path(new_quotation)
+      redirect_to new_quotation
     else
       flash[:alert] = "Failed to duplicate quotation"
       redirect_to @quotation

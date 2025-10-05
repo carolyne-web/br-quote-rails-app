@@ -22,8 +22,6 @@
         </div>
       </div>
       <div class="flex gap-2">
-        <%= link_to "Edit Quotation", edit_quotation_path(@final_quotation.quotation),
-            class: "btn btn-primary" %>
         <%= link_to "Edit Final Only", edit_final_quotation_path(@final_quotation),
             class: "btn btn-secondary" %>
         <%= link_to "PDF", final_quotation_path(@final_quotation, format: :pdf),
@@ -299,6 +297,5 @@
   <!-- Footer Actions -->
   <div class="mt-8 flex justify-center gap-4">
     <%= link_to "← Back to Quotations", quotations_path, class: "btn btn-secondary" %>
-    <%= link_to "Edit Quotation", edit_quotation_path(@final_quotation.quotation), class: "btn btn-primary" %>
   </div>
 </div>
