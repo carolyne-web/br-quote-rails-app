@@ -561,6 +561,26 @@ function handleAddGroupClick(button) {
     if (typeof window.quotationFormController !== 'undefined') {
       window.quotationFormController.setupComboCommercialListeners();
     }
+
+    // Setup unlimited options event listeners for the new group
+    const unlimitedStillsInput = document.querySelector(`input[name="combinations[${newComboId}][unlimited_stills]"]`);
+    const unlimitedVersionsInput = document.querySelector(`input[name="combinations[${newComboId}][unlimited_versions]"]`);
+
+    if (unlimitedStillsInput) {
+      unlimitedStillsInput.addEventListener('change', () => {
+        if (typeof window.quotationFormController !== 'undefined') {
+          window.quotationFormController.populateAllTables();
+        }
+      });
+    }
+
+    if (unlimitedVersionsInput) {
+      unlimitedVersionsInput.addEventListener('change', () => {
+        if (typeof window.quotationFormController !== 'undefined') {
+          window.quotationFormController.populateAllTables();
+        }
+      });
+    }
   }, 100);
 
   // Re-enable the button after a short delay
