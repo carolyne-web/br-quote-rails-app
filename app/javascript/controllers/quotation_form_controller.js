@@ -4,6 +4,13 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = ["territorySearch", "territoryList", "durationWarning", "mediaMultiplier"]
 
+  // Store references to bound event handlers for cleanup
+  constructor(...args) {
+    super(...args)
+    this.boundDocumentClickHandler = this.handleDocumentClick.bind(this)
+    this.documentListenerAttached = false
+  }
+
   connect() {
     console.log('Quotation form controller connected')
 
@@ -45,6 +52,17 @@ export default class extends Controller {
     }
     
     this.loadBaseRates()
+  }
+
+  disconnect() {
+    console.log('Quotation form controller disconnecting - cleaning up event listeners')
+    // Only remove if this instance owns the global listener
+    if (window.quotationDocumentClickHandler === this.boundDocumentClickHandler) {
+      document.removeEventListener('click', this.boundDocumentClickHandler)
+      window.quotationDocumentListenerAttached = false
+      window.quotationDocumentClickHandler = null
+      console.log('Global document click listener removed')
+    }
   }
 
   setupMainRowEventListeners() {
@@ -255,63 +273,85 @@ export default class extends Controller {
     })
     
     // Setup add combination buttons using event delegation
-    document.addEventListener('click', (e) => {
-      if (e.target.closest('.add-combination-btn')) {
-        const btn = e.target.closest('.add-combination-btn')
-        const categoryId = btn.dataset.category
-        this.addCombination(categoryId)
-      }
-      
-      // Handle remove category buttons
-      if (e.target.closest('[data-remove-category]')) {
-        const btn = e.target.closest('[data-remove-category]')
-        const categoryId = btn.dataset.category
-        console.log('Remove category button clicked for category:', categoryId)
-        this.removeTalentCategory(categoryId)
-      }
-      
-      // Setup + Line button functionality
-      if (e.target.closest('.add-line-btn')) {
-        console.log('Add line button clicked!')
-        const btn = e.target.closest('.add-line-btn')
-        const categoryId = btn.dataset.category
-        console.log(`Button categoryId: ${categoryId}`)
-        this.addTalentLine(categoryId)
-      }
-      
-      // Setup Remove Line button functionality
-      if (e.target.closest('.remove-line-btn')) {
-        const btn = e.target.closest('.remove-line-btn')
-        const lineRow = btn.closest('.talent-input-row')
-        const categoryId = btn.dataset.category
-        if (lineRow) {
-          lineRow.remove()
-          if (categoryId) {
-            this.calculateCategoryTotal(categoryId)
-          }
+    // Use global flag to ensure only one listener is ever attached
+    if (!window.quotationDocumentListenerAttached) {
+      console.log('Attaching global document click listener')
+      document.addEventListener('click', this.boundDocumentClickHandler)
+      window.quotationDocumentListenerAttached = true
+      window.quotationDocumentClickHandler = this.boundDocumentClickHandler
+    } else {
+      console.log('Global document click listener already attached, replacing handler')
+      // Remove old handler and attach new one
+      document.removeEventListener('click', window.quotationDocumentClickHandler)
+      document.addEventListener('click', this.boundDocumentClickHandler)
+      window.quotationDocumentClickHandler = this.boundDocumentClickHandler
+    }
+  }
+
+  handleDocumentClick(e) {
+    // Handle add combination buttons
+    if (e.target.closest('.add-combination-btn')) {
+      const btn = e.target.closest('.add-combination-btn')
+      const categoryId = btn.dataset.category
+      this.addCombination(categoryId)
+      return
+    }
+
+    // Handle remove category buttons
+    if (e.target.closest('[data-remove-category]')) {
+      const btn = e.target.closest('[data-remove-category]')
+      const categoryId = btn.dataset.category
+      console.log('Remove category button clicked for category:', categoryId)
+      this.removeTalentCategory(categoryId)
+      return
+    }
+
+    // Handle + Line button functionality
+    if (e.target.closest('.add-line-btn')) {
+      console.log('Add line button clicked!')
+      const btn = e.target.closest('.add-line-btn')
+      const categoryId = btn.dataset.category
+      console.log(`Button categoryId: ${categoryId}`)
+      this.addTalentLine(categoryId)
+      return
+    }
+
+    // Handle Remove Line button functionality
+    if (e.target.closest('.remove-line-btn')) {
+      const btn = e.target.closest('.remove-line-btn')
+      const lineRow = btn.closest('.talent-input-row')
+      const categoryId = btn.dataset.category
+      if (lineRow) {
+        lineRow.remove()
+        if (categoryId) {
+          this.calculateCategoryTotal(categoryId)
         }
       }
-      
+      return
+    }
 
-      // Night buttons now handled by direct event listeners in initializeNightButtonStates()
-      // No delegation needed to avoid conflicts
-    })
+    // Night buttons now handled by direct event listeners in initializeNightButtonStates()
+    // No delegation needed to avoid conflicts
   }
 
   addTalentLine(categoryId) {
     console.log(`addTalentLine called for category: ${categoryId}`)
 
-    // Debounce: prevent rapid clicks
-    if (this.addingLine) {
+    // Debounce: prevent rapid clicks with category-specific tracking
+    const debounceKey = `addingLine_${categoryId}`
+    if (this.addingLine || this[debounceKey]) {
       console.log('⚠️ Already adding line, ignoring click')
       return
     }
     this.addingLine = true
+    this[debounceKey] = true
 
     const additionalLinesContainer = document.querySelector(`[data-category="${categoryId}"].additional-lines`)
     if (!additionalLinesContainer) {
       console.error(`Could not find additional lines container for category ${categoryId}`)
       this.addingLine = false
+      const debounceKey = `addingLine_${categoryId}`
+      this[debounceKey] = false
       return
     }
     
@@ -417,10 +457,12 @@ export default class extends Controller {
 
     this.calculateCategoryTotal(categoryId)
 
-    // Reset debounce flag after a short delay
+    // Reset debounce flags after a short delay
     setTimeout(() => {
       this.addingLine = false
-    }, 200)
+      const debounceKey = `addingLine_${categoryId}`
+      this[debounceKey] = false
+    }, 500)
   }
 
   setupCategoryEventListeners(categoryId) {
