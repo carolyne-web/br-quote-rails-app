@@ -57,8 +57,8 @@ Rails.application.routes.draw do
     resources :quotation_adjustments
   end
 
-  # Final quotation routes for show/edit functionality
-  resources :final_quotations, only: [:show, :edit, :update] do
+  # Final quotation routes for show functionality only
+  resources :final_quotations, only: [:show] do
     member do
       get :pdf
       post :duplicate

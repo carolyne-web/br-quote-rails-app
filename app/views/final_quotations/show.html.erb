@@ -22,8 +22,6 @@
         </div>
       </div>
       <div class="flex gap-2">
-        <%= link_to "Edit Final Only", edit_final_quotation_path(@final_quotation),
-            class: "btn btn-secondary" %>
         <%= link_to "PDF", final_quotation_path(@final_quotation, format: :pdf),
             class: "btn btn-secondary", target: "_blank" %>
         <%= link_to "Duplicate", duplicate_final_quotation_path(@final_quotation),
@@ -33,7 +31,7 @@
   </div>
 
   <!-- Two Column Layout -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
     <!-- Left Column (Detailed Inputs) -->
     <div class="lg:col-span-2 space-y-8">
 
@@ -248,51 +246,6 @@
 
     </div>
 
-    <!-- Right Column (Quote Summary) -->
-    <div class="lg:col-span-1">
-      <div class="bg-gray-50 rounded-lg p-6 sticky top-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Quote Summary</h2>
-
-        <div class="space-y-4">
-          <div class="pb-4 border-b border-gray-200">
-            <div class="flex justify-between text-lg">
-              <span class="font-medium text-gray-700">Talent Summary Subtotal:</span>
-              <span class="font-semibold text-gray-900">R<%= number_with_delimiter(@final_quotation.total_talent_fee) %></span>
-            </div>
-          </div>
-
-          <div class="pb-4 border-b border-gray-200">
-            <div class="flex justify-between text-lg">
-              <span class="font-medium text-gray-700">Usage Summary Subtotal:</span>
-              <span class="font-semibold text-gray-900">R<%= number_with_delimiter(@final_quotation.total_usage_fee) %></span>
-            </div>
-          </div>
-
-          <!-- Manual Adjustments -->
-          <% if @final_quotation.final_quotation_adjustments.any? %>
-            <div class="pb-4 border-b border-gray-200">
-              <h3 class="font-medium text-gray-700 mb-2">Adjustments:</h3>
-              <% @final_quotation.final_quotation_adjustments.each do |adjustment| %>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600"><%= adjustment.description %></span>
-                  <span class="<%= adjustment.adjustment_type == 'discount' ? 'text-red-600' : 'text-green-600' %>">
-                    <%= adjustment.adjustment_type == 'discount' ? '-' : '+' %>R<%= number_with_delimiter(adjustment.amount) %>
-                  </span>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
-
-          <div class="pt-4">
-            <div class="flex justify-between text-2xl font-bold">
-              <span class="text-gray-900">Grand Total:</span>
-              <span class="text-green-600">R<%= number_with_delimiter(@final_quotation.total_amount) %></span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Footer Actions -->
   <div class="mt-8 flex justify-center gap-4">

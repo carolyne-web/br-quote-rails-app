@@ -298,7 +298,7 @@
                   Group 1
                 </button>
               </div>
-              <button type="button" id="add-combination" class="ml-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors">
+              <button type="button" id="add-combination" class="ml-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors" onclick="handleAddGroupClick(this)">
                 + Add Group
               </button>
             </div>
@@ -520,13 +520,101 @@
 
 
 <script>
+// Direct onclick handler for Add Group button
+function handleAddGroupClick(button) {
+  console.log('handleAddGroupClick called');
+
+  // Prevent double-clicks
+  if (button.disabled) return;
+  button.disabled = true;
+
+  // Calculate next combo ID based on existing combos
+  const existingTabs = document.querySelectorAll('.combination-tab');
+  const newComboId = existingTabs.length + 1;
+  console.log('Creating new group with ID:', newComboId);
+
+  // Add new tab
+  const tabsContainer = document.getElementById('combination-tabs');
+  const newTab = document.createElement('button');
+  newTab.type = 'button';
+  newTab.className = 'combination-tab px-4 py-2 border-b-2 border-transparent text-gray-500 text-sm hover:text-blue-600';
+  newTab.setAttribute('data-combo', newComboId);
+  newTab.innerHTML = `Group ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
+  tabsContainer.appendChild(newTab);
+
+  // Add new content
+  const contentContainer = document.getElementById('combinations-content');
+  const newContent = createCombinationContent(newComboId);
+  contentContainer.appendChild(newContent);
+
+  // Add new combo table
+  createComboTable(newComboId);
+
+  // Switch to new combination
+  switchToCombination(newComboId);
+
+  // Re-attach click handlers to all tabs (including the new one)
+  setTimeout(() => {
+    attachTabClickHandlers();
+  }, 100);
+
+  // Re-enable the button after a short delay
+  setTimeout(() => {
+    button.disabled = false;
+  }, 500);
+
+  console.log('New group created successfully');
+}
+
+// Tab click handler function
+function handleTabClick(e) {
+  console.log('handleTabClick called on:', e.target);
+
+  // If clicking on remove button, don't switch tabs
+  if (e.target.classList.contains('remove-combo-btn')) {
+    e.preventDefault();
+    e.stopPropagation();
+    const comboId = e.target.getAttribute('data-combo-id');
+    console.log('Remove combo:', comboId);
+    return;
+  }
+
+  // Get the tab element (could be the button itself or need to find closest)
+  const tabElement = e.target.closest('.combination-tab');
+  if (tabElement) {
+    const comboId = tabElement.getAttribute('data-combo');
+    console.log('Switching to combo:', comboId);
+    e.preventDefault();
+    e.stopPropagation();
+    switchToCombination(comboId);
+  }
+}
+
+// Initialize tab click handlers for existing tabs
+function attachTabClickHandlers() {
+  console.log('Attaching tab click handlers...');
+  document.querySelectorAll('.combination-tab').forEach(tab => {
+    // Remove existing listeners to avoid duplicates
+    tab.removeEventListener('click', handleTabClick);
+    // Add new listener
+    tab.addEventListener('click', handleTabClick);
+    console.log('Attached click handler to tab:', tab.getAttribute('data-combo'));
+  });
+}
+
 // Make exclusivity options available to JavaScript
 const exclusivityOptions = <%= @exclusivity_options.to_json.html_safe %>;
 // Make raw exclusivity settings available for popup
 const exclusivitySettings = <%= @exclusivity_settings.to_json.html_safe %>;
 
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOMContentLoaded fired - checking elements...');
+// Territories data for JavaScript
+const territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
+  [group_name, territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
+}.to_h.to_json.html_safe %>;
+
+// Function to initialize the page functionality
+function initializeQuotationForm() {
+  console.log('Initializing quotation form...');
   console.log('add-combination button:', document.getElementById('add-combination'));
   // Sidebar navigation
   const sidebarItems = document.querySelectorAll('[data-section]');
@@ -552,45 +640,42 @@ document.addEventListener('DOMContentLoaded', function() {
   // Territory Combinations Management
   // Removed nextComboId global variable - now calculating dynamically
   
-  // Tab switching functionality
-  document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('combination-tab')) {
-      const comboId = e.target.getAttribute('data-combo');
-      switchToCombination(comboId);
-    }
-  });
+  // Attach handlers to existing tabs
+  attachTabClickHandlers();
   
-  function switchToCombination(comboId) {
-    // Update tab styles
-    document.querySelectorAll('.combination-tab').forEach(tab => {
-      tab.classList.remove('border-blue-500', 'text-blue-600', 'font-medium');
-      tab.classList.add('border-transparent', 'text-gray-500');
-    });
-    
-    const activeTab = document.querySelector(`[data-combo="${comboId}"].combination-tab`);
-    if (activeTab) {
-      activeTab.classList.add('border-blue-500', 'text-blue-600', 'font-medium');
-      activeTab.classList.remove('border-transparent', 'text-gray-500');
-    }
-    
-    // Update content visibility
-    document.querySelectorAll('.combination-content').forEach(content => {
-      content.classList.remove('active');
-      content.style.display = 'none';
-    });
-    
-    const activeContent = document.querySelector(`[data-combo="${comboId}"].combination-content`);
-    if (activeContent) {
-      activeContent.classList.add('active');
-      activeContent.style.display = 'block';
-    }
-  }
   
   // Add new combination functionality
   const addCombinationBtn = document.getElementById('add-combination');
-  if (addCombinationBtn) {
-    addCombinationBtn.addEventListener('click', function() {
-      console.log('Add combination button clicked');
+  console.log('Looking for add-combination button:', addCombinationBtn);
+
+  // Additional debugging - check if button exists
+  setTimeout(() => {
+    const btn = document.getElementById('add-combination');
+    console.log('Button check after timeout:', btn);
+    if (btn) {
+      console.log('Button classes:', btn.className);
+      console.log('Button disabled:', btn.disabled);
+      console.log('Button onclick:', btn.onclick);
+      console.log('JavaScript successfully found and can access the button');
+    } else {
+      console.error('CRITICAL: Button not found even after 1 second delay!');
+    }
+  }, 1000);
+
+  // Use event delegation instead of direct event listener to ensure it always works
+  document.addEventListener('click', function(e) {
+    // Check if the clicked element is the add-combination button
+    if (e.target.id === 'add-combination' || e.target.closest('#add-combination')) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const clickedButton = e.target.id === 'add-combination' ? e.target : e.target.closest('#add-combination');
+
+      // Prevent double-clicks
+      if (clickedButton.disabled) return;
+      clickedButton.disabled = true;
+
+      console.log('Add combination button clicked via event delegation');
       // Calculate next combo ID based on existing combos (not a global counter)
       const existingTabs = document.querySelectorAll('.combination-tab');
       const newComboId = existingTabs.length + 1;
@@ -632,6 +717,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
           });
         }
+
+        // The territories should already be populated by the createCombinationContent function
+        // But let's ensure they're visible and the search works immediately
+        const territoriesList = document.querySelector(`.territories-list[data-combo="${newComboId}"]`);
+        if (territoriesList && territoriesList.innerHTML.trim() === '') {
+          territoriesList.innerHTML = generateTerritoriesHTML(newComboId);
+        }
       }, 100);
 
       // Add new combo table
@@ -644,12 +736,51 @@ document.addEventListener('DOMContentLoaded', function() {
       if (typeof updateQuotePreview === 'function') {
         updateQuotePreview();
       }
-    });
-  } else {
-    console.error('Add combination button not found!');
+
+      // Re-enable the button after a short delay
+      setTimeout(() => {
+        clickedButton.disabled = false;
+      }, 500);
+    }
+  });
+
+  // Initialize first combination as active
+  switchToCombination(1);
+}
+
+// Global utility functions
+function switchToCombination(comboId) {
+  console.log('switchToCombination called with comboId:', comboId);
+
+  // Update tab styles
+  document.querySelectorAll('.combination-tab').forEach(tab => {
+    tab.classList.remove('border-blue-500', 'text-blue-600', 'font-medium');
+    tab.classList.add('border-transparent', 'text-gray-500');
+  });
+
+  const activeTab = document.querySelector(`[data-combo="${comboId}"].combination-tab`);
+  console.log('Found activeTab:', activeTab);
+
+  if (activeTab) {
+    activeTab.classList.add('border-blue-500', 'text-blue-600', 'font-medium');
+    activeTab.classList.remove('border-transparent', 'text-gray-500');
   }
-  
-  function removeCombination(comboId) {
+
+  // Update content visibility
+  document.querySelectorAll('.combination-content').forEach(content => {
+    content.classList.remove('active');
+    content.style.display = 'none';
+  });
+
+  const activeContent = document.querySelector(`[data-combo="${comboId}"].combination-content`);
+  console.log('Found activeContent:', activeContent);
+  if (activeContent) {
+    activeContent.classList.add('active');
+    activeContent.style.display = 'block';
+  }
+}
+
+function removeCombination(comboId) {
     console.log('Removing combination:', comboId);
     if (comboId == 1) {
       console.log('Cannot remove group 1');
@@ -938,9 +1069,6 @@ document.addEventListener('DOMContentLoaded', function() {
     return content;
   }
 
-  // Initialize first combination as active
-  switchToCombination(1);
-
   // Territory search functionality for combinations
   document.addEventListener('input', function(e) {
     if (e.target.classList.contains('territory-search')) {
@@ -1073,7 +1201,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Enhanced calculation and preview functionality for multiple combinations
   function updateQuotePreview() {
-    let talentTotal = 0;
+    // Get talent total from the already calculated talent grand total
+    const talentGrandTotalElement = document.getElementById('talent-grand-total');
+
+    // Make talentTotal globally accessible to avoid scope issues
+    window.talentTotal = 0;
+    if (talentGrandTotalElement && talentGrandTotalElement.textContent) {
+      const talentText = talentGrandTotalElement.textContent.replace(/[R,\s]/g, '');
+      const parsedValue = parseInt(talentText);
+      window.talentTotal = isNaN(parsedValue) ? 0 : parsedValue;
+    }
+
+    // Also keep local reference for this function
+    const talentTotal = window.talentTotal;
     let combo1Total = 0;
     
     const previewRows = document.getElementById('quote-preview-rows');
@@ -1150,8 +1290,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const campaignTypeRadio = document.querySelector('input[name="quotation[product_type]"]:checked');
     const campaignType = campaignTypeRadio ? campaignTypeRadio.value : null;
 
-    // Get active combinations data (for now, default to empty array until combo functionality is complete)
-    const activeCombinations = [];
+    // Get active combinations data
+    const activeCombinations = getActiveCombinations();
 
     // Calculate Usage/Buyout for each combination (additive)
     let totalUsageBuyout = 0;
@@ -1193,8 +1333,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Calculate additional fees for this combination
         let comboAdditionalFees = 0;
-        if (combo.unlimitedStills) comboAdditionalFees += talentTotal * 0.15;
-        if (combo.unlimitedVersions) comboAdditionalFees += talentTotal * 0.15;
+        if (combo.unlimitedStills) comboAdditionalFees += (window.talentTotal || 0) * 0.15;
+        if (combo.unlimitedVersions) comboAdditionalFees += (window.talentTotal || 0) * 0.15;
         totalAdditionalFees += comboAdditionalFees;
         
         if (comboAdditionalFees > 0) {
@@ -1458,11 +1598,7 @@ document.addEventListener('DOMContentLoaded', function() {
       checkbox.checked = false;
       updateTerritoryTags(comboId);
       if (typeof updateQuotePreview === 'function') {
-        if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
-    }
+        updateQuotePreview();
       }
     }
   }
@@ -1478,9 +1614,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
+      updateQuotePreview();
     }
     
   });
@@ -1499,9 +1633,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
+      updateQuotePreview();
     }
     
   });
@@ -1546,11 +1678,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       if (typeof updateQuotePreview === 'function') {
-        if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
-    }
+        updateQuotePreview();
       }
     });
   });
@@ -1579,11 +1707,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       if (typeof updateQuotePreview === 'function') {
-        if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
-    }
+        updateQuotePreview();
       }
     }
   });
@@ -1619,9 +1743,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
+      updateQuotePreview();
     }
   });
 
@@ -1672,9 +1794,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
+      updateQuotePreview();
     }
   }
 
@@ -1682,7 +1802,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
   }
-});
+;
 
 // Action button functions
 function saveDraft() {
@@ -1729,9 +1849,7 @@ document.querySelectorAll('.talent-btn').forEach(btn => {
     }
     
     if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
+      updateQuotePreview();
     }
   });
 });
@@ -1751,17 +1869,52 @@ document.querySelectorAll('.rate-plus-btn, .rate-minus-btn').forEach(btn => {
     updateAdjustedRate(categoryId);
     updateCategoryTotal(categoryId);
     if (typeof updateQuotePreview === 'function') {
-      if (typeof updateQuotePreview === 'function') {
-    updateQuotePreview();
-  }
+      updateQuotePreview();
     }
   });
-});
+})
 
-// Territories data for JavaScript
-const territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
-  [group_name, territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
-}.to_h.to_json.html_safe %>;
+// Initialize on traditional page load and Turbo navigation
+document.addEventListener('DOMContentLoaded', initializeQuotationForm);
+document.addEventListener('turbo:load', initializeQuotationForm);
+document.addEventListener('turbo:render', initializeQuotationForm);
+
+// Global event listener for Add Group button (backup/fallback)
+document.addEventListener('click', function(e) {
+  console.log('Global click detected on:', e.target);
+
+  if (e.target.id === 'add-combination' || e.target.closest('#add-combination')) {
+    console.log('Add Group button clicked - global handler');
+    e.preventDefault();
+    e.stopPropagation();
+
+    const btn = e.target.id === 'add-combination' ? e.target : e.target.closest('#add-combination');
+
+    // Calculate next combo ID
+    const existingTabs = document.querySelectorAll('.combination-tab');
+    const newComboId = existingTabs.length + 1;
+    console.log('Creating new group with ID:', newComboId);
+
+    // Add new tab
+    const tabsContainer = document.getElementById('combination-tabs');
+    const newTab = document.createElement('button');
+    newTab.type = 'button';
+    newTab.className = 'combination-tab px-4 py-2 border-b-2 border-transparent text-gray-500 text-sm hover:text-blue-600';
+    newTab.setAttribute('data-combo', newComboId);
+    newTab.innerHTML = `Group ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
+    tabsContainer.appendChild(newTab);
+
+    // Add new content
+    const contentContainer = document.getElementById('combinations-content');
+    const newContent = createCombinationContent(newComboId);
+    contentContainer.appendChild(newContent);
+
+    // Switch to new combination
+    switchToCombination(newComboId);
+
+    console.log('New group created successfully');
+  }
+});
 
 // Helper function to generate territories HTML for a given combo ID
 function generateTerritoriesHTML(comboId) {
