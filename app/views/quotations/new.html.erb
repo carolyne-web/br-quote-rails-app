@@ -556,6 +556,11 @@ function handleAddGroupClick(button) {
   // Re-attach click handlers to all tabs (including the new one)
   setTimeout(() => {
     attachTabClickHandlers();
+
+    // Re-setup commercial listeners through the quotation form controller
+    if (typeof window.quotationFormController !== 'undefined') {
+      window.quotationFormController.setupComboCommercialListeners();
+    }
   }, 100);
 
   // Re-enable the button after a short delay
