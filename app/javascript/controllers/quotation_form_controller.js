@@ -3838,10 +3838,32 @@ export default class extends Controller {
 
   handleGuaranteeChange(comboId, isGuaranteed) {
     console.log(`🛡️ Guarantee ${isGuaranteed ? 'enabled' : 'disabled'} for combo ${comboId}`)
-    
+
     // Recalculate the entire table since guarantee affects buyout percentages
     // Pass the guarantee state to avoid timing issues
     this.populateComboTable(comboId, isGuaranteed)
+
+    // Update guarantee savings display
+    setTimeout(() => {
+      const guaranteeAmountSpan = document.querySelector(`.guarantee-amount[data-combo="${comboId}"]`)
+      if (guaranteeAmountSpan) {
+        if (isGuaranteed) {
+          // Get the total amount after table recalculation
+          const totalZarSpan = document.querySelector(`.total-zar-amount[data-combo="${comboId}"]`)
+          if (totalZarSpan) {
+            const guaranteedAmount = parseFloat(totalZarSpan.textContent.replace(/[R,\s]/g, '')) || 0
+            if (guaranteedAmount > 0) {
+              // Calculate original amount (before 25% discount)
+              const originalAmount = guaranteedAmount / 0.75
+              const savings = originalAmount - guaranteedAmount
+              guaranteeAmountSpan.innerHTML = `<span style="color: red;">R${this.formatNumber(savings)} saving</span>`
+            }
+          }
+        } else {
+          guaranteeAmountSpan.textContent = ''
+        }
+      }
+    }, 100) // Small delay to ensure table is updated
   }
 
   async getExchangeRate(fromCurrency, toCurrency) {
