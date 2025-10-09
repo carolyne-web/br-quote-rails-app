@@ -11,8 +11,8 @@ class SessionsController < ApplicationController
       flash[:notice] = "Welcome back, #{production_house.name}!"
       redirect_to quotations_path
     else
-      flash.now[:alert] = "Invalid code or password"
-      render :new
+      flash[:alert] = "Invalid code or password"
+      redirect_to login_path
     end
   end
 

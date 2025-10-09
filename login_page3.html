@@ -1,0 +1,109 @@
+<!-- BEGIN app/views/layouts/application.html.erb --><!DOCTYPE html>
+<html>
+  <head>
+    <title>BR Quote System</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="csrf-param" content="authenticity_token" />
+<meta name="csrf-token" content="zRdcuMGV75GPD08kz5LRIrLXKZWciXaSp3P5NrqmVcDYMeJRcrPI7sje4rVI4kB_wRgJn0CQKyZ6slF8QxhOxA" />
+    
+    <link rel="stylesheet" href="/assets/tailwind-6d619bc3.css" data-turbo-track="reload" />
+<link rel="stylesheet" href="/assets/inter-font-1d90a608.css" data-turbo-track="reload" />
+
+    <link rel="stylesheet" href="/assets/application-e7d1840a.css" data-turbo-track="reload" />
+    
+    <script type="importmap" data-turbo-track="reload">{
+  "imports": {
+    "application": "/assets/application-bfcdf840.js",
+    "@hotwired/turbo-rails": "/assets/turbo.min-3a2e143f.js",
+    "@hotwired/stimulus": "/assets/stimulus.min-4b1e420e.js",
+    "@hotwired/stimulus-loading": "/assets/stimulus-loading-1fc53fe7.js",
+    "controllers/application": "/assets/controllers/application-3affb389.js",
+    "controllers/dropdown_controller": "/assets/controllers/dropdown_controller-af47f0b5.js",
+    "controllers/hello_controller": "/assets/controllers/hello_controller-708796bd.js",
+    "controllers": "/assets/controllers/index-ee64e1f1.js",
+    "controllers/quotation_form_controller": "/assets/controllers/quotation_form_controller-3336baa2.js"
+  }
+}</script>
+<link rel="modulepreload" href="/assets/application-bfcdf840.js">
+<link rel="modulepreload" href="/assets/turbo.min-3a2e143f.js">
+<link rel="modulepreload" href="/assets/stimulus.min-4b1e420e.js">
+<link rel="modulepreload" href="/assets/stimulus-loading-1fc53fe7.js">
+<link rel="modulepreload" href="/assets/controllers/application-3affb389.js">
+<link rel="modulepreload" href="/assets/controllers/dropdown_controller-af47f0b5.js">
+<link rel="modulepreload" href="/assets/controllers/hello_controller-708796bd.js">
+<link rel="modulepreload" href="/assets/controllers/index-ee64e1f1.js">
+<link rel="modulepreload" href="/assets/controllers/quotation_form_controller-3336baa2.js">
+<script type="module">import "application"</script>
+  </head>
+
+  <body class="bg-gray-50">
+    <nav class="shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-4 lg:px-6">
+        <div class="flex justify-between h-16">
+          <div class="flex items-center">
+            <div class="flex items-center space-x-3">
+              <div class="p-1.5">
+                <img src="https://brcasting.co.za/wp-content/uploads/2021/05/BR-logo-1-1536x858.jpg" 
+                     alt="BR Casting Logo" 
+                     class="h-8 w-auto object-contain rounded">
+              </div>
+              <h1 class="text-xl font-bold text-black">Talent Q</h1>
+            </div>
+          </div>
+          <div class="flex items-center space-x-6">
+              <!-- Login Options -->
+              <div class="flex items-center space-x-3">
+                <a class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-white text-blue-600 hover:bg-blue-50 font-medium transition-all duration-200 shadow-sm" href="/login">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                  </svg>
+                  <span class="text-sm">Login</span>
+</a>                
+                <a class="flex items-center space-x-2 px-3 py-2 rounded-lg text-black hover:text-blue transition-all duration-200" href="/admin/login">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  </svg>
+                  <span class="text-sm font-medium">Admin</span>
+</a>              </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+
+
+    <!-- Admin Welcome Popup -->
+
+    <main class="w-full py-2 px-1">
+      <!-- BEGIN app/views/sessions/new.html.erb --><div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-md w-full space-y-8">
+    <div>
+      <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        Production House Login
+      </h2>
+    </div>
+
+
+    <form class="mt-8 space-y-6" action="/login" accept-charset="UTF-8" method="post"><input type="hidden" name="authenticity_token" value="wJZvg4GdIytH7_0yEaRcJsQ04xYxWr2bB09Ez2FaSHg5dhjePchMAFRovIlJ0eVMW9_jlh0hf2gpV7pt0Q3vpg" autocomplete="off" />
+      <div class="rounded-md shadow-sm -space-y-px">
+        <div>
+          <label class="sr-only" for="code">Code</label>
+          <input required="required" class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Production House Code" type="text" name="code" id="code" />
+        </div>
+        <div>
+          <label class="sr-only" for="password">Password</label>
+          <input required="required" class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" placeholder="Password" type="password" name="password" id="password" />
+        </div>
+      </div>
+
+      <div>
+        <input type="submit" name="commit" value="Sign in" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" data-disable-with="Sign in" />
+      </div>
+</form>  </div>
+</div>
+<!-- END app/views/sessions/new.html.erb -->
+    </main>
+  </body>
+</html>
+<!-- END app/views/layouts/application.html.erb -->

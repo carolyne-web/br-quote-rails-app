@@ -10,15 +10,6 @@ class QuotationsController < ApplicationController
     # Get combinations data from params or session
     combinations_data = params[:combinations] || session[:combinations_data]
 
-    puts "=== QUOTATIONS CONTROLLER SHOW DEBUG ==="
-    puts "Params keys: #{params.keys}"
-    puts "Combinations in params: #{params[:combinations].present?}"
-    puts "Combinations in session: #{session[:combinations_data].present?}"
-    puts "Combinations data: #{combinations_data.inspect}"
-    puts "Combinations data class: #{combinations_data.class}"
-    puts "Combinations data present?: #{combinations_data.present?}"
-    puts "=== END CONTROLLER DEBUG ==="
-
     # Check if a final quotation already exists for this quotation
     if @quotation.final_quotations.any?
       redirect_to @quotation.final_quotations.last
@@ -46,19 +37,6 @@ class QuotationsController < ApplicationController
   end
 
   def create
-    # DEBUG: Log all parameters to see what we're receiving
-    puts "=== CREATE QUOTATION DEBUG ==="
-    puts "All params keys: #{params.keys}"
-    puts "Talent params present: #{params[:talent].present?}"
-    puts "Territories params present: #{params[:territories].present?}"
-    puts "Media types params present: #{params[:media_types].present?}"
-    puts "Combinations params present: #{params[:combinations].present?}"
-    if params[:combinations].present?
-      puts "Combinations structure: #{params[:combinations].to_unsafe_h}"
-    end
-    puts "Quotation params: #{quotation_params}"
-    puts "=== END DEBUG ==="
-
     @quotation = current_production_house.quotations.build(quotation_params)
 
     # Use campaign_name as project_name if project_name is blank
@@ -229,12 +207,7 @@ class QuotationsController < ApplicationController
   def process_talent_categories
     return unless params[:talent]
 
-    puts "=== PROCESSING TALENT CATEGORIES ==="
-    puts "Talent params structure: #{params[:talent].to_unsafe_h}"
-
     params[:talent].each do |category_id, category_data|
-      puts "Processing category #{category_id}: #{category_data}"
-
       # Handle the current form structure: talent[category_id][field_name]
       description = category_data[:description]
       talent_count = category_data[:talent_count].to_i
@@ -248,7 +221,6 @@ class QuotationsController < ApplicationController
       # Skip if no meaningful data
       next if talent_count == 0 && adjusted_rate == 0 && description.blank?
 
-      puts "Creating talent category: count=#{talent_count}, rate=#{adjusted_rate}, desc=#{description}"
 
       # Create or find talent category
       talent_category = @quotation.talent_categories.find_or_create_by(
@@ -279,7 +251,6 @@ class QuotationsController < ApplicationController
           overtime_hours: overtime_hours,
           night_premium: category_data[:night_premium] == "true" || category_data[:night_premium] == "1"
         )
-        puts "Created day_on_set: #{day_on_set.attributes}"
       end
 
       # Process additional talent lines if present
@@ -297,7 +268,6 @@ class QuotationsController < ApplicationController
           # Skip empty lines
           next if line_talent_count == 0 && line_adjusted_rate == 0 && line_description.blank?
 
-          puts "Creating additional line: count=#{line_talent_count}, rate=#{line_adjusted_rate}, desc=#{line_description}, rehearsal=#{line_rehearsal_days}, down=#{line_down_days}, travel=#{line_travel_days}, overtime=#{line_overtime_hours}"
 
           # Create additional day_on_set for this line with individual details
           talent_category.day_on_sets.create!(
@@ -314,10 +284,7 @@ class QuotationsController < ApplicationController
         end
       end
 
-      puts "Finished processing category #{category_id}"
     end
-
-    puts "=== FINISHED PROCESSING ALL TALENT CATEGORIES ==="
   end
 
   def process_territories

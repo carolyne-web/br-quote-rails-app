@@ -59,7 +59,7 @@
                 <span class="text-sm font-medium">Kids Product</span>
               </label>
               <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <%= f.radio_button :product_type, 'family', class: "text-blue-600 focus:ring-blue-500" %>
+                <%= f.radio_button :product_type, 'family', class: "text-blue-600 focus:ring-blue-500", checked: true %>
                 <span class="text-sm font-medium">Family Product</span>
               </label>
             </div>
@@ -80,7 +80,7 @@
               <span class="text-sm font-medium">Brand Commercial</span>
             </label>
             <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <%= f.radio_button :commercial_type, 'non_brand', class: "text-blue-600 focus:ring-blue-500", id: "commercial_type_non_brand" %>
+              <%= f.radio_button :commercial_type, 'non_brand', class: "text-blue-600 focus:ring-blue-500", id: "commercial_type_non_brand", checked: true %>
               <span class="text-sm font-medium">Non-Brand Commercial</span>
             </label>
           </div>
@@ -1069,7 +1069,9 @@ function removeCombination(comboId) {
             </div>
           </div> -->
         </div>
-        
+
+       
+
         <div class="space-y-2">
           <label class="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
             <input type="checkbox" name="combinations[${comboId}][unlimited_stills]" value="1" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-unlimited-stills" data-combo="${comboId}">
@@ -1705,6 +1707,11 @@ function removeCombination(comboId) {
       if (typeof updateQuotePreview === 'function') {
         updateQuotePreview();
       }
+
+      // Update talent summary when categories are toggled
+      if (typeof updateTalentSummary === 'function') {
+        updateTalentSummary();
+      }
     });
   });
 
@@ -1821,12 +1828,76 @@ function removeCombination(comboId) {
     if (typeof updateQuotePreview === 'function') {
       updateQuotePreview();
     }
+
+    // Update talent summary
+    updateTalentSummary();
+  }
+
+  // Function to update the Talent Summary section
+  function updateTalentSummary() {
+    const categoryTotalsList = document.getElementById('category-totals-list');
+    if (!categoryTotalsList) return;
+
+    const categories = {
+      1: 'Lead',
+      2: 'Second Lead',
+      3: 'Featured Extra',
+      4: 'Teenager',
+      5: 'Kid',
+      6: 'Walk-on',
+      7: 'Extras'
+    };
+
+    let summaryHTML = '';
+    let grandTotal = 0;
+    let hasActiveCategories = false;
+
+    // Loop through all talent categories
+    Object.keys(categories).forEach(categoryId => {
+      const section = document.getElementById(`talent-category-${categoryId}`);
+      if (section && !section.classList.contains('hidden')) {
+        const categoryTotalElement = section.querySelector(`#category-total-${categoryId}`);
+
+        if (categoryTotalElement) {
+          const totalText = categoryTotalElement.textContent.replace(/[R,\s]/g, '');
+          const categoryTotal = parseInt(totalText) || 0;
+
+          if (categoryTotal > 0) {
+            hasActiveCategories = true;
+            grandTotal += categoryTotal;
+
+            summaryHTML += `
+              <div class="flex justify-between items-center py-1 border-b border-blue-100 last:border-b-0">
+                <span class="text-sm font-medium text-gray-700">${categories[categoryId]}</span>
+                <span class="text-sm font-semibold text-blue-600">R${categoryTotal.toLocaleString()}</span>
+              </div>
+            `;
+          }
+        }
+      }
+    });
+
+    if (!hasActiveCategories) {
+      summaryHTML = '<div class="text-gray-500 italic text-sm">No talent categories selected</div>';
+      grandTotal = 0;
+    }
+
+    categoryTotalsList.innerHTML = summaryHTML;
+
+    // Update grand total
+    const grandTotalElement = document.getElementById('talent-grand-total');
+    if (grandTotalElement) {
+      grandTotalElement.textContent = `R${grandTotal.toLocaleString()}`;
+    }
   }
 
   // Initial calculation
   if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
   }
+
+  // Initial talent summary update
+  setTimeout(updateTalentSummary, 100);
 ;
 
 // Action button functions
@@ -1875,6 +1946,11 @@ document.querySelectorAll('.talent-btn').forEach(btn => {
     
     if (typeof updateQuotePreview === 'function') {
       updateQuotePreview();
+    }
+
+    // Update talent summary when categories are toggled
+    if (typeof updateTalentSummary === 'function') {
+      updateTalentSummary();
     }
   });
 });

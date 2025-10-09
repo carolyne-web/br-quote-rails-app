@@ -14,6 +14,15 @@ ProductionHouse.create!(
 
 puts "Created demo production house (code: DEMO001, password: password123)"
 
+# Create another production house for testing
+ProductionHouse.create!(
+  name: "BENR2 Production House",
+  code: "BENR2",
+  password: "br123"
+)
+
+puts "Created BENR2 production house (code: BENR2, password: br123)"
+
 # Talent Categories Base Rates
 talent_rates = [
   { key: 'lead_base_rate', value: '5000', display: 'Lead' },

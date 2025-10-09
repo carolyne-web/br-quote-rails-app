@@ -49,20 +49,13 @@ class FinalQuotationGenerator
   end
 
   def create_groups_and_talent_lines(final_quotation)
-    puts "=== COMBINATIONS DATA DEBUG ==="
-    puts "Combinations present: #{@combinations_data.present?}"
-    puts "Combinations data: #{@combinations_data.inspect}"
-    puts "=== END DEBUG ==="
-
     if @combinations_data.present?
       # Create separate groups for each combination
       @combinations_data.each_with_index do |(combo_id, combo_data), index|
-        puts "Creating group #{index + 1} for combo #{combo_id}: #{combo_data.inspect}"
         create_group_from_combination(final_quotation, combo_data, index + 1)
       end
     else
       # Fallback: create single group with all data
-      puts "No combinations data - creating single group"
       create_single_group(final_quotation)
     end
   end
@@ -301,14 +294,6 @@ class FinalQuotationGenerator
     # Calculate group-specific multipliers
     group_calculations = calculate_group_multipliers(territories, media_types, final_duration)
 
-    puts "=== GROUP #{group_number} CALCULATIONS DEBUG ==="
-    puts "Duration: #{final_duration}"
-    puts "Territories: #{territories.map { |t| t[:name] }.join(', ')}"
-    puts "Media types: #{media_types.join(', ')}"
-    puts "Territory multiplier: #{group_calculations[:territory_multiplier]}"
-    puts "Media multiplier: #{group_calculations[:media_multiplier]}"
-    puts "Duration multiplier: #{group_calculations[:duration_multiplier]}"
-    puts "=== END GROUP CALCULATIONS DEBUG ==="
 
     group = final_quotation.final_quotation_groups.create!(
       group_number: group_number,
@@ -420,19 +405,13 @@ class FinalQuotationGenerator
 
   def create_talent_lines_for_group(group)
     # Create talent lines - one per day_on_set (individual line)
-    puts "=== CREATING TALENT LINES FOR GROUP #{group.group_number} ==="
-
     @quotation.talent_categories.includes(:day_on_sets).each do |category|
-      puts "Processing talent category: #{category.category_type} - Day on sets: #{category.day_on_sets.count}"
-
       category.day_on_sets.each do |day_on_set|
         # Skip if no talent count
         next if day_on_set.talent_count <= 0
 
-        puts "Processing day_on_set: Talent: #{day_on_set.talent_count}, Description: #{day_on_set.description}, Rate: #{day_on_set.adjusted_rate}"
         create_talent_line_from_day_on_set(group, category, day_on_set)
       end
     end
-    puts "=== END TALENT LINES FOR GROUP #{group.group_number} ==="
   end
 end
