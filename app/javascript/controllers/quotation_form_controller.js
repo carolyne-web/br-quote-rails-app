@@ -2069,7 +2069,11 @@ export default class extends Controller {
     const customExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
     const totalExclusivityPercentage = customExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
     percentage += totalExclusivityPercentage * coreBuyoutFactor
-    
+
+    // Apply commercial multiplier based on commercial type and number of commercials
+    const commercialMultiplier = this.getCommercialPercentage(comboId) / 100
+    percentage *= commercialMultiplier
+
     return percentage
   }
 
@@ -2139,11 +2143,15 @@ export default class extends Controller {
     }
     
     // Apply product factor to the percentage (Option A: show effective buyout %)
-    const effectivePercentage = percentage * productFactor
-    
+    let effectivePercentage = percentage * productFactor
+
+    // Apply commercial multiplier based on commercial type and number of commercials
+    const commercialMultiplier = this.getCommercialPercentage(comboId) / 100
+    effectivePercentage *= commercialMultiplier
+
     // Store product factor for use in total calculation (but now it should be 1.0 since we applied it to percentage)
     this.lastProductFactor = 1.0
-    
+
     return effectivePercentage
   }
 
@@ -2177,7 +2185,11 @@ export default class extends Controller {
     // Add unlimited options (percentage of core factor)
     if (unlimitedStills) percentage += 15 * coreBuyoutFactor
     if (unlimitedVersions) percentage += 15 * coreBuyoutFactor
-    
+
+    // Apply commercial multiplier based on commercial type and number of commercials
+    const commercialMultiplier = this.getCommercialPercentage(comboId) / 100
+    percentage *= commercialMultiplier
+
     // Do NOT add custom exclusivities here - that's handled per row
     return percentage
   }
@@ -2340,7 +2352,7 @@ export default class extends Controller {
     return productTypeRadio ? productTypeRadio.value : null
   }
 
-  getCommercialBreakdownForCombo(comboId, baseAmount) {
+  getCommercialBreakdownForCombo(comboId, totalAmount) {
     const commercialTypeInput = document.querySelector('input[name="quotation[commercial_type]"]:checked')
     const commercialsCountInput = document.querySelector(`input[name="combinations[${comboId}][number_of_commercials]"]`)
 
@@ -2355,6 +2367,10 @@ export default class extends Controller {
     if (numberOfCommercials <= 0) {
       return []
     }
+
+    // Calculate the base amount (before commercial multiplier)
+    const commercialMultiplier = this.getCommercialPercentage(comboId) / 100
+    const baseAmount = totalAmount / commercialMultiplier
 
     const breakdown = []
 
@@ -2438,7 +2454,7 @@ export default class extends Controller {
     const kidsSection = document.querySelector('#talent-category-5')
     console.log(`🔍 KIDS COUNT DEBUG - KidsSection found: ${!!kidsSection}, Hidden: ${kidsSection?.classList.contains('hidden')}`)
 
-    if (kidsSection && !kidsSection.classList.contains('hidden')) {
+    if (kidsSection) {
       // Check main talent count input first - try multiple selectors
       const mainCountSelectors = [
         'input[name="talent[5][talent_count]"]',
