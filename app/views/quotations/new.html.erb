@@ -1232,7 +1232,7 @@ function removeCombination(comboId) {
     const talentGrandTotalElement = document.getElementById('talent-grand-total');
 
     // Make talentTotal globally accessible to avoid scope issues
-    window.talentTotal = 0;
+    window.talentTotal = window.talentTotal || 0;
     if (talentGrandTotalElement && talentGrandTotalElement.textContent) {
       const talentText = talentGrandTotalElement.textContent.replace(/[R,\s]/g, '');
       const parsedValue = parseInt(talentText);

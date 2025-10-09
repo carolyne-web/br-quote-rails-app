@@ -2433,28 +2433,65 @@ export default class extends Controller {
   getKidsCount() {
     // Get total count of Kids talent across all categories
     let totalKidsCount = 0
-    
+
     // Look for Kids category (category 5) input rows
     const kidsSection = document.querySelector('#talent-category-5')
     console.log(`🔍 KIDS COUNT DEBUG - KidsSection found: ${!!kidsSection}, Hidden: ${kidsSection?.classList.contains('hidden')}`)
-    
+
     if (kidsSection && !kidsSection.classList.contains('hidden')) {
+      // Check main talent count input first - try multiple selectors
+      const mainCountSelectors = [
+        'input[name="talent[5][talent_count]"]',
+        'input[data-talent-input="5"]',
+        '.talent-count-input',
+        'input[type="number"]'
+      ]
+
+      let mainCountField = null
+      for (const selector of mainCountSelectors) {
+        mainCountField = kidsSection.querySelector(selector)
+        if (mainCountField) {
+          console.log(`🔍 Found main count field using selector: ${selector}`)
+          break
+        }
+      }
+
+      if (mainCountField) {
+        const mainCount = parseInt(mainCountField.value) || 0
+        console.log(`🔍 Main kids count field value = "${mainCountField.value}", parsed = ${mainCount}`)
+        totalKidsCount += mainCount
+      } else {
+        console.log(`🔍 No main count field found, tried selectors:`, mainCountSelectors)
+        // Debug: show all inputs in the kids section
+        const allInputs = kidsSection.querySelectorAll('input')
+        console.log(`🔍 All inputs in kids section:`, Array.from(allInputs).map(input => ({
+          name: input.name,
+          type: input.type,
+          value: input.value,
+          id: input.id,
+          className: input.className
+        })))
+      }
+
+      // Check additional lines
       const inputRows = kidsSection.querySelectorAll('.additional-lines .talent-input-row')
-      console.log(`🔍 Found ${inputRows.length} input rows in Kids section`)
-      
+      console.log(`🔍 Found ${inputRows.length} additional input rows in Kids section`)
+
       inputRows.forEach((row, index) => {
-        const countField = row.querySelector('[name*="talent_count"]') || 
+        const countField = row.querySelector('[name*="talent_count"]') ||
                           row.querySelector('[data-talent-input="5"]')
         if (countField) {
           const count = parseInt(countField.value) || 0
-          console.log(`🔍 Row ${index}: Count field value = ${countField.value}, parsed = ${count}`)
+          console.log(`🔍 Additional Row ${index}: Count field value = ${countField.value}, parsed = ${count}`)
           totalKidsCount += count
         } else {
-          console.log(`🔍 Row ${index}: No count field found`)
+          console.log(`🔍 Additional Row ${index}: No count field found`)
         }
       })
+    } else {
+      console.log(`🔍 Kids section not found or hidden`)
     }
-    
+
     console.log(`🔍 TOTAL KIDS COUNT: ${totalKidsCount}`)
     return totalKidsCount
   }
