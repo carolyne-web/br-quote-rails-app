@@ -1293,6 +1293,9 @@ export default class extends Controller {
     
     // Recalculate totals
     this.calculateCategoryTotal(categoryId)
+
+    // Update all combo tables to reflect the removed category
+    this.populateAllTables()
   }
 
   // Utility method to format numbers with commas

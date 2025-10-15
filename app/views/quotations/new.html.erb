@@ -586,6 +586,12 @@ function handleAddGroupClick(button) {
   }, 500);
 
   console.log('New group created successfully');
+
+  // Update combo tables to populate the new group
+  if (window.quotationFormController) {
+    console.log('🔄 Populating tables for new group');
+    window.quotationFormController.populateAllTables();
+  }
 }
 
 // Tab click handler function
@@ -598,6 +604,15 @@ function handleTabClick(e) {
     e.stopPropagation();
     const comboId = e.target.getAttribute('data-combo-id');
     console.log('Remove combo:', comboId);
+    console.log('🔍 About to call removeUsageCombination with:', comboId);
+    console.log('🔍 removeUsageCombination function exists:', typeof removeUsageCombination);
+
+    try {
+      removeUsageCombination(comboId);
+      console.log('🔍 removeUsageCombination call completed');
+    } catch (error) {
+      console.error('🔍 Error calling removeUsageCombination:', error);
+    }
     return;
   }
 
@@ -786,30 +801,47 @@ function switchToCombination(comboId) {
   }
 }
 
-function removeCombination(comboId) {
-    console.log('Removing combination:', comboId);
-    if (comboId == 1) {
-      console.log('Cannot remove group 1');
-      return; // Cannot remove group 1
-    }
-    
+function removeUsageCombination(comboId) {
+    console.log('🗑️ removeCombination called with comboId:', comboId, 'type:', typeof comboId);
+
+    // Convert to string for consistent comparison
+    comboId = String(comboId);
+    console.log('🗑️ Converted comboId to string:', comboId);
+
+    // Allow removal of any group including group 1
+    // if (comboId == 1) {
+    //   console.log('Cannot remove group 1');
+    //   return; // Cannot remove group 1
+    // }
+
     // Remove tab
     const tab = document.querySelector(`button[data-combo="${comboId}"].combination-tab`);
-    console.log('Found tab to remove:', tab);
+    console.log('🗑️ Looking for tab with selector: button[data-combo="' + comboId + '"].combination-tab');
+    console.log('🗑️ Found tab to remove:', tab);
     if (tab) {
+      console.log('🗑️ Removing tab...');
       tab.remove();
+      console.log('🗑️ Tab removed successfully');
+    } else {
+      console.log('🗑️ ❌ No tab found to remove!');
     }
-    
+
     // Remove content
     const content = document.querySelector(`div[data-combo="${comboId}"].combination-content`);
-    console.log('Found content to remove:', content);
+    console.log('🗑️ Looking for content with selector: div[data-combo="' + comboId + '"].combination-content');
+    console.log('🗑️ Found content to remove:', content);
     if (content) {
+      console.log('🗑️ Removing content...');
       content.remove();
+      console.log('🗑️ Content removed successfully');
+    } else {
+      console.log('🗑️ ❌ No content found to remove!');
     }
-    
+
     // Remove combo table
     const comboTable = document.querySelector(`div[data-combo="${comboId}"].combo-table-section`);
-    console.log('Found combo table to remove:', comboTable);
+    console.log('🗑️ Looking for combo table with selector: div[data-combo="' + comboId + '"].combo-table-section');
+    console.log('🗑️ Found combo table to remove:', comboTable);
     if (comboTable) {
       comboTable.remove();
     }
@@ -828,6 +860,11 @@ function removeCombination(comboId) {
     // Update quote preview
     if (typeof updateQuotePreview === 'function') {
       updateQuotePreview();
+    }
+
+    // Update combo tables if quotation controller exists
+    if (window.quotationFormController) {
+      window.quotationFormController.populateAllTables();
     }
   }
   
@@ -1991,6 +2028,12 @@ document.addEventListener('click', function(e) {
     switchToCombination(newComboId);
 
     console.log('New group created successfully');
+
+    // Update combo tables to populate the new group
+    if (window.quotationFormController) {
+      console.log('🔄 Populating tables for new group');
+      window.quotationFormController.populateAllTables();
+    }
   }
 });
 
