@@ -289,6 +289,11 @@ export default class extends Controller {
   }
 
   handleDocumentClick(e) {
+    // Allow commercial count inputs to function normally
+    if (e.target.classList.contains('commercial-count-input')) {
+      return
+    }
+
     // Handle add combination buttons
     if (e.target.closest('.add-combination-btn')) {
       const btn = e.target.closest('.add-combination-btn')
@@ -1510,18 +1515,32 @@ export default class extends Controller {
     return number + (suffixes[(mod100 - 20) % 10] || suffixes[mod100] || suffixes[0])
   }
 
-  getCommercialPercentage(comboId = null) {
-    // If comboId is provided, calculate total percentage for that specific combo
-    if (comboId) {
+  getCommercialPercentage(comboId = null, categoryId = null, lineIndex = null) {
+    // If specific row parameters are provided, get commercial count from that row's input
+    if (comboId && categoryId !== null && lineIndex !== null) {
+      console.log(`🔢 Getting commercial percentage for combo:${comboId}, category:${categoryId}, line:${lineIndex}`)
+
       const commercialTypeInput = document.querySelector('input[name="quotation[commercial_type]"]:checked')
-      const commercialsCountInput = document.querySelector(`input[name="combinations[${comboId}][number_of_commercials]"]`)
+      const commercialsCountInput = document.querySelector(`.commercial-count-input[data-combo="${comboId}"][data-category="${categoryId}"][data-line="${lineIndex}"]`)
+
+      console.log('🔢 Commercial type input:', commercialTypeInput)
+      console.log('🔢 Commercial count input:', commercialsCountInput)
 
       if (!commercialTypeInput || !commercialsCountInput) {
+        console.log('🔢 Missing inputs, returning 100%')
         return 100 // Default to 100% if no commercial info
       }
 
       const commercialType = commercialTypeInput.value
       const numberOfCommercials = parseInt(commercialsCountInput.value) || 1
+
+      console.log(`🔢 Commercial type: ${commercialType}, count: ${numberOfCommercials}`)
+
+      // If only 1 commercial, return 100% (no multiplier)
+      if (numberOfCommercials <= 1) {
+        console.log('🔢 Only 1 commercial, returning 100%')
+        return 100
+      }
 
       let totalPercentage = 0
 
@@ -1537,10 +1556,12 @@ export default class extends Controller {
         }
       }
 
+      console.log(`🔢 Calculated total percentage: ${totalPercentage}%`)
       return totalPercentage
     }
 
-    // Legacy fallback - return 100% if no combo specified
+    // Legacy fallback - return 100% if no specific row info
+    console.log('🔢 No row-specific info, returning 100%')
     return 100
   }
 
@@ -1763,8 +1784,20 @@ export default class extends Controller {
   }
 
   populateComboTable(comboId, guaranteeState = null) {
+    console.log(`🔄 populateComboTable called for combo ${comboId}`)
     const tbody = document.querySelector(`.quote-preview-rows[data-combo="${comboId}"]`)
-    if (!tbody) return
+    if (!tbody) {
+      console.log(`❌ No tbody found for combo ${comboId}`)
+      return
+    }
+
+    // Preserve current commercial count values before regenerating
+    const existingCommercialValues = {}
+    tbody.querySelectorAll('.commercial-count-input').forEach(input => {
+      const key = `${input.dataset.category}_${input.dataset.line}`
+      existingCommercialValues[key] = input.value
+      console.log(`💾 Preserving commercial count for ${key}: ${input.value}`)
+    })
 
     // Determine guarantee state for this combo
     let isGuaranteedForCombo = false
@@ -1800,7 +1833,7 @@ export default class extends Controller {
         const applicableExclusivities = [...categoryExclusivities, ...lineSpecificExclusivities]
         
         // Calculate row-specific buyout percentage with Product Type logic
-        let rowBuyoutPercentage = this.calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee)
+        let rowBuyoutPercentage = this.calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee, lineIndex)
         
         // Apply guarantee reduction if enabled for this combo
         const originalBuyoutPercentage = rowBuyoutPercentage
@@ -1865,6 +1898,9 @@ export default class extends Controller {
                 </div>
               </div>
             </td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">
+              <input type="number" min="1" max="20" step="1" value="${existingCommercialValues[`${categoryId}_${lineIndex}`] || 1}" name="talent[${categoryId}][lines][${lineIndex}][commercial_count]" id="commercial_count_${comboId}_${categoryId}_${lineIndex}" class="w-16 px-2 py-1 text-xs text-center border rounded commercial-count-input focus:outline-none focus:ring-2 focus:ring-blue-500" data-combo="${comboId}" data-category="${categoryId}" data-line="${lineIndex}" style="-webkit-appearance: auto; -moz-appearance: textfield-multiline;">
+            </td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${Math.floor(rowBuyoutPercentage)}%</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(totalRands / unit)}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right">R${this.formatNumber(totalRands)}</td>
@@ -1878,7 +1914,7 @@ export default class extends Controller {
       // Guarantee row
       rows.push(`
         <tr class="border-t border-gray-300 bg-gray-50">
-          <td class="py-2 px-3 text-sm text-gray-700" colspan="6">
+          <td class="py-2 px-3 text-sm text-gray-700" colspan="7">
             <label class="flex items-center">
               <input type="checkbox" class="guarantee-checkbox mr-2 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2" data-combo="${comboId}" ${isGuaranteedForCombo ? 'checked' : ''}>
               <span class="text-sm font-medium text-gray-700">Would you like to guarantee?</span>
@@ -1901,7 +1937,7 @@ export default class extends Controller {
           commercialTotal += commercial.amount
           rows.push(`
             <tr class="commercial-breakdown-row" data-combo="${comboId}">
-              <td class="py-1 px-3 text-xs text-gray-600 pl-8" colspan="6">
+              <td class="py-1 px-3 text-xs text-gray-600 pl-8" colspan="7">
                 ${commercial.label}
               </td>
               <td class="py-1 px-3 text-xs text-gray-700 text-right">
@@ -1918,7 +1954,7 @@ export default class extends Controller {
       // Total row
       rows.push(`
         <tr class="bg-gray-50">
-          <td class="py-2 px-3 text-sm text-gray-700 font-medium" colspan="6">Total:</td>
+          <td class="py-2 px-3 text-sm text-gray-700 font-medium" colspan="7">Total:</td>
           <td class="py-2 px-3 text-sm text-gray-900 text-right font-medium">
             <span class="total-zar-amount" data-combo="${comboId}" data-base-amount="${totalAmount}">R${this.formatNumber(totalAmount)}</span>
           </td>
@@ -1928,7 +1964,7 @@ export default class extends Controller {
       // Currency row
       rows.push(`
         <tr class="border-b-2 border-gray-400 bg-gray-100 font-semibold">
-          <td class="py-3 px-3 text-sm text-gray-900" colspan="6">
+          <td class="py-3 px-3 text-sm text-gray-900" colspan="7">
             <select class="currency-selector text-xs border border-gray-300 rounded px-auto py-1 bg-gray-50 text-gray-700 focus:border-gray-400 focus:outline-none" data-combo="${comboId}">
               <option value="" selected>Select Currency</option>
               <option value="USD">USD ($)</option>
@@ -1944,7 +1980,43 @@ export default class extends Controller {
     }
 
     tbody.innerHTML = rows.join('')
-    
+
+    // Use event delegation instead of direct event listeners to avoid conflicts
+    console.log(`🔢 Setting up event delegation for combo ${comboId} commercial inputs`)
+
+    // Remove any existing event listeners for this combo first
+    tbody.removeEventListener('input', this.commercialInputHandler)
+    tbody.removeEventListener('change', this.commercialInputHandler)
+
+    // Create bound handler if it doesn't exist
+    if (!this.commercialInputHandler) {
+      this.commercialInputHandler = (e) => {
+        if (e.target.classList.contains('commercial-count-input')) {
+          console.log('🔢 Commercial input event:', e.type, 'value:', e.target.value)
+          const comboId = e.target.dataset.combo
+          console.log('🔢 Will repopulate table for combo:', comboId)
+
+          // Small delay to ensure value is properly set
+          setTimeout(() => {
+            console.log('🔢 Calling populateComboTable now...')
+            this.populateComboTable(parseInt(comboId))
+          }, 50)
+        }
+      }
+    }
+
+    // Add event delegation
+    tbody.addEventListener('input', this.commercialInputHandler)
+    tbody.addEventListener('change', this.commercialInputHandler)
+
+    // Count and log the inputs for debugging
+    const commercialInputs = tbody.querySelectorAll('.commercial-count-input')
+    console.log(`🔢 Found ${commercialInputs.length} commercial count inputs for combo ${comboId}`)
+
+    commercialInputs.forEach((input, index) => {
+      console.log(`🔢 Input ${index}:`, input.value, 'disabled:', input.disabled, 'readonly:', input.readOnly)
+    })
+
     // Initialize amounts with proper currency conversion
     if (totalAmount > 0) {
       this.updateAllAmounts(comboId)
@@ -2077,7 +2149,7 @@ export default class extends Controller {
     return percentage
   }
 
-  calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee) {
+  calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, dayFee, lineIndex = null) {
     // Get base components for the row-specific calculation
     const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
     const duration = durationSelect?.value || ''
@@ -2146,7 +2218,7 @@ export default class extends Controller {
     let effectivePercentage = percentage * productFactor
 
     // Apply commercial multiplier based on commercial type and number of commercials
-    const commercialMultiplier = this.getCommercialPercentage(comboId) / 100
+    const commercialMultiplier = this.getCommercialPercentage(comboId, categoryId, lineIndex) / 100
     effectivePercentage *= commercialMultiplier
 
     // Store product factor for use in total calculation (but now it should be 1.0 since we applied it to percentage)
@@ -2353,65 +2425,9 @@ export default class extends Controller {
   }
 
   getCommercialBreakdownForCombo(comboId, totalAmount) {
-    const commercialTypeInput = document.querySelector('input[name="quotation[commercial_type]"]:checked')
-    const commercialsCountInput = document.querySelector(`input[name="combinations[${comboId}][number_of_commercials]"]`)
-
-    // Return empty array if no commercial type selected or no input found
-    if (!commercialTypeInput || !commercialTypeInput.value || !commercialsCountInput) {
-      return []
-    }
-
-    const commercialType = commercialTypeInput.value
-    const numberOfCommercials = parseInt(commercialsCountInput.value) || 1
-
-    if (numberOfCommercials <= 0) {
-      return []
-    }
-
-    // Calculate the base amount (before commercial multiplier)
-    const commercialMultiplier = this.getCommercialPercentage(comboId) / 100
-    const baseAmount = totalAmount / commercialMultiplier
-
-    const breakdown = []
-
-    // Calculate percentage for each commercial based on type
-    for (let i = 1; i <= numberOfCommercials; i++) {
-      let percentage = 0
-      let label = ''
-
-      if (commercialType === 'non_brand') {
-        if (i === 1) {
-          percentage = 100
-          label = `Commercial 1 (100% of base)`
-        } else if (i === 2) {
-          percentage = 50
-          label = `Commercial 2 (50% of base)`
-        } else {
-          percentage = 25
-          label = `Commercial ${i} (25% of base)`
-        }
-      } else if (commercialType === 'brand') {
-        if (i === 1) {
-          percentage = 100
-          label = `Commercial 1 (100% of base)`
-        } else if (i === 2) {
-          percentage = 75
-          label = `Commercial 2 (75% of base)`
-        } else {
-          percentage = 50
-          label = `Commercial ${i} (50% of base)`
-        }
-      }
-
-      const amount = baseAmount * (percentage / 100)
-      breakdown.push({
-        label: label,
-        percentage: percentage,
-        amount: amount
-      })
-    }
-
-    return breakdown
+    // Commercial breakdown is now handled per-row, so return empty array
+    // TODO: Could implement per-row commercial breakdown in the future if needed
+    return []
   }
 
   setupComboCommercialListeners() {

@@ -31,7 +31,6 @@ wb.add_worksheet(name: "Quotation #{@quotation.project_number}") do |sheet|
     sheet.add_row ["Exclusivity Type", @quotation_detail.exclusivity_type&.humanize]
     sheet.add_row ["Duration", @quotation_detail.duration]
     sheet.add_row ["Media Type", @quotation_detail.media_type&.humanize]
-    sheet.add_row ["Number of Commercials", @quotation_detail.number_of_commercials]
     sheet.add_row []
   end
 

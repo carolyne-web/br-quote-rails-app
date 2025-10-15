@@ -322,10 +322,6 @@
                       <option value="36_months">36 Months</option>
                     </select>
                   </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-3" for="combination_1_commercials">Number of Commercials</label>
-                    <input type="number" name="combinations[1][number_of_commercials]" id="combination_1_commercials" min="1" max="20" value="1" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-commercials" data-combo="1">
-                  </div>
                 </div>
 
                 <!-- Territory Selection for this Combination -->
@@ -484,6 +480,7 @@
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Day Fee</th>
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Unit</th>
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Exclusivity</th>
+                      <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300"># of Comms</th>
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Buyout %</th>
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Per Talent</th>
                       <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Total (R)</th>
@@ -724,24 +721,8 @@ function initializeQuotationForm() {
       const newContent = createCombinationContent(newComboId);
       contentContainer.appendChild(newContent);
 
-      // Setup commercial input listener for new combo (with delay to ensure DOM is ready)
+      // Setup listeners for new combo (with delay to ensure DOM is ready)
       setTimeout(() => {
-        const newCommercialInput = document.querySelector(`input[name="combinations[${newComboId}][number_of_commercials]"]`);
-        if (newCommercialInput) {
-          newCommercialInput.addEventListener('input', () => {
-            if (typeof window.quotationFormController !== 'undefined') {
-              window.quotationFormController.populateAllTables();
-            }
-          });
-
-          // Prevent form submission on Enter key
-          newCommercialInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              newCommercialInput.blur(); // Remove focus from input
-            }
-          });
-        }
 
         // The territories should already be populated by the createCombinationContent function
         // But let's ensure they're visible and the search works immediately
@@ -994,10 +975,6 @@ function removeCombination(comboId) {
               <option value="24_months">2 Years</option>
               <option value="36_months">36 Months</option>
             </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-600" for="combination_${comboId}_commercials">Number of Commercials</label>
-            <input type="number" name="combinations[${comboId}][number_of_commercials]" id="combination_${comboId}_commercials" min="1" max="20" value="1" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-commercials" data-combo="${comboId}">
           </div>
         </div>
 
