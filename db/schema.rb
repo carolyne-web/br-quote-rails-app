@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_30_051952) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_16_091210) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -22,7 +22,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_30_051952) do
     t.datetime "updated_at", null: false
     t.boolean "night_premium"
     t.text "description"
-    t.decimal "adjusted_rate", precision: 8, scale: 2
+    t.decimal "adjusted_rate", precision: 12, scale: 2
     t.integer "rehearsal_days"
     t.integer "down_days"
     t.integer "travel_days"
@@ -63,25 +63,25 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_30_051952) do
     t.string "description"
     t.string "category_type"
     t.integer "talent_count"
-    t.decimal "daily_rate", precision: 8, scale: 2
-    t.decimal "rate_adjustment", precision: 8, scale: 2
-    t.decimal "adjusted_rate", precision: 8, scale: 2
+    t.decimal "daily_rate", precision: 12, scale: 2
+    t.decimal "rate_adjustment", precision: 12, scale: 2
+    t.decimal "adjusted_rate", precision: 12, scale: 2
     t.integer "shoot_days"
     t.integer "rehearsal_days"
     t.integer "travel_days"
     t.integer "down_days"
     t.integer "overtime_hours"
     t.boolean "has_night_premium", default: false
-    t.decimal "night_premium_amount", precision: 8, scale: 2
-    t.decimal "base_fee", precision: 8, scale: 2
-    t.decimal "rehearsal_fee", precision: 8, scale: 2
-    t.decimal "travel_fee", precision: 8, scale: 2
-    t.decimal "down_fee", precision: 8, scale: 2
-    t.decimal "overtime_fee", precision: 8, scale: 2
-    t.decimal "night_fee", precision: 8, scale: 2
-    t.decimal "total_talent_fee", precision: 8, scale: 2
-    t.decimal "usage_fee", precision: 8, scale: 2
-    t.decimal "total_line_cost", precision: 8, scale: 2
+    t.decimal "night_premium_amount", precision: 12, scale: 2
+    t.decimal "base_fee", precision: 12, scale: 2
+    t.decimal "rehearsal_fee", precision: 12, scale: 2
+    t.decimal "travel_fee", precision: 12, scale: 2
+    t.decimal "down_fee", precision: 12, scale: 2
+    t.decimal "overtime_fee", precision: 12, scale: 2
+    t.decimal "night_fee", precision: 12, scale: 2
+    t.decimal "total_talent_fee", precision: 12, scale: 2
+    t.decimal "usage_fee", precision: 12, scale: 2
+    t.decimal "total_line_cost", precision: 12, scale: 2
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["final_quotation_group_id"], name: "index_final_quotation_talent_lines_on_final_quotation_group_id"
@@ -102,9 +102,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_30_051952) do
     t.string "exclusivity_type"
     t.boolean "unlimited_stills"
     t.boolean "unlimited_versions"
-    t.decimal "total_talent_fee", precision: 10, scale: 2
-    t.decimal "total_usage_fee", precision: 10, scale: 2
-    t.decimal "total_amount", precision: 10, scale: 2
+    t.decimal "total_talent_fee", precision: 12, scale: 2
+    t.decimal "total_usage_fee", precision: 12, scale: 2
+    t.decimal "total_amount", precision: 12, scale: 2
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["created_at"], name: "index_final_quotations_on_created_at"
@@ -220,8 +220,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_30_051952) do
     t.bigint "quotation_id", null: false
     t.integer "category_type", null: false
     t.integer "initial_count", default: 0
-    t.decimal "daily_rate", precision: 8, scale: 2
-    t.decimal "adjusted_rate", precision: 8, scale: 2
+    t.decimal "daily_rate", precision: 12, scale: 2
+    t.decimal "adjusted_rate", precision: 12, scale: 2
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.decimal "overtime_hours"

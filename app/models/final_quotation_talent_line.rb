@@ -20,7 +20,7 @@ class FinalQuotationTalentLine < ApplicationRecord
 
     # Calculate overtime
     hourly_rate = adjusted_rate * 0.1
-    self.overtime_fee = talent_count * hourly_rate * overtime_hours
+    self.overtime_fee = talent_count * hourly_rate * overtime_hours * shoot_days
 
     # Calculate night premium
     self.night_fee = has_night_premium ? night_premium_amount : 0

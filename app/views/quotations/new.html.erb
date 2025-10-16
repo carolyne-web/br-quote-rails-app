@@ -646,7 +646,7 @@ const exclusivitySettings = <%= @exclusivity_settings.to_json.html_safe %>;
 
 // Territories data for JavaScript
 const territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
-  [group_name, territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
+  [group_name || 'Individual Territories', territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
 }.to_h.to_json.html_safe %>;
 
 // Function to initialize the page functionality

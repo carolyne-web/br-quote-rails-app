@@ -17,6 +17,13 @@ export default class extends Controller {
     // Make controller available globally for HTML callback functions
     window.quotationFormController = this
 
+    // Prevent Enter key from submitting the form
+    this.element.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') {
+        event.preventDefault()
+      }
+    })
+
     // Clear exclusivity data for new quotes to prevent persistence
     if (window.location.pathname.includes('/quotations/new')) {
       console.log('New quotation detected - clearing exclusivity data')
@@ -25,7 +32,7 @@ export default class extends Controller {
 
     // Initialize arrays first
     this.baseRates = {}
-    
+
     this.setupTalentButtons()
     this.setupMediaTypeLogic()
     this.setupManualAdjustments()
@@ -1588,25 +1595,33 @@ export default class extends Controller {
   setupComboSummaryUpdate() {
     // Set up event listeners to update the combo summary heading
     this.updateAllComboSummaries()
-    
+
     // Listen for duration changes
     document.addEventListener('change', (e) => {
       if (e.target.matches('select[name*="duration"]')) {
         this.updateAllComboSummaries()
       }
     })
-    
+
     // Listen for territory changes
     document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('territory-checkbox') || 
+      if (e.target.classList.contains('territory-checkbox') ||
           e.target.classList.contains('combination-territory-checkbox')) {
         this.updateAllComboSummaries()
       }
     })
-    
+
     // Listen for media type changes
     document.addEventListener('change', (e) => {
       if (e.target.classList.contains('combination-media')) {
+        this.updateAllComboSummaries()
+      }
+    })
+
+    // Listen for unlimited options changes
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('[name*="unlimited_stills"]') ||
+          e.target.matches('[name*="unlimited_versions"]')) {
         this.updateAllComboSummaries()
       }
     })
@@ -1625,27 +1640,39 @@ export default class extends Controller {
   updateComboSummary(comboId) {
     const pillsContainer = document.querySelector(`.combo-summary-pills[data-combo="${comboId}"]`)
     if (!pillsContainer) return
-    
+
     const pills = []
-    
+
     // Add duration pill
     const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
     if (durationSelect && durationSelect.value) {
       const durationText = this.formatDurationText(durationSelect.value)
       pills.push(durationText)
     }
-    
+
     // Add territory pills
     const territories = this.getSelectedTerritories(comboId)
     pills.push(...territories)
-    
+
     // Add media type pills
     const mediaTypes = this.getSelectedMediaTypes(comboId)
     pills.push(...mediaTypes)
-    
+
+    // Add unlimited stills pill
+    const unlimitedStillsCheckbox = document.querySelector(`input[name="combinations[${comboId}][unlimited_stills]"]:checked`)
+    if (unlimitedStillsCheckbox) {
+      pills.push('Unlimited Stills')
+    }
+
+    // Add unlimited versions pill
+    const unlimitedVersionsCheckbox = document.querySelector(`input[name="combinations[${comboId}][unlimited_versions]"]:checked`)
+    if (unlimitedVersionsCheckbox) {
+      pills.push('Unlimited Versions')
+    }
+
     // Render all pills
     if (pills.length > 0) {
-      pillsContainer.innerHTML = pills.map(pill => 
+      pillsContainer.innerHTML = pills.map(pill =>
         `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">${pill}</span>`
       ).join('')
     } else {
@@ -3027,8 +3054,13 @@ export default class extends Controller {
 
     // Save exclusivities
     modal.querySelector('.exclusivity-save').addEventListener('click', () => {
-      this.saveExclusivities(modal, comboId)
-      modal.remove()
+      try {
+        this.saveExclusivities(modal, comboId)
+      } catch (error) {
+        console.error('Error saving exclusivities:', error)
+      } finally {
+        modal.remove()
+      }
     })
   }
 
@@ -3492,8 +3524,13 @@ export default class extends Controller {
 
     // Save line exclusivities
     modal.querySelector('.exclusivity-save-line').addEventListener('click', () => {
-      this.saveLineExclusivities(modal, categoryId, lineIndex, talentDescription)
-      modal.remove()
+      try {
+        this.saveLineExclusivities(modal, categoryId, lineIndex, talentDescription)
+      } catch (error) {
+        console.error('Error saving line exclusivities:', error)
+      } finally {
+        modal.remove()
+      }
     })
   }
 

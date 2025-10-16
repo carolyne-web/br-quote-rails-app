@@ -38,8 +38,8 @@ class FinalQuotationGenerator
 
       # Global contract details
       exclusivity_type: @detail&.exclusivity_type,
-      unlimited_stills: @detail&.unlimited_stills || false,
-      unlimited_versions: @detail&.unlimited_versions || false,
+      unlimited_stills: has_unlimited_stills?,
+      unlimited_versions: has_unlimited_versions?,
 
       # Final calculated totals
       total_talent_fee: @calculation[:total_talent_fee],
@@ -85,7 +85,7 @@ class FinalQuotationGenerator
     rehearsal_fee = talent_count * adjusted_rate * rehearsal_days * 0.5
     travel_fee = talent_count * adjusted_rate * travel_days * 0.5
     down_fee = talent_count * adjusted_rate * down_days * 0.5
-    overtime_fee = talent_count * (adjusted_rate * 0.1) * overtime_hours
+    overtime_fee = talent_count * (adjusted_rate * 0.1) * overtime_hours * days_count
 
     # Night premium: 50% of base rate for first shoot day only (if night premium is enabled)
     night_fee = if day_on_set.night_premium
@@ -151,7 +151,7 @@ class FinalQuotationGenerator
     rehearsal_fee = category.initial_count * adjusted_rate * rehearsal_days * 0.5
     travel_fee = category.initial_count * adjusted_rate * travel_days * 0.5
     down_fee = category.initial_count * adjusted_rate * down_days * 0.5
-    overtime_fee = category.initial_count * (adjusted_rate * 0.1) * overtime_hours
+    overtime_fee = category.initial_count * (adjusted_rate * 0.1) * overtime_hours * shoot_days
     night_fee = 0 # TODO: Implement night premium logic
 
     total_talent_fee = base_fee + rehearsal_fee + travel_fee + down_fee + overtime_fee + night_fee
@@ -412,6 +412,26 @@ class FinalQuotationGenerator
 
         create_talent_line_from_day_on_set(group, category, day_on_set)
       end
+    end
+  end
+
+  def has_unlimited_stills?
+    # Check if any combination has unlimited stills enabled
+    if @combinations_data.present?
+      @combinations_data.any? { |combo_id, combo_data| combo_data["unlimited_stills"] == "1" }
+    else
+      # Fallback to quotation details if no combinations data
+      @detail&.unlimited_stills || false
+    end
+  end
+
+  def has_unlimited_versions?
+    # Check if any combination has unlimited versions enabled
+    if @combinations_data.present?
+      @combinations_data.any? { |combo_id, combo_data| combo_data["unlimited_versions"] == "1" }
+    else
+      # Fallback to quotation details if no combinations data
+      @detail&.unlimited_versions || false
     end
   end
 end
