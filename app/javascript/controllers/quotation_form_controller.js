@@ -701,8 +701,8 @@ export default class extends Controller {
     // Travel days at 50% rate
     lineTotal += talentCount * adjustedRate * 0.5 * travelDays
     
-    // Overtime at 10% rate per hour
-    lineTotal += talentCount * adjustedRate * 0.1 * overtimeHours
+    // Overtime at 10% rate per hour multiplied by shoot days
+    lineTotal += talentCount * adjustedRate * 0.1 * overtimeHours * shootDays
     
     // Night calculation: 1 × rate × talent × 0.5 (applies to first shoot day only)
     if (isNightActive) {
