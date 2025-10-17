@@ -217,6 +217,24 @@ class QuotationsController < ApplicationController
       travel_days = category_data[:travel_days].to_i
       down_days = category_data[:down_days].to_i
       overtime_hours = category_data[:overtime_hours].to_f
+      # Collect all exclusivities for this category
+      exclusivities = []
+
+      # Add category-based exclusivity if present
+      if category_data[:exclusivity_type].present?
+        exclusivities << category_data[:exclusivity_type]
+      end
+
+      # Add line-specific exclusivity if present
+      if category_data[:lines].present?
+        first_line = category_data[:lines]["0"] || category_data[:lines].values.first
+        if first_line && first_line[:exclusivity_type].present?
+          exclusivities << first_line[:exclusivity_type]
+        end
+      end
+
+      # Combine all exclusivities, removing duplicates
+      exclusivity_type = exclusivities.uniq.join(", ")
 
       # Skip if no meaningful data
       next if talent_count == 0 && adjusted_rate == 0 && description.blank?
@@ -249,7 +267,8 @@ class QuotationsController < ApplicationController
           down_days: down_days,
           travel_days: travel_days,
           overtime_hours: overtime_hours,
-          night_premium: category_data[:night_premium] == "true" || category_data[:night_premium] == "1"
+          night_premium: category_data[:night_premium] == "true" || category_data[:night_premium] == "1",
+          exclusivity_type: exclusivity_type
         )
       end
 
@@ -264,6 +283,21 @@ class QuotationsController < ApplicationController
           line_down_days = line_data[:down_days].to_i
           line_travel_days = line_data[:travel_days].to_i
           line_overtime_hours = line_data[:overtime_hours].to_f
+          # Collect all exclusivities for this specific line
+          line_exclusivities = []
+
+          # Add category-based exclusivity (applies to all lines in this category)
+          if category_data[:exclusivity_type].present?
+            line_exclusivities << category_data[:exclusivity_type]
+          end
+
+          # Add line-specific exclusivity
+          if line_data[:exclusivity_type].present?
+            line_exclusivities << line_data[:exclusivity_type]
+          end
+
+          # Combine all exclusivities for this line
+          line_exclusivity_type = line_exclusivities.uniq.join(", ")
 
           # Skip empty lines
           next if line_talent_count == 0 && line_adjusted_rate == 0 && line_description.blank?
@@ -279,7 +313,8 @@ class QuotationsController < ApplicationController
             down_days: line_down_days,
             travel_days: line_travel_days,
             overtime_hours: line_overtime_hours,
-            night_premium: line_data[:night_premium] == "true" || line_data[:night_premium] == "1"
+            night_premium: line_data[:night_premium] == "true" || line_data[:night_premium] == "1",
+            exclusivity_type: line_exclusivity_type
           )
         end
       end

@@ -1916,6 +1916,11 @@ function removeUsageCombination(comboId) {
 
 // Action button functions
 function saveDraft() {
+  // Inject exclusivity data into form before submission
+  if (window.quotationFormController && typeof window.quotationFormController.injectExclusivityDataIntoForm === 'function') {
+    window.quotationFormController.injectExclusivityDataIntoForm();
+  }
+
   // Add a hidden field to indicate draft status
   const form = document.querySelector('form');
   const draftField = document.createElement('input');
@@ -1923,7 +1928,7 @@ function saveDraft() {
   draftField.name = 'save_as_draft';
   draftField.value = '1';
   form.appendChild(draftField);
-  
+
   // Submit the form
   form.submit();
 }

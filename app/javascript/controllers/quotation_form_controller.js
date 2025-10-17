@@ -45,7 +45,8 @@ export default class extends Controller {
     this.setupTablePopulation()
     this.setupExclusivityPopup()
     this.setupCurrencyAndGuaranteeListeners()
-    
+    this.setupFormSubmissionHandler()
+
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
     window.removeCombination = (categoryId, index) => this.removeCombination(categoryId, index)
@@ -1637,6 +1638,146 @@ export default class extends Controller {
     })
   }
 
+  injectExclusivityDataIntoForm() {
+    // Convert exclusivity data from window.exclusivityData to form fields before submission
+    if (!window.exclusivityData) {
+      console.log('❌ No window.exclusivityData found - skipping injection')
+      return
+    }
+
+    console.log('🔄 Injecting exclusivity data into form...', window.exclusivityData)
+
+    // Remove any existing exclusivity hidden fields
+    document.querySelectorAll('input[name*="exclusivity_type"], input[name*="exclusivities"]').forEach(field => {
+      field.remove()
+    })
+
+    // Find the main quotation form (not logout or other forms)
+    const form = document.querySelector('form[data-controller="quotation-form"]') ||
+                 document.querySelector('form:not(.button_to)') ||
+                 this.element.querySelector('form')
+
+    if (!form) {
+      console.log('❌ No suitable form found for exclusivity injection')
+      return
+    }
+
+    console.log('📝 Using form for injection:', form)
+
+    // Create category-specific exclusivity data instead of global
+    Object.keys(window.exclusivityData).forEach(comboId => {
+      const exclusivities = window.exclusivityData[comboId] || []
+
+      exclusivities.forEach((exclusivity, index) => {
+        console.log(`🔍 Checking exclusivity:`, exclusivity)
+        console.log(`   isLineSpecific: ${exclusivity.isLineSpecific}`)
+        console.log(`   categoryId: ${exclusivity.categoryId}`)
+        console.log(`   lineIndex: ${exclusivity.lineIndex}`)
+
+        if (exclusivity.isLineSpecific && exclusivity.categoryId && exclusivity.lineIndex !== undefined) {
+          // Create line-specific exclusivity field
+          const lineExclusivityField = document.createElement('input')
+          lineExclusivityField.type = 'hidden'
+          lineExclusivityField.name = `talent[${exclusivity.categoryId}][lines][${exclusivity.lineIndex}][exclusivity_type]`
+          lineExclusivityField.value = `${exclusivity.name} ${exclusivity.percentage}%`
+          form.appendChild(lineExclusivityField)
+
+          console.log(`✅ Added line-specific exclusivity: ${exclusivity.name} ${exclusivity.percentage}% for category ${exclusivity.categoryId}, line ${exclusivity.lineIndex}`)
+        } else if (exclusivity.categories && exclusivity.categories.length > 0) {
+          // Apply category-based exclusivity to main talent category (not sub-lines)
+          exclusivity.categories.forEach(categoryId => {
+            const categoryExclusivityField = document.createElement('input')
+            categoryExclusivityField.type = 'hidden'
+            categoryExclusivityField.name = `talent[${categoryId}][exclusivity_type]`
+            categoryExclusivityField.value = `${exclusivity.name} ${exclusivity.percentage}%`
+            form.appendChild(categoryExclusivityField)
+
+            console.log(`✅ Added category-based exclusivity: ${exclusivity.name} ${exclusivity.percentage}% for category ${categoryId}`)
+          })
+        } else {
+          // Fallback for non-line-specific exclusivities
+          const globalField = document.createElement('input')
+          globalField.type = 'hidden'
+          globalField.name = `combinations[${comboId}][exclusivities][${index}][name]`
+          globalField.value = exclusivity.name
+          form.appendChild(globalField)
+
+          const percentageField = document.createElement('input')
+          percentageField.type = 'hidden'
+          percentageField.name = `combinations[${comboId}][exclusivities][${index}][percentage]`
+          percentageField.value = exclusivity.percentage
+          form.appendChild(percentageField)
+
+          console.log(`✅ Added general exclusivity: ${exclusivity.name} ${exclusivity.percentage}% for combo ${comboId}`)
+        }
+      })
+    })
+
+    // Also add detailed exclusivity data for combinations (for potential future use)
+    Object.keys(window.exclusivityData).forEach(comboId => {
+      const exclusivities = window.exclusivityData[comboId] || []
+
+      exclusivities.forEach((exclusivity, index) => {
+        const nameField = document.createElement('input')
+        nameField.type = 'hidden'
+        nameField.name = `combinations[${comboId}][exclusivities][${index}][name]`
+        nameField.value = exclusivity.name
+        form.appendChild(nameField)
+
+        const percentageField = document.createElement('input')
+        percentageField.type = 'hidden'
+        percentageField.name = `combinations[${comboId}][exclusivities][${index}][percentage]`
+        percentageField.value = exclusivity.percentage
+        form.appendChild(percentageField)
+
+        const categoriesField = document.createElement('input')
+        categoriesField.type = 'hidden'
+        categoriesField.name = `combinations[${comboId}][exclusivities][${index}][categories]`
+        categoriesField.value = JSON.stringify(exclusivity.categories || [])
+        form.appendChild(categoriesField)
+
+        if (exclusivity.isLineSpecific) {
+          const lineSpecificField = document.createElement('input')
+          lineSpecificField.type = 'hidden'
+          lineSpecificField.name = `combinations[${comboId}][exclusivities][${index}][is_line_specific]`
+          lineSpecificField.value = 'true'
+          form.appendChild(lineSpecificField)
+
+          const categoryIdField = document.createElement('input')
+          categoryIdField.type = 'hidden'
+          categoryIdField.name = `combinations[${comboId}][exclusivities][${index}][category_id]`
+          categoryIdField.value = exclusivity.categoryId
+          form.appendChild(categoryIdField)
+
+          const lineIndexField = document.createElement('input')
+          lineIndexField.type = 'hidden'
+          lineIndexField.name = `combinations[${comboId}][exclusivities][${index}][line_index]`
+          lineIndexField.value = exclusivity.lineIndex
+          form.appendChild(lineIndexField)
+        }
+      })
+    })
+
+    // Also inject line-specific exclusivities from window.lineExclusivityData
+    if (window.lineExclusivityData) {
+      console.log('🔍 Injecting line-specific exclusivities from lineExclusivityData:', window.lineExclusivityData)
+
+      Object.keys(window.lineExclusivityData).forEach(lineKey => {
+        const lineExclusivities = window.lineExclusivityData[lineKey] || []
+
+        lineExclusivities.forEach(exclusivity => {
+          const lineExclusivityField = document.createElement('input')
+          lineExclusivityField.type = 'hidden'
+          lineExclusivityField.name = `talent[${exclusivity.categoryId}][lines][${exclusivity.lineIndex}][exclusivity_type]`
+          lineExclusivityField.value = `${exclusivity.name} ${exclusivity.percentage}%`
+          form.appendChild(lineExclusivityField)
+
+          console.log(`✅ Added line-specific exclusivity from lineExclusivityData: ${exclusivity.name} ${exclusivity.percentage}% for category ${exclusivity.categoryId}, line ${exclusivity.lineIndex}`)
+        })
+      })
+    }
+  }
+
   updateComboSummary(comboId) {
     const pillsContainer = document.querySelector(`.combo-summary-pills[data-combo="${comboId}"]`)
     if (!pillsContainer) return
@@ -1888,24 +2029,33 @@ export default class extends Controller {
         
         // Generate exclusivity pills for this row
         const allExclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
+        const lineKey = `${categoryId}_${lineIndex}`
+        const lineExclusivities = (window.lineExclusivityData && window.lineExclusivityData[lineKey]) || []
+
         const rowExclusivityPills = applicableExclusivities.map(ex => {
-          const originalIndex = allExclusivities.findIndex(original => {
-            // For line-specific exclusivities, match all properties
-            if (ex.isLineSpecific && original.isLineSpecific) {
+          let originalIndex = -1
+
+          // For line-specific exclusivities, check if it exists in window.lineExclusivityData
+          if (ex.isLineSpecific || (ex.categoryId !== undefined && ex.lineIndex !== undefined)) {
+            originalIndex = lineExclusivities.findIndex(original => {
               return original.name === ex.name &&
                      original.percentage === ex.percentage &&
-                     original.categoryId === ex.categoryId &&
-                     original.lineIndex === ex.lineIndex
-            }
-            // For category-based exclusivities, match name and percentage
-            if (!ex.isLineSpecific && !original.isLineSpecific) {
-              return original.name === ex.name && original.percentage === ex.percentage
-            }
-            return false
-          })
+                     original.categoryId === parseInt(categoryId) &&
+                     original.lineIndex === parseInt(lineIndex)
+            })
+          } else {
+            // For category-based exclusivities, check window.exclusivityData
+            originalIndex = allExclusivities.findIndex(original => {
+              return original.name === ex.name &&
+                     original.percentage === ex.percentage &&
+                     !original.isLineSpecific
+            })
+          }
 
-          const pillType = ex.isLineSpecific ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'
-          const title = ex.isLineSpecific ? 'Remove line-specific exclusivity' : 'Remove from this row only'
+          // Determine if this is a line-specific exclusivity
+          const isLineSpecific = ex.isLineSpecific || (ex.categoryId !== undefined && ex.lineIndex !== undefined)
+          const pillType = isLineSpecific ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'
+          const title = isLineSpecific ? 'Remove line-specific exclusivity' : 'Remove from this row only'
 
           return `<span class="inline-flex items-center px-1 py-0.5 ${pillType} text-xs rounded-full">
             ${ex.name} ${ex.percentage}%
@@ -1920,7 +2070,7 @@ export default class extends Controller {
             <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">${unit}</td>
             <td class="py-2 px-3 text-sm text-gray-900 border-r border-gray-300">
               <div class="flex items-center justify-start gap-2">
-                <button type="button" class="exclusivity-plus-btn w-6 h-6 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0" data-combo="${comboId}" title="Add Exclusivity">
+                <button type="button" class="exclusivity-plus-btn w-6 h-6 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0" data-combo="${comboId}" data-category="${categoryId}" data-line-index="${lineIndex}" data-talent-description="${line.description || category.name}" title="Add Exclusivity">
                   +
                 </button>
                 <div class="flex flex-wrap gap-1">
@@ -2439,14 +2589,21 @@ export default class extends Controller {
   getExclusivitiesForSpecificLine(comboId, categoryId, lineIndex) {
     if (!categoryId || lineIndex === undefined) return []
 
-    const exclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
+    // First check window.lineExclusivityData for the specific line
+    const lineKey = `${categoryId}_${lineIndex}`
+    const lineExclusivities = (window.lineExclusivityData && window.lineExclusivityData[lineKey]) || []
 
-    return exclusivities.filter(ex => {
+    // Also check window.exclusivityData for line-specific exclusivities (legacy support)
+    const exclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
+    const legacyLineExclusivities = exclusivities.filter(ex => {
       // Only include line-specific exclusivities that match this exact line
       return ex.isLineSpecific &&
              ex.categoryId === parseInt(categoryId) &&
              ex.lineIndex === parseInt(lineIndex)
     })
+
+    // Combine both sources
+    return [...lineExclusivities, ...legacyLineExclusivities]
   }
 
   getSelectedProductType() {
@@ -2578,12 +2735,36 @@ export default class extends Controller {
   }
 
   setupExclusivityPopup() {
+    console.log('🔧 Setting up exclusivity popup event delegation')
+
+    // Check if exclusivity buttons exist
+    setTimeout(() => {
+      const exclusivityButtons = document.querySelectorAll('.exclusivity-plus-btn')
+      console.log(`🔍 Found ${exclusivityButtons.length} exclusivity plus buttons:`, exclusivityButtons)
+    }, 1000)
+
     // Event delegation for the plus buttons since they are dynamically created
     document.addEventListener('click', (e) => {
+      // Only log clicks on exclusivity-related elements to reduce noise
+      if (e.target.classList.contains('exclusivity-plus-btn') ||
+          e.target.closest('.exclusivity-plus-btn') ||
+          e.target.textContent?.includes('Exclusivity') ||
+          e.target.textContent?.includes('+')) {
+        console.log('🖱️ Exclusivity-related click detected:', e.target)
+      }
+
       if (e.target.classList.contains('exclusivity-plus-btn') || e.target.closest('.exclusivity-plus-btn')) {
+        console.log('🎯 Exclusivity plus button clicked!')
         const btn = e.target.closest('.exclusivity-plus-btn')
         const comboId = btn.getAttribute('data-combo')
-        this.showExclusivityPopup(comboId)
+        const categoryId = btn.getAttribute('data-category')
+        const lineIndex = btn.getAttribute('data-line-index')
+        const talentDescription = btn.getAttribute('data-talent-description')
+
+        console.log(`🔢 Exclusivity button data: combo=${comboId}, category=${categoryId}, line=${lineIndex}, desc="${talentDescription}"`)
+
+        // Show choice dialog for exclusivity scope
+        this.showExclusivityScopeDialog(comboId, categoryId, lineIndex, talentDescription)
       }
 
       // Handle remove exclusivity pill buttons
@@ -2591,12 +2772,88 @@ export default class extends Controller {
         const comboId = e.target.getAttribute('data-combo')
         const index = parseInt(e.target.getAttribute('data-index'))
         const categoryId = parseInt(e.target.getAttribute('data-category'))
-        this.removeExclusivityPill(comboId, index, categoryId)
+        const lineIndex = e.target.getAttribute('data-line-index')
+
+        // Determine if this is a line-specific exclusivity
+        const isLineSpecific = lineIndex !== null && lineIndex !== undefined
+
+        if (isLineSpecific) {
+          this.removeLineSpecificExclusivity(categoryId, parseInt(lineIndex), index)
+        } else {
+          this.removeExclusivityPill(comboId, index, categoryId)
+        }
       }
     })
   }
 
+  showExclusivityScopeDialog(comboId, categoryId, lineIndex, talentDescription) {
+    // Remove any existing exclusivity modals to prevent stacking
+    const existingModals = document.querySelectorAll('.modal-glass')
+    existingModals.forEach(modal => modal.remove())
+
+    // Create scope selection dialog
+    const modal = document.createElement('div')
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center modal-glass'
+
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="p-6">
+          <h3 class="text-lg font-semibold mb-4">Choose Exclusivity Scope</h3>
+          <p class="text-sm text-gray-600 mb-4">How would you like to apply exclusivity?</p>
+
+          <div class="space-y-3">
+            <button type="button" class="scope-choice-btn w-full text-left p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-300" data-choice="category">
+              <div class="font-medium">Apply to Entire Categories</div>
+              <div class="text-sm text-gray-500">Add exclusivity that applies to all talent in selected categories</div>
+            </button>
+
+            <button type="button" class="scope-choice-btn w-full text-left p-4 border rounded-lg hover:bg-green-50 hover:border-green-300" data-choice="line">
+              <div class="font-medium">Apply to This Specific Line Only</div>
+              <div class="text-sm text-gray-500">Add exclusivity only to "${talentDescription}" (line ${parseInt(lineIndex) + 1})</div>
+            </button>
+          </div>
+
+          <div class="mt-6 flex justify-end">
+            <button type="button" class="scope-cancel px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+          </div>
+        </div>
+      </div>
+    `
+
+    document.body.appendChild(modal)
+
+    // Handle scope choice
+    modal.querySelectorAll('.scope-choice-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const choice = btn.getAttribute('data-choice')
+        modal.remove()
+
+        if (choice === 'category') {
+          console.log('🏷️ User chose category-based exclusivity')
+          this.showExclusivityPopup(comboId)
+        } else if (choice === 'line') {
+          console.log('📋 User chose line-specific exclusivity')
+          this.showLineExclusivityPopup(categoryId, lineIndex, talentDescription)
+        }
+      })
+    })
+
+    // Handle cancel
+    modal.querySelector('.scope-cancel').addEventListener('click', () => {
+      modal.remove()
+    })
+
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove()
+    })
+  }
+
   showLineExclusivityPopup(categoryId, lineIndex, talentDescription) {
+    // Remove any existing exclusivity modals to prevent stacking
+    const existingModals = document.querySelectorAll('.modal-glass')
+    existingModals.forEach(modal => modal.remove())
+
     // Create modal overlay
     const modal = document.createElement('div')
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center modal-glass'
@@ -2678,9 +2935,13 @@ export default class extends Controller {
   }
 
   showExclusivityPopup(comboId) {
+    // Remove any existing exclusivity modals to prevent stacking
+    const existingModals = document.querySelectorAll('.modal-glass')
+    existingModals.forEach(modal => modal.remove())
+
     // Get remembered category selections for this combo
     const rememberedCategories = this.getRememberedCategories(comboId)
-    
+
     // Create modal overlay
     const modal = document.createElement('div')
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center modal-glass'
@@ -2697,47 +2958,13 @@ export default class extends Controller {
         <!-- Scrollable Content -->
         <div class="flex-1 overflow-y-auto" style="max-height: calc(90vh - 140px);">
           <div class="p-4">
-          <!-- Step 1: Choose Scope -->
-          <div class="mb-6">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">1</span>
-              Choose Scope
-            </h4>
-            <div class="grid grid-cols-1 gap-3 mb-4">
-              <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input type="radio" name="exclusivity_scope" value="categories" class="mr-3 text-blue-600 focus:ring-blue-500 exclusivity-scope-radio" checked>
-                <div>
-                  <div class="font-medium text-sm">Apply to Entire Talent Categories</div>
-                </div>
-              </label>
-              <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input type="radio" name="exclusivity_scope" value="specific_line" class="mr-3 text-blue-600 focus:ring-blue-500 exclusivity-scope-radio">
-                <div>
-                  <div class="font-medium text-sm">Apply to Specific Talent Line</div>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Step 2A: Apply to Talent Categories (dynamically generated) -->
+          <!-- Apply to Talent Categories (since scope was already chosen) -->
           ${this.generateCategoriesHTML(comboId, rememberedCategories)}
 
-          <!-- Step 2B: Select Specific Talent Line (shown when scope is 'specific_line') -->
-          <div class="mb-6 scope-specific-line-section" style="display: none;">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
-              Select Specific Talent Line
-            </h4>
-            <select class="w-full px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 talent-line-select" data-combo="${comboId}">
-              <option value="">Choose a talent line...</option>
-              <!-- Talent lines will be populated by JavaScript -->
-            </select>
-          </div>
-
-          <!-- Step 3: Select Exclusivity Type -->
+          <!-- Select Exclusivity Type -->
           <div class="mb-6">
             <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">3</span>
+              <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
               Select Exclusivity Type
             </h4>
 
@@ -2799,7 +3026,7 @@ export default class extends Controller {
       return `
         <div class="mb-6 scope-categories-section">
           <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-            <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
+            <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">1</span>
             Apply to Talent Categories
           </h4>
           <div class="text-sm text-gray-500 p-4 bg-gray-50 rounded border">
@@ -2822,7 +3049,7 @@ export default class extends Controller {
     return `
       <div class="mb-6 scope-categories-section">
         <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
-          <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span>
+          <span class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">1</span>
           Apply to Talent Categories
         </h4>
         <div class="grid grid-cols-2 gap-2">
@@ -3000,12 +3227,7 @@ export default class extends Controller {
       if (e.target === modal) modal.remove()
     })
 
-    // Handle scope radio button changes
-    modal.querySelectorAll('.exclusivity-scope-radio').forEach(radio => {
-      radio.addEventListener('change', () => {
-        this.handleScopeChange(modal, radio.value)
-      })
-    })
+    // Note: Scope selection was removed since user already chose categories
 
     // Add admin exclusivity
     modal.querySelectorAll('.add-admin-exclusivity').forEach(btn => {
@@ -3054,11 +3276,14 @@ export default class extends Controller {
 
     // Save exclusivities
     modal.querySelector('.exclusivity-save').addEventListener('click', () => {
+      console.log('💾 Category exclusivity save button clicked')
       try {
         this.saveExclusivities(modal, comboId)
+        console.log('✅ Category exclusivity saved successfully')
       } catch (error) {
-        console.error('Error saving exclusivities:', error)
+        console.error('❌ Error saving exclusivities:', error)
       } finally {
+        console.log('🚪 Closing category exclusivity modal')
         modal.remove()
       }
     })
@@ -3160,7 +3385,9 @@ export default class extends Controller {
   }
 
   addExclusivityToModal(modal, comboId, name, percentage) {
-    const selectedScope = modal.querySelector('input[name="exclusivity_scope"]:checked').value
+    // Check if scope radio buttons exist (they don't in the category-only modal)
+    const scopeRadio = modal.querySelector('input[name="exclusivity_scope"]:checked')
+    const selectedScope = scopeRadio ? scopeRadio.value : 'categories'
 
     if (selectedScope === 'categories') {
       // Use existing category-based logic
@@ -3244,6 +3471,9 @@ export default class extends Controller {
       lineIndex: parseInt(lineIndex),
       talentDescription: talentDescription
     })
+
+    console.log('✅ Added exclusivity to storage:', window.exclusivityData)
+    console.log(`🏷️ Adding exclusivity: ${name} ${percentage}% for combo ${comboId}`)
   }
 
   storeLineExclusivity(categoryId, lineIndex, name, percentage, talentDescription) {
@@ -3524,11 +3754,14 @@ export default class extends Controller {
 
     // Save line exclusivities
     modal.querySelector('.exclusivity-save-line').addEventListener('click', () => {
+      console.log('💾 Line exclusivity save button clicked')
       try {
         this.saveLineExclusivities(modal, categoryId, lineIndex, talentDescription)
+        console.log('✅ Line exclusivity saved successfully')
       } catch (error) {
-        console.error('Error saving line exclusivities:', error)
+        console.error('❌ Error saving line exclusivities:', error)
       } finally {
+        console.log('🚪 Closing line exclusivity modal')
         modal.remove()
       }
     })
@@ -3682,9 +3915,14 @@ export default class extends Controller {
     window.lineExclusivityData[lineKey] = newExclusivities
 
     console.log(`Saved line exclusivities for ${lineKey}:`, newExclusivities)
+    console.log('🔄 Line exclusivity saved, refreshing tables...')
 
     // Update all combo tables to reflect changes
-    this.populateAllTables()
+    // Use setTimeout to ensure the modal closes before updating tables
+    setTimeout(() => {
+      this.populateAllTables()
+      console.log('✅ Tables refreshed after line exclusivity save')
+    }, 100)
   }
 
   saveExclusivities(modal, comboId) {
@@ -3812,7 +4050,9 @@ export default class extends Controller {
   updateExclusivityTags(comboId, exclusivities) {
     // Instead of showing tags in one place, we now refresh the entire table
     // so pills appear in individual rows where they apply
+    console.log(`🏷️ Updating exclusivity tags for combo ${comboId}:`, exclusivities)
     this.populateComboTable(comboId)
+    console.log(`🔄 Finished updating table for combo ${comboId}`)
   }
 
   removeExclusivityPill(comboId, index, categoryId) {
@@ -3855,6 +4095,35 @@ export default class extends Controller {
       
       // Recalculate the buyout percentage which now includes exclusivity
       this.populateAllTables()
+    }
+  }
+
+  removeLineSpecificExclusivity(categoryId, lineIndex, index) {
+    const lineKey = `${categoryId}_${lineIndex}`
+
+    // Get current line-specific exclusivities for this line
+    if (!window.lineExclusivityData || !window.lineExclusivityData[lineKey]) {
+      console.log(`No line exclusivities found for ${lineKey}`)
+      return
+    }
+
+    const lineExclusivities = window.lineExclusivityData[lineKey]
+
+    // Remove the exclusivity at the specified index
+    if (index >= 0 && index < lineExclusivities.length) {
+      const removedExclusivity = lineExclusivities.splice(index, 1)[0]
+      console.log(`Removed line exclusivity: ${removedExclusivity.name} from ${lineKey}`)
+
+      // If no exclusivities left for this line, clean up the entry
+      if (lineExclusivities.length === 0) {
+        delete window.lineExclusivityData[lineKey]
+        console.log(`Cleaned up empty line exclusivity data for ${lineKey}`)
+      }
+
+      // Refresh the tables to show the updated exclusivity pills
+      this.populateAllTables()
+    } else {
+      console.log(`Invalid index ${index} for line exclusivities`)
     }
   }
 
@@ -3972,6 +4241,70 @@ export default class extends Controller {
           if (currencySelector) currencySelector.value = 'USD'
         }
       }
+    }
+  }
+
+  setupFormSubmissionHandler() {
+    // Find the main quotation form (not logout or other forms)
+    const forms = this.element.querySelectorAll('form:not(.button_to)') ||
+                  document.querySelectorAll('form[data-controller="quotation-form"]')
+
+    forms.forEach(form => {
+      form.addEventListener('submit', (event) => {
+        console.log('🚀 Form submission intercepted! Injecting exclusivity data...')
+        console.log('🔍 Current window.exclusivityData:', window.exclusivityData)
+
+        // Prevent the form from submitting immediately
+        event.preventDefault()
+
+        // Inject the exclusivity data
+        this.injectExclusivityDataIntoForm()
+
+        // After a short delay, submit the form
+        setTimeout(() => {
+          console.log('🔄 Re-submitting form with injected data...')
+          form.submit()
+        }, 100)
+      })
+    })
+
+    console.log(`✅ Set up form submission handlers for ${forms.length} forms`)
+
+    // Also add a test function to window for manual testing
+    window.testExclusivityInjection = () => {
+      console.log('🧪 Testing exclusivity injection manually...')
+      console.log('🔍 Current window.exclusivityData:', window.exclusivityData)
+      this.injectExclusivityDataIntoForm()
+    }
+
+    // Add function to debug exclusivity buttons
+    window.debugExclusivityButtons = () => {
+      console.log('🔍 Debugging exclusivity buttons...')
+      const buttons = document.querySelectorAll('.exclusivity-plus-btn')
+      console.log(`Found ${buttons.length} exclusivity plus buttons:`, buttons)
+
+      const quoteTables = document.querySelectorAll('.quote-preview-table')
+      console.log(`Found ${quoteTables.length} quote tables:`, quoteTables)
+
+      const exclusivityRows = document.querySelectorAll('[data-row-type="exclusivity"]')
+      console.log(`Found ${exclusivityRows.length} exclusivity rows:`, exclusivityRows)
+    }
+
+    // Add function to manually test form submission
+    window.testFormSubmission = () => {
+      console.log('🧪 Testing form submission manually...')
+      console.log('🔍 Current window.exclusivityData:', window.exclusivityData)
+      this.injectExclusivityDataIntoForm()
+
+      const form = document.querySelector('form')
+      console.log('📝 Form after injection:', form)
+
+      const exclusivityFields = document.querySelectorAll('input[name*="exclusivity"]')
+      console.log(`Found ${exclusivityFields.length} exclusivity fields:`, exclusivityFields)
+
+      exclusivityFields.forEach(field => {
+        console.log(`   Field: ${field.name} = "${field.value}"`)
+      })
     }
   }
 }

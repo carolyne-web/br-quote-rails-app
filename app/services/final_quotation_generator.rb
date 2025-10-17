@@ -127,7 +127,10 @@ class FinalQuotationGenerator
 
       # Night premium
       has_night_premium: day_on_set.night_premium || false,
-      night_premium_amount: night_fee
+      night_premium_amount: night_fee,
+
+      # Exclusivity - use line-specific exclusivity if available
+      exclusivity_type: day_on_set.exclusivity_type
     )
   end
 
@@ -187,7 +190,10 @@ class FinalQuotationGenerator
       night_fee: night_fee,
       total_talent_fee: total_talent_fee,
       usage_fee: usage_fee,
-      total_line_cost: total_talent_fee + usage_fee
+      total_line_cost: total_talent_fee + usage_fee,
+
+      # Exclusivity - fallback to nil for old method
+      exclusivity_type: nil
     )
   end
 
