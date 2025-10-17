@@ -1987,18 +1987,24 @@ export default class extends Controller {
 
     // Get all talent categories and their lines
     const talentCategories = this.getAllTalentLines()
-    
-    talentCategories.forEach(category => {
+
+    console.log(`🔍 getAllTalentLines returned ${talentCategories.length} categories`)
+    talentCategories.forEach((category, categoryIdx) => {
+      console.log(`🔍 Processing category ${categoryIdx}: ${category.name} with ${category.lines.length} lines`)
       category.lines.forEach((line, lineIndex) => {
         const dayFee = parseFloat(line.adjustedRate || line.dailyRate || 0)
         const unit = parseInt(line.initialCount || 0)
 
         // Get exclusivities that apply to this talent category
         const categoryId = this.getCategoryIdFromDescription(line.description || category.name)
+        console.log(`🔍 Processing line ${categoryId}_${lineIndex}: ${line.description || category.name}`)
         const categoryExclusivities = this.getExclusivitiesForCategory(comboId, categoryId)
 
         // Get line-specific exclusivities for this exact talent line
         const lineSpecificExclusivities = this.getExclusivitiesForSpecificLine(comboId, categoryId, lineIndex)
+        if (lineSpecificExclusivities.length > 0) {
+          console.log(`🔍 Processing line ${categoryId}_${lineIndex}, found ${lineSpecificExclusivities.length} line-specific exclusivities`)
+        }
 
         // Combine both types of exclusivities
         const applicableExclusivities = [...categoryExclusivities, ...lineSpecificExclusivities]
@@ -2057,9 +2063,12 @@ export default class extends Controller {
           const pillType = isLineSpecific ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'
           const title = isLineSpecific ? 'Remove line-specific exclusivity' : 'Remove from this row only'
 
+          // Use the exclusivity's own line index for line-specific exclusivities, or current row's line index for category exclusivities
+          const pillLineIndex = isLineSpecific ? ex.lineIndex : lineIndex
+
           return `<span class="inline-flex items-center px-1 py-0.5 ${pillType} text-xs rounded-full">
             ${ex.name} ${ex.percentage}%
-            <button type="button" class="ml-1 hover:font-bold remove-exclusivity-pill" data-combo="${comboId}" data-index="${originalIndex}" data-category="${categoryId}" data-line-index="${lineIndex}" title="${title}">×</button>
+            <button type="button" class="ml-1 hover:font-bold remove-exclusivity-pill" data-combo="${comboId}" data-index="${originalIndex}" data-category="${categoryId}" data-line-index="${pillLineIndex}" title="${title}">×</button>
           </span>`
         }).join('')
 
@@ -2559,9 +2568,9 @@ export default class extends Controller {
     if (description.startsWith('TN')) return 4
     if (description.startsWith('KD')) return 5
     
-    // Fallback to full category names
-    if (description.includes('Lead')) return 1
+    // Fallback to full category names (check more specific first!)
     if (description.includes('Second Lead')) return 2
+    if (description.includes('Lead')) return 1
     if (description.includes('Featured Extra')) return 3
     if (description.includes('Teenager')) return 4
     if (description.includes('Kid')) return 5
@@ -2603,7 +2612,15 @@ export default class extends Controller {
     })
 
     // Combine both sources
-    return [...lineExclusivities, ...legacyLineExclusivities]
+    const result = [...lineExclusivities, ...legacyLineExclusivities]
+
+    // Debug logging
+    if (result.length > 0) {
+      console.log(`🎯 Line-specific exclusivities for ${lineKey}:`, result)
+      console.log(`📊 Available lineExclusivityData keys:`, Object.keys(window.lineExclusivityData || {}))
+    }
+
+    return result
   }
 
   getSelectedProductType() {
@@ -3915,11 +3932,13 @@ export default class extends Controller {
     window.lineExclusivityData[lineKey] = newExclusivities
 
     console.log(`Saved line exclusivities for ${lineKey}:`, newExclusivities)
+    console.log('📊 Current lineExclusivityData after save:', window.lineExclusivityData)
     console.log('🔄 Line exclusivity saved, refreshing tables...')
 
     // Update all combo tables to reflect changes
     // Use setTimeout to ensure the modal closes before updating tables
     setTimeout(() => {
+      console.log('🔄 About to refresh tables, current lineExclusivityData:', window.lineExclusivityData)
       this.populateAllTables()
       console.log('✅ Tables refreshed after line exclusivity save')
     }, 100)
