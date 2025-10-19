@@ -640,12 +640,12 @@ function attachTabClickHandlers() {
 }
 
 // Make exclusivity options available to JavaScript
-const exclusivityOptions = <%= @exclusivity_options.to_json.html_safe %>;
+window.exclusivityOptions = <%= @exclusivity_options.to_json.html_safe %>;
 // Make raw exclusivity settings available for popup
-const exclusivitySettings = <%= @exclusivity_settings.to_json.html_safe %>;
+window.exclusivitySettings = <%= @exclusivity_settings.to_json.html_safe %>;
 
 // Territories data for JavaScript
-const territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
+window.territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
   [group_name || 'Individual Territories', territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
 }.to_h.to_json.html_safe %>;
 
@@ -892,6 +892,7 @@ function removeUsageCombination(comboId) {
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Day Fee</th>
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Unit</th>
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Exclusivity</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300"># of Comms</th>
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Buyout %</th>
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Per Talent</th>
                 <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Total (R)</th>
@@ -1410,16 +1411,16 @@ function removeUsageCombination(comboId) {
     const avgExclusivityMultiplier = activeCombinations.length > 0 ? 
       activeCombinations.reduce((sum, combo) => sum + combo.exclusivityMultiplier, 0) / activeCombinations.length : 1.0;
     
-    document.getElementById('talent-total').textContent = `R ${talentFees.toLocaleString()}.00`;
+    document.getElementById('talent-total').textContent = `R ${talentFees.toLocaleString()}`;
     document.getElementById('territory-multiplier').textContent = `${avgTerritoryMultiplier.toFixed(2)}x (avg)`;
     document.getElementById('media-display-multiplier').textContent = `${avgMediaMultiplier.toFixed(2)}x (avg)`;
     document.getElementById('duration-multiplier').textContent = `${avgDurationMultiplier.toFixed(2)}x (avg)`;
     document.getElementById('exclusivity-multiplier').textContent = avgExclusivityMultiplier > 1 ? `+${Math.round((avgExclusivityMultiplier - 1) * 100)}% (avg)` : '+0%';
     document.getElementById('usage-buyout-total').textContent = `R ${Math.round(usageBuyoutTotal).toLocaleString()}.00`;
     document.getElementById('usage-buyout-breakdown').innerHTML = usageBreakdownHtml.join('');
-    document.getElementById('additional-fees').textContent = `R ${totalAdditionalFees.toLocaleString()}.00`;
-    document.getElementById('total-quote').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
-    document.getElementById('current-total').textContent = `R ${Math.round(totalQuote).toLocaleString()}.00`;
+    document.getElementById('additional-fees').textContent = `R ${totalAdditionalFees.toLocaleString()}`;
+    document.getElementById('total-quote').textContent = `R ${Math.round(totalQuote).toLocaleString()}`;
+    document.getElementById('current-total').textContent = `R ${Math.round(totalQuote).toLocaleString()}`;
   
   
   // Add CSS for combination content visibility

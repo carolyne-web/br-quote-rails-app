@@ -65,10 +65,22 @@ class QuotationsController < ApplicationController
 
       process_talent_categories
       process_territories
-      
+
+      # Check if any combination has guarantee enabled
+      if params[:combinations].present?
+        has_guarantee = false
+        params[:combinations].each do |combo_id, combo_data|
+          if combo_data["is_guaranteed"] == "1"
+            has_guarantee = true
+            break
+          end
+        end
+        @quotation.update(is_guaranteed: has_guarantee)
+      end
+
       # Calculate totals (product type adjustments are now handled in calculator)
       calculation = QuotationCalculator.new(@quotation).calculate
-      
+
       @quotation.update(total_amount: calculation[:total])
 
       # Create history entry
@@ -183,6 +195,15 @@ class QuotationsController < ApplicationController
     )
   end
 
+  def combinations_params
+    params.permit(
+      combinations: [
+        :is_guaranteed, :media_types, :territories, :unlimited_stills, :unlimited_versions,
+        { calculated_values: {} }
+      ]
+    )
+  end
+
   def load_form_data
     @talent_settings = Setting.where(category: "talent").order(:key)
     @duration_settings = Setting.where(category: "duration").order(:key)
@@ -258,6 +279,9 @@ class QuotationsController < ApplicationController
 
       # Create day_on_sets entry if we have talent count
       if talent_count > 0
+        # Get buyout percentage for main category (if submitted)
+        main_buyout_percentage = category_data[:buyout_percentage].to_f
+
         day_on_set = talent_category.day_on_sets.create!(
           talent_count: talent_count,
           days_count: days_count > 0 ? days_count : 1,
@@ -268,7 +292,8 @@ class QuotationsController < ApplicationController
           travel_days: travel_days,
           overtime_hours: overtime_hours,
           night_premium: category_data[:night_premium] == "true" || category_data[:night_premium] == "1",
-          exclusivity_type: exclusivity_type
+          exclusivity_type: exclusivity_type,
+          buyout_percentage: main_buyout_percentage
         )
       end
 
@@ -283,6 +308,7 @@ class QuotationsController < ApplicationController
           line_down_days = line_data[:down_days].to_i
           line_travel_days = line_data[:travel_days].to_i
           line_overtime_hours = line_data[:overtime_hours].to_f
+          line_buyout_percentage = line_data[:buyout_percentage].to_f
           # Collect all exclusivities for this specific line
           line_exclusivities = []
 
@@ -314,7 +340,8 @@ class QuotationsController < ApplicationController
             travel_days: line_travel_days,
             overtime_hours: line_overtime_hours,
             night_premium: line_data[:night_premium] == "true" || line_data[:night_premium] == "1",
-            exclusivity_type: line_exclusivity_type
+            exclusivity_type: line_exclusivity_type,
+            buyout_percentage: line_buyout_percentage
           )
         end
       end

@@ -52,7 +52,7 @@ class FinalQuotationGenerator
     if @combinations_data.present?
       # Create separate groups for each combination
       @combinations_data.each_with_index do |(combo_id, combo_data), index|
-        create_group_from_combination(final_quotation, combo_data, index + 1)
+        create_group_from_combination(final_quotation, combo_id, combo_data, index + 1)
       end
     else
       # Fallback: create single group with all data
@@ -60,7 +60,7 @@ class FinalQuotationGenerator
     end
   end
 
-  def create_talent_line_from_day_on_set(group, category, day_on_set)
+  def create_talent_line_from_day_on_set(group, category, day_on_set, combo_id = nil, combo_exclusivities = [], calculated_values = {})
     # Use day_on_set data for individual line details
     daily_rate = category.daily_rate || 0
     adjusted_rate = day_on_set.adjusted_rate || category.adjusted_rate || daily_rate
@@ -70,34 +70,88 @@ class FinalQuotationGenerator
     description = day_on_set.description.present? ? day_on_set.description :
                   (category.description.present? ? category.description : get_category_description(category.category_type))
 
-    # Calculate individual fees for this specific line
-    shoot_days = @detail&.shoot_days || 1
-    rehearsal_days = day_on_set.rehearsal_days || 0
-    travel_days = day_on_set.travel_days || 0
-    down_days = day_on_set.down_days || 0
-    overtime_hours = day_on_set.overtime_hours || 0
+    # Use calculated values from JavaScript if available, otherwise calculate
+    if calculated_values.present? && calculated_values["day_fee"].present?
+      Rails.logger.info "Using JavaScript-calculated values for #{description}"
 
-    # Use day_on_set talent count and days
-    talent_count = day_on_set.talent_count
-    days_count = day_on_set.days_count || shoot_days
+      # Use JavaScript-calculated values directly
+      talent_count = calculated_values["unit_count"].to_i
+      buyout_percentage = calculated_values["calculated_buyout_percentage"].to_f
+      per_talent_amount = calculated_values["per_talent_amount"].to_f
+      total_line_cost = calculated_values["total_line_cost"].to_f
 
-    base_fee = talent_count * adjusted_rate * days_count
-    rehearsal_fee = talent_count * adjusted_rate * rehearsal_days * 0.5
-    travel_fee = talent_count * adjusted_rate * travel_days * 0.5
-    down_fee = talent_count * adjusted_rate * down_days * 0.5
-    overtime_fee = talent_count * (adjusted_rate * 0.1) * overtime_hours * days_count
+      # Use JavaScript-captured exclusivity if available
+      js_exclusivity = calculated_values["exclusivity_type"]
+      line_exclusivity = js_exclusivity.present? ? js_exclusivity : determine_exclusivity_for_line(combo_exclusivities, category, day_on_set)
 
-    # Night premium: 50% of base rate for first shoot day only (if night premium is enabled)
-    night_fee = if day_on_set.night_premium
-      talent_count * adjusted_rate * 0.5 # 50% of day rate for talent count
+      # Use JavaScript-captured commercial count if available
+      js_commercial_count = calculated_values["commercial_count"]
+
+      # Calculate component fees based on the totals
+      usage_fee = per_talent_amount * talent_count - (talent_count * adjusted_rate)
+      usage_fee = [usage_fee, 0].max # Ensure non-negative
+
+      # Calculate other component fees (maintain existing logic for these)
+      shoot_days = @detail&.shoot_days || 1
+      rehearsal_days = day_on_set.rehearsal_days || 0
+      travel_days = day_on_set.travel_days || 0
+      down_days = day_on_set.down_days || 0
+      overtime_hours = day_on_set.overtime_hours || 0
+      days_count = day_on_set.days_count || shoot_days
+
+      base_fee = talent_count * adjusted_rate * days_count
+      rehearsal_fee = talent_count * adjusted_rate * rehearsal_days * 0.5
+      travel_fee = talent_count * adjusted_rate * travel_days * 0.5
+      down_fee = talent_count * adjusted_rate * down_days * 0.5
+      overtime_fee = talent_count * (adjusted_rate * 0.1) * overtime_hours * days_count
+
+      # Night premium: 50% of base rate for first shoot day only (if night premium is enabled)
+      night_fee = if day_on_set.night_premium
+        talent_count * adjusted_rate * 0.5 # 50% of day rate for talent count
+      else
+        0
+      end
+
+      total_talent_fee = base_fee + rehearsal_fee + travel_fee + down_fee + overtime_fee + night_fee
     else
-      0
+      Rails.logger.info "Calculating values server-side for #{description}"
+
+      # Fall back to server-side calculation
+      shoot_days = @detail&.shoot_days || 1
+      rehearsal_days = day_on_set.rehearsal_days || 0
+      travel_days = day_on_set.travel_days || 0
+      down_days = day_on_set.down_days || 0
+      overtime_hours = day_on_set.overtime_hours || 0
+
+      # Use day_on_set talent count and days
+      talent_count = day_on_set.talent_count
+      days_count = day_on_set.days_count || shoot_days
+
+      base_fee = talent_count * adjusted_rate * days_count
+      rehearsal_fee = talent_count * adjusted_rate * rehearsal_days * 0.5
+      travel_fee = talent_count * adjusted_rate * travel_days * 0.5
+      down_fee = talent_count * adjusted_rate * down_days * 0.5
+      overtime_fee = talent_count * (adjusted_rate * 0.1) * overtime_hours * days_count
+
+      # Night premium: 50% of base rate for first shoot day only (if night premium is enabled)
+      night_fee = if day_on_set.night_premium
+        talent_count * adjusted_rate * 0.5 # 50% of day rate for talent count
+      else
+        0
+      end
+
+      total_talent_fee = base_fee + rehearsal_fee + travel_fee + down_fee + overtime_fee + night_fee
+
+      # Calculate usage fee for this talent line using group-specific multipliers
+      usage_fee = calculate_talent_line_usage_fee(category, base_fee, group)
+
+      # Calculate the correct buyout percentage based on final amounts
+      total_line_cost = total_talent_fee + usage_fee
+      per_talent_amount = total_line_cost / talent_count
+      buyout_percentage = (per_talent_amount / adjusted_rate) * 100
+      line_exclusivity = determine_exclusivity_for_line(combo_exclusivities, category, day_on_set)
+      js_commercial_count = nil # No JavaScript commercial count in fallback case
     end
-
-    total_talent_fee = base_fee + rehearsal_fee + travel_fee + down_fee + overtime_fee + night_fee
-
-    # Calculate usage fee for this talent line using group-specific multipliers
-    usage_fee = calculate_talent_line_usage_fee(category, base_fee, group)
 
     group.final_quotation_talent_lines.create!(
       description: description,
@@ -123,14 +177,18 @@ class FinalQuotationGenerator
       night_fee: night_fee,
       total_talent_fee: total_talent_fee,
       usage_fee: usage_fee,
-      total_line_cost: total_talent_fee + usage_fee,
+      total_line_cost: total_line_cost,
+      buyout_percentage: buyout_percentage,
 
       # Night premium
       has_night_premium: day_on_set.night_premium || false,
       night_premium_amount: night_fee,
 
-      # Exclusivity - use line-specific exclusivity if available
-      exclusivity_type: day_on_set.exclusivity_type
+      # Exclusivity - use JavaScript-captured exclusivity if available, otherwise combination-specific
+      exclusivity_type: line_exclusivity,
+
+      # Commercial count - use JavaScript-captured value if available, otherwise default to 1
+      commercial_count: js_commercial_count&.to_i || 1
     )
   end
 
@@ -277,7 +335,7 @@ class FinalQuotationGenerator
     end
   end
 
-  def create_group_from_combination(final_quotation, combo_data, group_number)
+  def create_group_from_combination(final_quotation, combo_id, combo_data, group_number)
     # Extract territories for this combination
     territories = []
     if combo_data["territories"].present?
@@ -292,6 +350,9 @@ class FinalQuotationGenerator
     # Extract media types for this combination
     media_types = combo_data["media_types"] || []
 
+    # Extract exclusivities for this combination
+    combo_exclusivities = combo_data["exclusivities"] || []
+
     # Calculate multipliers for this specific combination
     # Handle empty duration strings and provide fallback
     duration_value = combo_data["duration"]
@@ -301,11 +362,25 @@ class FinalQuotationGenerator
     group_calculations = calculate_group_multipliers(territories, media_types, final_duration)
 
 
+    # Check if this specific combination has unlimited options
+    group_unlimited_stills = combo_data["unlimited_stills"] == "1"
+    group_unlimited_versions = combo_data["unlimited_versions"] == "1"
+
+    # Check if this specific combination has guarantee enabled
+    group_is_guaranteed = combo_data["is_guaranteed"] == "1"
+
     group = final_quotation.final_quotation_groups.create!(
       group_number: group_number,
       duration: final_duration,
       selected_territories: territories.present? ? territories : [],
       selected_media_types: media_types.present? ? media_types : [],
+
+      # Group-specific unlimited options
+      unlimited_stills: group_unlimited_stills,
+      unlimited_versions: group_unlimited_versions,
+
+      # Group-specific guarantee status
+      is_guaranteed: group_is_guaranteed,
 
       # Group-specific calculations
       territory_multiplier: group_calculations[:territory_multiplier],
@@ -315,8 +390,11 @@ class FinalQuotationGenerator
       group_usage_fee: group_calculations[:usage_buyout_total]
     )
 
+    # Extract calculated values for this combination
+    calculated_values = combo_data["calculated_values"] || {}
+
     # Create talent lines for this group
-    create_talent_lines_for_group(group)
+    create_talent_lines_for_group(group, combo_id, combo_exclusivities, calculated_values)
   end
 
   def create_single_group(final_quotation)
@@ -335,7 +413,7 @@ class FinalQuotationGenerator
     )
 
     # Create talent lines for this group
-    create_talent_lines_for_group(group)
+    create_talent_lines_for_group(group, nil, [], {})
   end
 
   def calculate_group_multipliers(territories, media_types, duration)
@@ -409,14 +487,18 @@ class FinalQuotationGenerator
     end
   end
 
-  def create_talent_lines_for_group(group)
+  def create_talent_lines_for_group(group, combo_id = nil, combo_exclusivities = [], calculated_values = {})
     # Create talent lines - one per day_on_set (individual line)
     @quotation.talent_categories.includes(:day_on_sets).each do |category|
-      category.day_on_sets.each do |day_on_set|
+      category.day_on_sets.each_with_index do |day_on_set, line_index|
         # Skip if no talent count
         next if day_on_set.talent_count <= 0
 
-        create_talent_line_from_day_on_set(group, category, day_on_set)
+        # Get calculated values for this specific category and line
+        category_calculated = calculated_values[category.category_type.to_s] || {}
+        line_calculated = category_calculated[line_index.to_s] || {}
+
+        create_talent_line_from_day_on_set(group, category, day_on_set, combo_id, combo_exclusivities, line_calculated)
       end
     end
   end
@@ -439,5 +521,30 @@ class FinalQuotationGenerator
       # Fallback to quotation details if no combinations data
       @detail&.unlimited_versions || false
     end
+  end
+
+  private
+
+  def determine_exclusivity_for_line(combo_exclusivities, category, day_on_set)
+    # Check if there are combination-specific exclusivities for this talent line
+    if combo_exclusivities.present?
+      # Filter out invalid entries and convert to readable format
+      exclusivity_names = combo_exclusivities.filter_map do |exclusivity|
+        next if exclusivity.blank? || exclusivity == "0" || exclusivity == 0
+
+        if exclusivity.is_a?(Hash) && exclusivity['name'].present? && exclusivity['percentage'].present?
+          "#{exclusivity['name']} #{exclusivity['percentage']}%"
+        elsif exclusivity.is_a?(String) && exclusivity.include?("%")
+          exclusivity
+        else
+          nil
+        end
+      end
+
+      return exclusivity_names.join(", ") if exclusivity_names.any?
+    end
+
+    # Fall back to day_on_set exclusivity if no combination-specific exclusivities
+    day_on_set.exclusivity_type
   end
 end

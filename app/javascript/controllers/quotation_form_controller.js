@@ -1684,16 +1684,9 @@ export default class extends Controller {
 
           console.log(`✅ Added line-specific exclusivity: ${exclusivity.name} ${exclusivity.percentage}% for category ${exclusivity.categoryId}, line ${exclusivity.lineIndex}`)
         } else if (exclusivity.categories && exclusivity.categories.length > 0) {
-          // Apply category-based exclusivity to main talent category (not sub-lines)
-          exclusivity.categories.forEach(categoryId => {
-            const categoryExclusivityField = document.createElement('input')
-            categoryExclusivityField.type = 'hidden'
-            categoryExclusivityField.name = `talent[${categoryId}][exclusivity_type]`
-            categoryExclusivityField.value = `${exclusivity.name} ${exclusivity.percentage}%`
-            form.appendChild(categoryExclusivityField)
-
-            console.log(`✅ Added category-based exclusivity: ${exclusivity.name} ${exclusivity.percentage}% for category ${categoryId}`)
-          })
+          // DON'T apply category-based exclusivities globally - they should only apply within their specific combo
+          // The calculated values from JavaScript preview will handle the per-line exclusivities correctly
+          console.log(`🚫 Skipping global category-based exclusivity injection: ${exclusivity.name} ${exclusivity.percentage}% for categories ${exclusivity.categories} (will be handled by combo-specific calculated values)`)
         } else {
           // Fallback for non-line-specific exclusivities
           const globalField = document.createElement('input')
@@ -1758,24 +1751,89 @@ export default class extends Controller {
       })
     })
 
-    // Also inject line-specific exclusivities from window.lineExclusivityData
+    // Also inject line-specific exclusivities from window.lineExclusivityData for all combos
     if (window.lineExclusivityData) {
       console.log('🔍 Injecting line-specific exclusivities from lineExclusivityData:', window.lineExclusivityData)
 
       Object.keys(window.lineExclusivityData).forEach(lineKey => {
+        // Extract combo info from the line key
+        const [keyComboId, categoryId, lineIndex] = lineKey.split('_')
         const lineExclusivities = window.lineExclusivityData[lineKey] || []
 
         lineExclusivities.forEach(exclusivity => {
           const lineExclusivityField = document.createElement('input')
           lineExclusivityField.type = 'hidden'
-          lineExclusivityField.name = `talent[${exclusivity.categoryId}][lines][${exclusivity.lineIndex}][exclusivity_type]`
+          lineExclusivityField.name = `combinations[${keyComboId}][talent][${exclusivity.categoryId}][lines][${exclusivity.lineIndex}][exclusivity_type]`
           lineExclusivityField.value = `${exclusivity.name} ${exclusivity.percentage}%`
           form.appendChild(lineExclusivityField)
 
-          console.log(`✅ Added line-specific exclusivity from lineExclusivityData: ${exclusivity.name} ${exclusivity.percentage}% for category ${exclusivity.categoryId}, line ${exclusivity.lineIndex}`)
+          console.log(`✅ Added line-specific exclusivity from lineExclusivityData for combo ${keyComboId}: ${exclusivity.name} ${exclusivity.percentage}% for category ${exclusivity.categoryId}, line ${exclusivity.lineIndex}`)
         })
       })
     }
+  }
+
+  injectBuyoutPercentagesIntoForm() {
+    // Calculate and inject buyout percentages for main talent categories
+    console.log('🔄 Injecting buyout percentages for main talent categories...')
+
+    // Find the main quotation form
+    const form = document.querySelector('form[data-controller="quotation-form"]') ||
+                 document.querySelector('form:not(.button_to)') ||
+                 this.element.querySelector('form')
+
+    if (!form) {
+      console.log('❌ No suitable form found for buyout percentage injection')
+      return
+    }
+
+    // Remove any existing buyout percentage hidden fields
+    document.querySelectorAll('input[name*="buyout_percentage"]:not([name*="lines"])').forEach(field => {
+      field.remove()
+    })
+
+    // Get all main talent category inputs (not additional lines)
+    const talentInputs = document.querySelectorAll('input[name*="talent"][name*="talent_count"]')
+
+    talentInputs.forEach(input => {
+      const categoryIdMatch = input.name.match(/talent\[(\d+)\]\[talent_count\]/)
+      if (categoryIdMatch && input.value > 0) {
+        const categoryId = categoryIdMatch[1]
+
+        // Calculate buyout percentage for this main category
+        // Use the first combo's data to calculate (for main categories, all combos should have same base calculation)
+        const comboIds = Array.from(document.querySelectorAll('[data-combo]')).map(el => el.getAttribute('data-combo')).filter(id => id)
+        const firstComboId = comboIds[0] || '1'
+
+        // Get base buyout percentage for this combo (without line-specific exclusivities)
+        let buyoutPercentage = this.calculateBaseBuyoutPercentage(firstComboId)
+
+        // Apply product type adjustment if this is a kids category
+        if (categoryId == '5') { // Kids category
+          const productType = this.getSelectedProductType()
+          if (productType === 'adult') {
+            buyoutPercentage *= 0.5  // 50% reduction
+          } else if (productType === 'family') {
+            buyoutPercentage *= 0.75 // 25% reduction
+          }
+        }
+
+        // Apply guarantee reduction if applicable
+        const guaranteeCheckbox = document.querySelector('.guarantee-checkbox:checked')
+        if (guaranteeCheckbox) {
+          buyoutPercentage *= 0.75 // 25% reduction for guarantee
+        }
+
+        // Create hidden field for main category buyout percentage
+        const buyoutField = document.createElement('input')
+        buyoutField.type = 'hidden'
+        buyoutField.name = `talent[${categoryId}][buyout_percentage]`
+        buyoutField.value = buyoutPercentage
+        form.appendChild(buyoutField)
+
+        console.log(`✅ Added buyout percentage ${buyoutPercentage}% for main category ${categoryId}`)
+      }
+    })
   }
 
   updateComboSummary(comboId) {
@@ -2002,9 +2060,6 @@ export default class extends Controller {
 
         // Get line-specific exclusivities for this exact talent line
         const lineSpecificExclusivities = this.getExclusivitiesForSpecificLine(comboId, categoryId, lineIndex)
-        if (lineSpecificExclusivities.length > 0) {
-          console.log(`🔍 Processing line ${categoryId}_${lineIndex}, found ${lineSpecificExclusivities.length} line-specific exclusivities`)
-        }
 
         // Combine both types of exclusivities
         const applicableExclusivities = [...categoryExclusivities, ...lineSpecificExclusivities]
@@ -2089,6 +2144,7 @@ export default class extends Controller {
             </td>
             <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">
               <input type="number" min="1" max="20" step="1" value="${existingCommercialValues[`${categoryId}_${lineIndex}`] || 1}" name="talent[${categoryId}][lines][${lineIndex}][commercial_count]" id="commercial_count_${comboId}_${categoryId}_${lineIndex}" class="w-16 px-2 py-1 text-xs text-center border rounded commercial-count-input focus:outline-none focus:ring-2 focus:ring-blue-500" data-combo="${comboId}" data-category="${categoryId}" data-line="${lineIndex}" style="-webkit-appearance: auto; -moz-appearance: textfield-multiline;">
+              <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][buyout_percentage]" value="${rowBuyoutPercentage}">
             </td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${Math.floor(rowBuyoutPercentage)}%</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(totalRands / unit)}</td>
@@ -2581,14 +2637,16 @@ export default class extends Controller {
   getExclusivitiesForCategory(comboId, categoryId) {
     if (!categoryId) return []
 
+    // IMPORTANT: Only get exclusivities that were specifically added to THIS combo
     const exclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
 
     return exclusivities.filter(ex => {
       // Skip line-specific exclusivities (they are handled separately)
       if (ex.isLineSpecific) return false
 
-      // If no categories specified, apply to all
-      if (!ex.categories || ex.categories.length === 0) return true
+      // Only apply if this category is explicitly included in the exclusivity's target categories
+      // If no categories specified, do NOT apply to all (changed from previous behavior)
+      if (!ex.categories || ex.categories.length === 0) return false
 
       // Check if this category is in the exclusivity's target categories
       return ex.categories.includes(categoryId)
@@ -2598,8 +2656,8 @@ export default class extends Controller {
   getExclusivitiesForSpecificLine(comboId, categoryId, lineIndex) {
     if (!categoryId || lineIndex === undefined) return []
 
-    // First check window.lineExclusivityData for the specific line
-    const lineKey = `${categoryId}_${lineIndex}`
+    // First check window.lineExclusivityData for the specific line in this combo
+    const lineKey = `${comboId}_${categoryId}_${lineIndex}`
     const lineExclusivities = (window.lineExclusivityData && window.lineExclusivityData[lineKey]) || []
 
     // Also check window.exclusivityData for line-specific exclusivities (legacy support)
@@ -2617,7 +2675,6 @@ export default class extends Controller {
     // Debug logging
     if (result.length > 0) {
       console.log(`🎯 Line-specific exclusivities for ${lineKey}:`, result)
-      console.log(`📊 Available lineExclusivityData keys:`, Object.keys(window.lineExclusivityData || {}))
     }
 
     return result
@@ -2792,10 +2849,17 @@ export default class extends Controller {
         const lineIndex = e.target.getAttribute('data-line-index')
 
         // Determine if this is a line-specific exclusivity
-        const isLineSpecific = lineIndex !== null && lineIndex !== undefined
+        // Check the original exclusivity data to see if it was added as line-specific
+        const lineKey = `${comboId}_${categoryId}_${lineIndex}`
+        const hasLineSpecificData = window.lineExclusivityData && window.lineExclusivityData[lineKey]
+
+        // Also check if the exclusivity pill is green (emerald) which indicates line-specific
+        const isEmperaldPill = e.target.closest('span').classList.contains('bg-emerald-100')
+
+        const isLineSpecific = hasLineSpecificData && isEmperaldPill
 
         if (isLineSpecific) {
-          this.removeLineSpecificExclusivity(categoryId, parseInt(lineIndex), index)
+          this.removeLineSpecificExclusivity(comboId, categoryId, parseInt(lineIndex), index)
         } else {
           this.removeExclusivityPill(comboId, index, categoryId)
         }
@@ -2850,7 +2914,7 @@ export default class extends Controller {
           this.showExclusivityPopup(comboId)
         } else if (choice === 'line') {
           console.log('📋 User chose line-specific exclusivity')
-          this.showLineExclusivityPopup(categoryId, lineIndex, talentDescription)
+          this.showLineExclusivityPopup(comboId, categoryId, lineIndex, talentDescription)
         }
       })
     })
@@ -2866,7 +2930,7 @@ export default class extends Controller {
     })
   }
 
-  showLineExclusivityPopup(categoryId, lineIndex, talentDescription) {
+  showLineExclusivityPopup(comboId, categoryId, lineIndex, talentDescription) {
     // Remove any existing exclusivity modals to prevent stacking
     const existingModals = document.querySelectorAll('.modal-glass')
     existingModals.forEach(modal => modal.remove())
@@ -2945,10 +3009,10 @@ export default class extends Controller {
     document.body.appendChild(modal)
 
     // Populate existing line-specific exclusivities in the modal
-    this.populateExistingLineExclusivities(modal, categoryId, lineIndex)
+    this.populateExistingLineExclusivities(modal, comboId, categoryId, lineIndex)
 
     // Add event listeners for the modal
-    this.setupLineExclusivityModalEvents(modal, categoryId, lineIndex, talentDescription)
+    this.setupLineExclusivityModalEvents(modal, comboId, categoryId, lineIndex, talentDescription)
   }
 
   showExclusivityPopup(comboId) {
@@ -3733,7 +3797,7 @@ export default class extends Controller {
     this.updateExclusivityTotal(modal)
   }
 
-  setupLineExclusivityModalEvents(modal, categoryId, lineIndex, talentDescription) {
+  setupLineExclusivityModalEvents(modal, comboId, categoryId, lineIndex, talentDescription) {
     // Close modal events
     modal.querySelectorAll('.exclusivity-close').forEach(btn => {
       btn.addEventListener('click', () => modal.remove())
@@ -3773,7 +3837,7 @@ export default class extends Controller {
     modal.querySelector('.exclusivity-save-line').addEventListener('click', () => {
       console.log('💾 Line exclusivity save button clicked')
       try {
-        this.saveLineExclusivities(modal, categoryId, lineIndex, talentDescription)
+        this.saveLineExclusivities(modal, comboId, categoryId, lineIndex, talentDescription)
         console.log('✅ Line exclusivity saved successfully')
       } catch (error) {
         console.error('❌ Error saving line exclusivities:', error)
@@ -3865,9 +3929,9 @@ export default class extends Controller {
     modal.querySelector('.exclusivity-total-line').textContent = `${total}%`
   }
 
-  populateExistingLineExclusivities(modal, categoryId, lineIndex) {
-    // Get existing line-specific exclusivities
-    const lineKey = `${categoryId}_${lineIndex}`
+  populateExistingLineExclusivities(modal, comboId, categoryId, lineIndex) {
+    // Get existing line-specific exclusivities for this combo
+    const lineKey = `${comboId}_${categoryId}_${lineIndex}`
     const existingExclusivities = (window.lineExclusivityData && window.lineExclusivityData[lineKey]) || []
     const list = modal.querySelector('.exclusivity-selected-list-line')
 
@@ -3906,7 +3970,7 @@ export default class extends Controller {
     this.updateLineExclusivityTotal(modal)
   }
 
-  saveLineExclusivities(modal, categoryId, lineIndex, talentDescription) {
+  saveLineExclusivities(modal, comboId, categoryId, lineIndex, talentDescription) {
     const items = modal.querySelectorAll('.exclusivity-selected-list-line > div')
     const newExclusivities = []
 
@@ -3927,8 +3991,8 @@ export default class extends Controller {
       window.lineExclusivityData = {}
     }
 
-    // Store the line-specific exclusivities
-    const lineKey = `${categoryId}_${lineIndex}`
+    // Store the line-specific exclusivities with combo ID for group-specific storage
+    const lineKey = `${comboId}_${categoryId}_${lineIndex}`
     window.lineExclusivityData[lineKey] = newExclusivities
 
     console.log(`Saved line exclusivities for ${lineKey}:`, newExclusivities)
@@ -4117,8 +4181,8 @@ export default class extends Controller {
     }
   }
 
-  removeLineSpecificExclusivity(categoryId, lineIndex, index) {
-    const lineKey = `${categoryId}_${lineIndex}`
+  removeLineSpecificExclusivity(comboId, categoryId, lineIndex, index) {
+    const lineKey = `${comboId}_${categoryId}_${lineIndex}`
 
     // Get current line-specific exclusivities for this line
     if (!window.lineExclusivityData || !window.lineExclusivityData[lineKey]) {
@@ -4276,8 +4340,14 @@ export default class extends Controller {
         // Prevent the form from submitting immediately
         event.preventDefault()
 
+        // Disable validation on hidden talent category fields to prevent form submission errors
+        this.disableValidationOnHiddenFields()
+
         // Inject the exclusivity data
         this.injectExclusivityDataIntoForm()
+
+        // Inject calculated preview values before submitting
+        this.injectCalculatedPreviewValues()
 
         // After a short delay, submit the form
         setTimeout(() => {
@@ -4325,5 +4395,228 @@ export default class extends Controller {
         console.log(`   Field: ${field.name} = "${field.value}"`)
       })
     }
+
+    // Add debugging function to check exclusivity data at any time
+    window.debugExclusivityData = () => {
+      console.log('🔍 EXCLUSIVITY DATA DEBUG')
+      console.log('========================')
+      console.log('window.exclusivityData:', window.exclusivityData)
+
+      if (window.exclusivityData) {
+        Object.keys(window.exclusivityData).forEach(comboId => {
+          console.log(`\nCombo ${comboId}:`)
+          const exclusivities = window.exclusivityData[comboId] || []
+          exclusivities.forEach((exc, index) => {
+            console.log(`  ${index}: ${exc.name} ${exc.percentage}%`)
+            console.log(`      isLineSpecific: ${exc.isLineSpecific}`)
+            console.log(`      categoryId: ${exc.categoryId}`)
+            console.log(`      lineIndex: ${exc.lineIndex}`)
+            console.log(`      categories: ${exc.categories}`)
+          })
+        })
+      } else {
+        console.log('❌ No exclusivity data found')
+      }
+    }
+  }
+
+  injectCalculatedPreviewValues() {
+    // Capture and inject all calculated values from the preview tables
+    console.log('🔄 Injecting calculated preview values into form...')
+
+    const form = document.querySelector('form[data-controller="quotation-form"]') ||
+                 document.querySelector('form:not(.button_to)') ||
+                 this.element.querySelector('form')
+
+    if (!form) {
+      console.log('❌ No suitable form found for preview values injection')
+      return
+    }
+
+    // Remove any existing calculated value fields
+    document.querySelectorAll('input[name*="calculated_"]').forEach(field => {
+      field.remove()
+    })
+
+    // Get all combination tables and extract calculated values
+    const quoteTables = document.querySelectorAll('.quote-preview-table')
+
+    quoteTables.forEach(table => {
+      const comboId = table.closest('[data-combo]')?.getAttribute('data-combo')
+      if (!comboId) return
+
+      console.log(`📊 Processing combo ${comboId} for calculated values`)
+
+      // Extract values from table rows
+      const rows = table.querySelectorAll('tbody tr:not([class*="border-t"]):not([class*="bg-gray"]):not([class*="bg-blue"])')
+
+      rows.forEach((row) => {
+        const cells = row.querySelectorAll('td')
+        if (cells.length < 8) return // Skip if not a full data row
+
+        // Extract values from the row
+        const talentDescription = cells[0]?.textContent?.trim()
+        const dayFeeText = cells[1]?.textContent?.replace(/[R,\s]/g, '')
+        const unitCount = cells[2]?.textContent?.trim()
+
+        // Extract exclusivity from cell 3 (exclusivity column)
+        const exclusivityCell = cells[3]
+        const exclusivityPills = exclusivityCell?.querySelectorAll('.exclusivity-pill, [class*="bg-yellow"], [class*="bg-emerald"]')
+        const exclusivityTexts = Array.from(exclusivityPills || []).map(pill => {
+          // Get the text content but exclude the remove button (x)
+          const pillText = pill.textContent.trim()
+          // Remove the × character if it's at the end
+          return pillText.replace(/\s*×\s*$/, '').trim()
+        }).filter(text => text !== '' && text !== '×')
+        const exclusivityValue = exclusivityTexts.length > 0 ? exclusivityTexts.join(', ') : ''
+
+        // Extract commercial count from cell 4 (# of Comms column)
+        const commercialCountCell = cells[4]
+        const commercialInput = commercialCountCell?.querySelector('input.commercial-count-input')
+        const commercialCount = commercialInput ? parseInt(commercialInput.value) || 1 : 1
+
+        const buyoutPercentageText = cells[5]?.textContent?.replace(/[%\s]/g, '')
+        const perTalentText = cells[6]?.textContent?.replace(/[R,\s]/g, '')
+        const totalText = cells[7]?.textContent?.replace(/[R,\s]/g, '')
+
+        // Find category and line info from the row structure
+        const categoryMatch = talentDescription?.match(/^(Lead|Second Lead|Featured Extra|Teenager|Kid)/)
+        const categoryId = this.getCategoryIdFromDescription(categoryMatch?.[0] || '')
+
+        if (!categoryId || !dayFeeText || !unitCount) return
+
+        const dayFee = parseFloat(dayFeeText) || 0
+        const unit = parseInt(unitCount) || 0
+        const buyoutPercentage = parseFloat(buyoutPercentageText) || 0
+        const perTalent = parseFloat(perTalentText) || 0
+        const total = parseFloat(totalText) || 0
+
+        // Check for line index (for additional talent lines)
+        const isAdditionalLine = row.querySelector('.commercial-count-input')
+        const lineIndex = isAdditionalLine ?
+          parseInt(isAdditionalLine.dataset.line) || 0 : 0
+
+        console.log(`📊 Combo ${comboId}, Category ${categoryId}, Line ${lineIndex}: ${talentDescription}`)
+        console.log(`   Buyout: ${buyoutPercentage}%, Per Talent: R${perTalent}, Total: R${total}`)
+
+        // Create hidden fields for these calculated values
+        const fieldPrefix = `combinations[${comboId}][calculated_values][${categoryId}][${lineIndex}]`
+
+        // Day fee (base rate)
+        const dayFeeField = document.createElement('input')
+        dayFeeField.type = 'hidden'
+        dayFeeField.name = `${fieldPrefix}[day_fee]`
+        dayFeeField.value = dayFee
+        form.appendChild(dayFeeField)
+
+        // Unit count
+        const unitField = document.createElement('input')
+        unitField.type = 'hidden'
+        unitField.name = `${fieldPrefix}[unit_count]`
+        unitField.value = unit
+        form.appendChild(unitField)
+
+        // Calculated buyout percentage (from JavaScript)
+        const calculatedBuyoutField = document.createElement('input')
+        calculatedBuyoutField.type = 'hidden'
+        calculatedBuyoutField.name = `${fieldPrefix}[calculated_buyout_percentage]`
+        calculatedBuyoutField.value = buyoutPercentage
+        form.appendChild(calculatedBuyoutField)
+
+        // Per talent amount
+        const perTalentField = document.createElement('input')
+        perTalentField.type = 'hidden'
+        perTalentField.name = `${fieldPrefix}[per_talent_amount]`
+        perTalentField.value = perTalent
+        form.appendChild(perTalentField)
+
+        // Total line cost
+        const totalField = document.createElement('input')
+        totalField.type = 'hidden'
+        totalField.name = `${fieldPrefix}[total_line_cost]`
+        totalField.value = total
+        form.appendChild(totalField)
+
+        // Talent description for identification
+        const descriptionField = document.createElement('input')
+        descriptionField.type = 'hidden'
+        descriptionField.name = `${fieldPrefix}[description]`
+        descriptionField.value = talentDescription
+        form.appendChild(descriptionField)
+
+        // Exclusivity value from preview
+        const exclusivityField = document.createElement('input')
+        exclusivityField.type = 'hidden'
+        exclusivityField.name = `${fieldPrefix}[exclusivity_type]`
+        exclusivityField.value = exclusivityValue
+        form.appendChild(exclusivityField)
+
+        // Commercial count from preview
+        const commercialCountField = document.createElement('input')
+        commercialCountField.type = 'hidden'
+        commercialCountField.name = `${fieldPrefix}[commercial_count]`
+        commercialCountField.value = commercialCount
+        form.appendChild(commercialCountField)
+
+        console.log(`✅ Added calculated values for ${talentDescription} in combo ${comboId}`)
+        console.log(`   Exclusivity: "${exclusivityValue}", Commercials: ${commercialCount}, Per Talent: R${perTalent}`)
+
+      })
+
+      // Also capture combo total
+      const totalZarSpan = table.querySelector(`.total-zar-amount[data-combo="${comboId}"]`)
+      if (totalZarSpan) {
+        const comboTotal = parseFloat(totalZarSpan.textContent.replace(/[R,\s]/g, '')) || 0
+
+        const comboTotalField = document.createElement('input')
+        comboTotalField.type = 'hidden'
+        comboTotalField.name = `combinations[${comboId}][calculated_total]`
+        comboTotalField.value = comboTotal
+        form.appendChild(comboTotalField)
+
+        console.log(`✅ Added combo total: R${comboTotal} for combo ${comboId}`)
+      }
+
+      // Capture guarantee state for this combo
+      const guaranteeCheckbox = table.querySelector(`.guarantee-checkbox[data-combo="${comboId}"]`)
+      const isGuaranteed = guaranteeCheckbox && guaranteeCheckbox.checked
+
+      const guaranteeField = document.createElement('input')
+      guaranteeField.type = 'hidden'
+      guaranteeField.name = `combinations[${comboId}][is_guaranteed]`
+      guaranteeField.value = isGuaranteed ? '1' : '0'
+      form.appendChild(guaranteeField)
+
+      console.log(`✅ Added guarantee state: ${isGuaranteed} for combo ${comboId}`)
+    })
+
+    console.log(`✅ Finished injecting calculated preview values`)
+  }
+
+  disableValidationOnHiddenFields() {
+    // Find all hidden talent category sections
+    const hiddenSections = document.querySelectorAll('.talent-category-section.hidden')
+
+    hiddenSections.forEach(section => {
+      // Find all form inputs within the hidden section that have validation constraints
+      const inputs = section.querySelectorAll('input[min], input[max], input[required]')
+
+      inputs.forEach(input => {
+        // Remove validation attributes instead of disabling the input
+        // This allows the input to be submitted while bypassing validation
+        if (input.hasAttribute('min')) {
+          input.removeAttribute('min')
+        }
+        if (input.hasAttribute('max')) {
+          input.removeAttribute('max')
+        }
+        if (input.hasAttribute('required')) {
+          input.removeAttribute('required')
+        }
+        console.log(`🔧 Removed validation attributes for hidden field: ${input.name}`)
+      })
+    })
+
+    console.log(`🔧 Removed validation on ${hiddenSections.length} hidden talent sections`)
   }
 }

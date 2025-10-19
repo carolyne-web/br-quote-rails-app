@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_17_113417) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_19_203025) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -28,6 +28,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_17_113417) do
     t.integer "travel_days"
     t.decimal "overtime_hours"
     t.string "exclusivity_type"
+    t.decimal "buyout_percentage", precision: 6, scale: 2
     t.index ["talent_category_id"], name: "index_day_on_sets_on_talent_category_id"
   end
 
@@ -55,6 +56,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_17_113417) do
     t.decimal "group_usage_fee", precision: 10, scale: 2
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "unlimited_stills"
+    t.boolean "unlimited_versions"
+    t.boolean "is_guaranteed"
     t.index ["final_quotation_id", "group_number"], name: "idx_on_final_quotation_id_group_number_19e08e6b9c"
     t.index ["final_quotation_id"], name: "index_final_quotation_groups_on_final_quotation_id"
   end
@@ -86,6 +90,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_17_113417) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "exclusivity_type"
+    t.decimal "buyout_percentage", precision: 6, scale: 2
+    t.integer "commercial_count"
     t.index ["final_quotation_group_id"], name: "index_final_quotation_talent_lines_on_final_quotation_group_id"
   end
 
