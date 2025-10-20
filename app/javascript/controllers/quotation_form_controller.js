@@ -4329,13 +4329,30 @@ export default class extends Controller {
 
   setupFormSubmissionHandler() {
     // Find the main quotation form (not logout or other forms)
-    const forms = this.element.querySelectorAll('form:not(.button_to)') ||
-                  document.querySelectorAll('form[data-controller="quotation-form"]')
+    let forms = this.element.querySelectorAll('form:not(.button_to)')
 
-    forms.forEach(form => {
+    // If no forms found in this.element, try to find the form by data-controller
+    if (forms.length === 0) {
+      forms = document.querySelectorAll('form[data-controller*="quotation-form"]')
+    }
+
+    // If still no forms, try a more general approach
+    if (forms.length === 0) {
+      const quotationDiv = document.querySelector('[data-controller*="quotation-form"]')
+      if (quotationDiv) {
+        forms = quotationDiv.querySelectorAll('form:not(.button_to)')
+      }
+    }
+
+    console.log('🔍 Found forms:', forms.length, forms)
+
+    forms.forEach((form, index) => {
+      console.log(`📝 Adding submit listener to form ${index}:`, form)
+
       form.addEventListener('submit', (event) => {
         console.log('🚀 Form submission intercepted! Injecting exclusivity data...')
         console.log('🔍 Current window.exclusivityData:', window.exclusivityData)
+        console.log('🔍 Form that triggered submit:', form)
 
         // Prevent the form from submitting immediately
         event.preventDefault()
@@ -4390,10 +4407,22 @@ export default class extends Controller {
 
       const exclusivityFields = document.querySelectorAll('input[name*="exclusivity"]')
       console.log(`Found ${exclusivityFields.length} exclusivity fields:`, exclusivityFields)
+    }
 
-      exclusivityFields.forEach(field => {
-        console.log(`   Field: ${field.name} = "${field.value}"`)
-      })
+    // Add function to test if form submission handler would be triggered
+    window.testSubmitEvent = () => {
+      console.log('🧪 Testing submit event manually...')
+      const form = document.querySelector('form')
+      if (form) {
+        console.log('📝 Found form:', form)
+        console.log('🔥 Dispatching submit event...')
+
+        // Create and dispatch a submit event
+        const submitEvent = new Event('submit', { bubbles: true, cancelable: true })
+        form.dispatchEvent(submitEvent)
+      } else {
+        console.log('❌ No form found!')
+      }
     }
 
     // Add debugging function to check exclusivity data at any time
@@ -4419,6 +4448,7 @@ export default class extends Controller {
       }
     }
   }
+
 
   injectCalculatedPreviewValues() {
     // Capture and inject all calculated values from the preview tables
@@ -4461,7 +4491,7 @@ export default class extends Controller {
 
         // Extract exclusivity from cell 3 (exclusivity column)
         const exclusivityCell = cells[3]
-        const exclusivityPills = exclusivityCell?.querySelectorAll('.exclusivity-pill, [class*="bg-yellow"], [class*="bg-emerald"]')
+        const exclusivityPills = exclusivityCell?.querySelectorAll('.bg-yellow-100, .bg-emerald-100, [class*="bg-yellow-100"], [class*="bg-emerald-100"], .exclusivity-pill')
         const exclusivityTexts = Array.from(exclusivityPills || []).map(pill => {
           // Get the text content but exclude the remove button (x)
           const pillText = pill.textContent.trim()
@@ -4469,6 +4499,8 @@ export default class extends Controller {
           return pillText.replace(/\s*×\s*$/, '').trim()
         }).filter(text => text !== '' && text !== '×')
         const exclusivityValue = exclusivityTexts.length > 0 ? exclusivityTexts.join(', ') : ''
+
+        console.log(`🔍 Exclusivity extraction for ${talentDescription}: Found ${exclusivityPills?.length || 0} pills with text: [${exclusivityTexts.join(', ')}]`)
 
         // Extract commercial count from cell 4 (# of Comms column)
         const commercialCountCell = cells[4]
@@ -4560,6 +4592,12 @@ export default class extends Controller {
 
         console.log(`✅ Added calculated values for ${talentDescription} in combo ${comboId}`)
         console.log(`   Exclusivity: "${exclusivityValue}", Commercials: ${commercialCount}, Per Talent: R${perTalent}`)
+
+        if (exclusivityValue) {
+          console.log(`🔑 Exclusivity successfully captured: "${exclusivityValue}" for ${talentDescription}`)
+        } else {
+          console.log(`⚠️  No exclusivity captured for ${talentDescription} - checking exclusivity cell:`, exclusivityCell?.innerHTML)
+        }
 
       })
 

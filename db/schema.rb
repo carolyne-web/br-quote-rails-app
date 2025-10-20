@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_19_203025) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_20_091109) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -92,6 +92,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_19_203025) do
     t.string "exclusivity_type"
     t.decimal "buyout_percentage", precision: 6, scale: 2
     t.integer "commercial_count"
+    t.decimal "per_talent_amount", precision: 12, scale: 2
     t.index ["final_quotation_group_id"], name: "index_final_quotation_talent_lines_on_final_quotation_group_id"
   end
 
@@ -158,6 +159,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_19_203025) do
     t.decimal "overtime_hours"
     t.text "selected_media_types"
     t.integer "number_of_commercials"
+    t.text "combinations_data"
     t.index ["quotation_id"], name: "index_quotation_details_on_quotation_id"
   end
 

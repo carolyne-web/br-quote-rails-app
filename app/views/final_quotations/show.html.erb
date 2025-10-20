@@ -103,7 +103,7 @@
                         <%= talent_line.talent_count %>
                       </td>
                       <td class="px-4 py-3 text-sm text-right text-gray-700 border-b">
-                        R<%= number_with_delimiter(talent_line.adjusted_rate) %>
+                        R<%= number_with_delimiter(talent_line.adjusted_rate.to_i) %>
                       </td>
                       <td class="px-4 py-3 text-sm text-center text-gray-700 border-b">
                         <%= talent_line.shoot_days %>
@@ -227,7 +227,7 @@
                   <% group.final_quotation_talent_lines.each do |line| %>
                     <tr class="border-b">
                       <td class="px-3 py-2 border"><%= line.description %></td>
-                      <td class="px-3 py-2 text-right border">R<%= number_with_delimiter(line.adjusted_rate) %></td>
+                      <td class="px-3 py-2 text-right border">R<%= number_with_delimiter(line.adjusted_rate.to_i) %></td>
                       <td class="px-3 py-2 text-right border"><%= line.talent_count %></td>
                       <td class="px-3 py-2 text-center border">
                         <% if line.exclusivity_type.present? %>
@@ -254,7 +254,7 @@
                         %>
                         <%= display_percentage.floor %>%
                       </td>
-                      <td class="px-3 py-2 text-right border">R<%= number_with_delimiter(line.total_line_cost / line.talent_count) %></td>
+                      <td class="px-3 py-2 text-right border">R<%= number_with_delimiter(line.per_talent_amount || (line.total_line_cost / line.talent_count)) %></td>
                       <td class="px-3 py-2 text-right border font-medium">R<%= number_with_delimiter(line.total_line_cost) %></td>
                     </tr>
                   <% end %>

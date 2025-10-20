@@ -7,23 +7,51 @@ class QuotationsController < ApplicationController
   end
 
   def show
-    # Get combinations data from params or session
-    combinations_data = params[:combinations] || session[:combinations_data]
-
-    # Check if a final quotation already exists for this quotation
-    if @quotation.final_quotations.any?
+    # Check if a final quotation already exists for this quotation (unless force regenerate)
+    if @quotation.final_quotations.any? && params[:regenerate] != 'true'
       redirect_to @quotation.final_quotations.last
     else
-      # Automatically generate final quotation and redirect
-      final_quotation = FinalQuotationGenerator.new(@quotation, combinations_data).generate
+      # If regenerating, delete existing final quotations first
+      if params[:regenerate] == 'true'
+        @quotation.final_quotations.destroy_all
+      end
 
-      # Clear session data after using it
-      session.delete(:combinations_data)
-      if final_quotation.persisted?
-        redirect_to final_quotation
+      # Try to get combinations data from params first, then from stored database data
+      combinations_data = params[:combinations]
+
+      # If no params combinations, check if we have stored combinations data in quotation_detail
+      if combinations_data.blank? && @quotation.quotation_detail&.combinations_data.present?
+        begin
+          combinations_data = JSON.parse(@quotation.quotation_detail.combinations_data)
+        rescue JSON::ParserError
+          Rails.logger.error "Failed to parse stored combinations data"
+          combinations_data = nil
+        end
+      end
+
+      # Check if we have combinations data with calculated values to generate final quotation
+      if combinations_data.present? && combinations_data.any? { |combo_id, combo_data| combo_data["calculated_values"].present? }
+        Rails.logger.info "✅ Generating final quotation with JavaScript calculated values"
+        final_quotation = FinalQuotationGenerator.new(@quotation, combinations_data).generate
+
+        if final_quotation.persisted?
+          # Clear the stored combinations data after successful generation
+          @quotation.quotation_detail.update(combinations_data: nil) if @quotation.quotation_detail
+          redirect_to final_quotation
+        else
+          flash[:alert] = "Failed to generate final quotation"
+        end
       else
-        flash[:alert] = "Failed to generate final quotation"
-        redirect_to quotations_path
+        # Generate a basic final quotation from the database data without JavaScript calculations
+        Rails.logger.info "📝 Generating basic final quotation from database data"
+        final_quotation = FinalQuotationGenerator.new(@quotation).generate
+
+        if final_quotation.persisted?
+          redirect_to final_quotation
+        else
+          flash[:alert] = "Failed to generate final quotation"
+          redirect_to quotations_path
+        end
       end
     end
   end
@@ -90,8 +118,13 @@ class QuotationsController < ApplicationController
         data: { total: calculation[:total] }
       )
 
-      # Store combinations data in session for the show action to use
-      session[:combinations_data] = params[:combinations] if params[:combinations].present?
+      # Store combinations data temporarily in database instead of session to avoid cookie overflow
+      if params[:combinations].present?
+        # Store combinations data as JSON in quotation_detail for this request
+        @quotation.quotation_detail.update(
+          combinations_data: params[:combinations].to_json
+        )
+      end
 
       flash[:notice] = "Quotation created successfully"
       redirect_to @quotation
