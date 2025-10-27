@@ -18,6 +18,10 @@ class QuotationsController < ApplicationController
 
       # Try to get combinations data from params first, then from stored database data
       combinations_data = params[:combinations]
+      # Parse JSON string if needed
+      if combinations_data.present? && combinations_data.is_a?(String)
+        combinations_data = JSON.parse(combinations_data)
+      end
 
       # If no params combinations, check if we have stored combinations data in quotation_detail
       if combinations_data.blank? && @quotation.quotation_detail&.combinations_data.present?
@@ -76,7 +80,9 @@ class QuotationsController < ApplicationController
       # Store media types from form
       media_types = []
       if params[:combinations].present?
-        params[:combinations].each do |combo_id, combo_data|
+        # Parse JSON string if needed
+        combinations_data = params[:combinations].is_a?(String) ? JSON.parse(params[:combinations]) : params[:combinations]
+        combinations_data.each do |combo_id, combo_data|
           if combo_data[:media_types].present?
             media_types.concat(combo_data[:media_types])
           end
@@ -97,7 +103,7 @@ class QuotationsController < ApplicationController
       # Check if any combination has guarantee enabled
       if params[:combinations].present?
         has_guarantee = false
-        params[:combinations].each do |combo_id, combo_data|
+        combinations_data.each do |combo_id, combo_data|
           if combo_data["is_guaranteed"] == "1"
             has_guarantee = true
             break
@@ -120,11 +126,16 @@ class QuotationsController < ApplicationController
 
       # Store combinations data temporarily in database instead of session to avoid cookie overflow
       if params[:combinations].present?
+        # Ensure quotation_detail exists before updating
+        @quotation.quotation_detail ||= @quotation.build_quotation_detail
         # Store combinations data as JSON in quotation_detail for this request
         @quotation.quotation_detail.update(
-          combinations_data: params[:combinations].to_json
+          combinations_data: combinations_data.to_json
         )
       end
+
+      # Store screenshot data from the preview tables
+      store_preview_screenshots(@quotation)
 
       flash[:notice] = "Quotation created successfully"
       redirect_to @quotation
@@ -184,7 +195,12 @@ class QuotationsController < ApplicationController
 
   def generate_final
     # Generate final quotation from current form data
-    final_quotation = FinalQuotationGenerator.new(@quotation, params[:combinations]).generate
+    # Parse JSON string if needed
+    combinations_data = params[:combinations]
+    if combinations_data.present? && combinations_data.is_a?(String)
+      combinations_data = JSON.parse(combinations_data)
+    end
+    final_quotation = FinalQuotationGenerator.new(@quotation, combinations_data).generate
 
     if final_quotation.persisted?
       flash[:notice] = "Final quotation generated successfully"
@@ -387,7 +403,9 @@ class QuotationsController < ApplicationController
     territory_ids = []
 
     if params[:combinations].present?
-      params[:combinations].each do |combo_id, combo_data|
+      # Parse JSON string if needed
+      combinations_data = params[:combinations].is_a?(String) ? JSON.parse(params[:combinations]) : params[:combinations]
+      combinations_data.each do |combo_id, combo_data|
         if combo_data[:territories].present?
           territory_ids.concat(combo_data[:territories])
         end
@@ -424,6 +442,29 @@ class QuotationsController < ApplicationController
     end
 
     Setting.find_by(key: setting_key)&.typed_value || 0
+  end
+
+  def store_preview_screenshots(quotation)
+    return unless quotation.quotation_detail
+
+    screenshots = {}
+
+    # Look for screenshot parameters in the form data
+    params.each do |key, value|
+      if key.to_s.start_with?("screenshot_group_") && value.present?
+        group_number = key.to_s.split("_").last
+        screenshots[group_number] = value
+        Rails.logger.info "📸 Storing preview content for group #{group_number}"
+      end
+    end
+
+    # Store screenshots as JSON in quotation_detail
+    if screenshots.any?
+      quotation.quotation_detail.update(
+        preview_screenshots: screenshots.to_json
+      )
+      Rails.logger.info "✅ Stored #{screenshots.count} preview captures for quotation #{quotation.id}"
+    end
   end
 
 end

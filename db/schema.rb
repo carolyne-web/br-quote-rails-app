@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_20_091109) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_21_121807) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -160,6 +160,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_20_091109) do
     t.text "selected_media_types"
     t.integer "number_of_commercials"
     t.text "combinations_data"
+    t.text "preview_screenshots"
     t.index ["quotation_id"], name: "index_quotation_details_on_quotation_id"
   end
 

@@ -19,7 +19,7 @@
       <p class="text-2xl text-gray-900 font-semibold">Quote #<%= @final_quotation.project_number %></p>
     </div>
 
-    <div class="flex flex-wrap gap-3">
+    <div class="flex flex-wrap gap-3 hidden">
       <%= link_to quotation_path(@final_quotation.quotation), class: "flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2 px-4 text-white text-sm font-medium leading-normal hover:opacity-90 transition-opacity", style: "background-color: #1173D4;" do %>
         <span class="material-symbols-outlined mr-2">edit</span>
         <span class="truncate">Edit Quote</span>
@@ -312,6 +312,28 @@
           </div>
         <% end %>
       </div>
+
+      <!-- Screenshot Test -->
+      <% if @final_quotation.quotation.quotation_detail&.preview_screenshots.present? %>
+        <div class="bg-white border rounded-lg p-6">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Screenshot Test</h2>
+          <p class="text-sm text-gray-600 mb-4">Preview screenshots captured from the quotation form:</p>
+
+          <% begin %>
+            <% screenshots = JSON.parse(@final_quotation.quotation.quotation_detail.preview_screenshots) %>
+            <% screenshots.each do |group_number, screenshot_data| %>
+              <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-800 mb-2">Group <%= group_number %> Preview</h3>
+                <div class="border rounded-lg p-4 bg-gray-50">
+                  <%= raw screenshot_data %>
+                </div>
+              </div>
+            <% end %>
+          <% rescue JSON::ParserError %>
+            <p class="text-red-500 text-sm">Error loading screenshots</p>
+          <% end %>
+        </div>
+      <% end %>
 
     </div>
 

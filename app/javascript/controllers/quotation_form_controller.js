@@ -46,6 +46,7 @@ export default class extends Controller {
     this.setupExclusivityPopup()
     this.setupCurrencyAndGuaranteeListeners()
     this.setupFormSubmissionHandler()
+    this.setupCastSelection()
 
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
@@ -237,19 +238,19 @@ export default class extends Controller {
             document.querySelectorAll('.talent-btn').forEach(otherBtn => {
               const otherCategoryId = otherBtn.dataset.category
               const otherCategorySection = document.getElementById(`talent-category-${otherCategoryId}`)
-              
+
               if (otherCategoryId !== categoryId) {
                 // Hide other category sections (but keep their data)
                 if (otherCategorySection) {
                   otherCategorySection.classList.add('hidden')
                 }
-                
+
                 // Reset other button appearances
                 otherBtn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500')
                 otherBtn.classList.add('border-gray-300', 'hover:bg-blue-50')
               }
             })
-            
+
             // Activate clicked tab - show section and update button
             categorySection.classList.remove('hidden')
             
@@ -1640,10 +1641,13 @@ export default class extends Controller {
 
   injectExclusivityDataIntoForm() {
     // Convert exclusivity data from window.exclusivityData to form fields before submission
-    if (!window.exclusivityData) {
-      console.log('❌ No window.exclusivityData found - skipping injection')
-      return
-    }
+    return new Promise((resolve, reject) => {
+      try {
+        if (!window.exclusivityData) {
+          console.log('❌ No window.exclusivityData found - skipping injection')
+          resolve() // This is not an error, just no data to inject
+          return
+        }
 
     console.log('🔄 Injecting exclusivity data into form...', window.exclusivityData)
 
@@ -1657,10 +1661,11 @@ export default class extends Controller {
                  document.querySelector('form:not(.button_to)') ||
                  this.element.querySelector('form')
 
-    if (!form) {
-      console.log('❌ No suitable form found for exclusivity injection')
-      return
-    }
+        if (!form) {
+          console.log('❌ No suitable form found for exclusivity injection')
+          reject(new Error('No suitable form found for exclusivity injection'))
+          return
+        }
 
     console.log('📝 Using form for injection:', form)
 
@@ -1771,6 +1776,14 @@ export default class extends Controller {
         })
       })
     }
+
+        console.log('✅ Finished injecting exclusivity data into form')
+        resolve()
+      } catch (error) {
+        console.error('❌ Error injecting exclusivity data:', error)
+        reject(error)
+      }
+    })
   }
 
   injectBuyoutPercentagesIntoForm() {
@@ -1979,6 +1992,8 @@ export default class extends Controller {
   }
 
   populateAllTables() {
+    console.log('🔄 populateAllTables - Starting table population with Cast Selection integration');
+
     // Find all active combo tabs to ensure we populate all existing combos
     const activeTabs = document.querySelectorAll('.combination-tab')
     const comboIds = Array.from(activeTabs).map(tab => parseInt(tab.getAttribute('data-combo'))).filter(id => !isNaN(id))
@@ -2044,7 +2059,7 @@ export default class extends Controller {
     let totalAmount = 0
 
     // Get all talent categories and their lines
-    const talentCategories = this.getAllTalentLines()
+    const talentCategories = this.getAllTalentLines(comboId)
 
     console.log(`🔍 getAllTalentLines returned ${talentCategories.length} categories`)
     talentCategories.forEach((category, categoryIdx) => {
@@ -2274,7 +2289,7 @@ export default class extends Controller {
     // }
   }
 
-  getAllTalentLines() {
+  getAllTalentLines(comboId = null) {
     const categories = []
     const categoryNames = {
       1: 'Lead',
@@ -2283,7 +2298,7 @@ export default class extends Controller {
       4: 'Teenager',
       5: 'Kid'
     }
-    
+
     const categoryAbbreviations = {
       1: 'LD',
       2: '2L',
@@ -2291,7 +2306,52 @@ export default class extends Controller {
       4: 'TN',
       5: 'KD'
     }
-    
+
+    // Check if cast selection is active - if so, filter by selected cast
+    const selectedCastFilter = new Set()
+    let castCheckboxes, allCastCheckboxes, castSelectionContainers
+
+    if (comboId) {
+      // Only look at checkboxes for the specific combo
+      const comboContainer = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
+      if (comboContainer) {
+        castCheckboxes = comboContainer.querySelectorAll('.cast-selection-checkbox:checked')
+        allCastCheckboxes = comboContainer.querySelectorAll('.cast-selection-checkbox')
+        castSelectionContainers = [comboContainer]
+      } else {
+        castCheckboxes = []
+        allCastCheckboxes = []
+        castSelectionContainers = []
+      }
+    } else {
+      // Fallback to global search (for backwards compatibility)
+      castCheckboxes = document.querySelectorAll('.cast-selection-checkbox:checked')
+      allCastCheckboxes = document.querySelectorAll('.cast-selection-checkbox')
+      castSelectionContainers = document.querySelectorAll('.cast-selection-container')
+    }
+
+    // Feature detection: Check if cast selection containers exist (they're always there)
+    const hasCastSelectionFeature = castSelectionContainers.length > 0
+    const hasCastSelection = castCheckboxes.length > 0
+
+    console.log(`🔍 Cast selection detection for combo ${comboId}: containers=${castSelectionContainers.length}, checkboxes=${allCastCheckboxes.length}, checked=${castCheckboxes.length}`)
+
+    if (hasCastSelectionFeature) {
+      if (hasCastSelection) {
+        // Cast selection exists and some are checked - only show selected
+        castCheckboxes.forEach(checkbox => {
+          selectedCastFilter.add(checkbox.value) // Format: "categoryId_lineIndex"
+        })
+        console.log(`🎯 Cast selection filter active for combo ${comboId}:`, Array.from(selectedCastFilter))
+      } else {
+        // Cast selection exists but none are checked - show nothing
+        console.log(`🚫 Cast selection available but nothing selected for combo ${comboId} - showing no talent`)
+        return [] // Return empty array to show no talent
+      }
+    } else {
+      console.log(`📋 No cast selection feature for combo ${comboId} - showing all talent`)
+    }
+
     // Only process categories 1-5 as requested
     document.querySelectorAll('[id^="talent-category-"]').forEach(section => {
       const categoryId = section.id.replace('talent-category-', '')
@@ -2309,32 +2369,41 @@ export default class extends Controller {
       // Get all talent input rows in the additional-lines section of this category
       const inputRows = section.querySelectorAll('.additional-lines .talent-input-row')
       
-      inputRows.forEach((row) => {
+      inputRows.forEach((row, rowIndex) => {
         // Use the same selectors as the existing working code
         const descriptionField = row.querySelector('.talent-description, [name*="description"]')
-        const rateField = row.querySelector('[name*="adjusted_rate"]') || 
+        const rateField = row.querySelector('[name*="adjusted_rate"]') ||
                          row.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)
         const countField = row.querySelector('[name*="talent_count"]') ||
                           row.querySelector(`[data-talent-input="${categoryId}"]`)
-        
+
         const description = descriptionField?.value || ''
         const rate = rateField?.value || 0
         const count = countField?.value || 0
-        
+
         // Only include rows that have actual talent count > 0 AND (description OR rate > 0)
         // This prevents showing fake data with 0 units
         if (parseInt(count) > 0 && (description.trim() || parseFloat(rate) > 0)) {
-          // Format description with category abbreviation if description exists
-          const formattedDescription = description.trim() 
-            ? `${categoryAbbr} - ${description.trim()}`
-            : categoryName
-          
-          lines.push({
-            description: formattedDescription,
-            adjustedRate: parseFloat(rate) || 0,
-            dailyRate: parseFloat(rate) || 0,
-            initialCount: parseInt(count) || 0
-          })
+          // Check if cast selection filter is active and if this specific line is selected
+          const lineKey = `${categoryId}_${rowIndex}` // Use actual row index
+          const isSelectedInCast = !hasCastSelectionFeature || selectedCastFilter.has(lineKey)
+
+          if (isSelectedInCast) {
+            // Format description with category abbreviation if description exists
+            const formattedDescription = description.trim()
+              ? `${categoryAbbr} - ${description.trim()}`
+              : categoryName
+
+            lines.push({
+              description: formattedDescription,
+              adjustedRate: parseFloat(rate) || 0,
+              dailyRate: parseFloat(rate) || 0,
+              initialCount: parseInt(count) || 0
+            })
+            console.log(`✅ Including talent: ${formattedDescription} (${lineKey}) for combo ${comboId}`)
+          } else {
+            console.log(`🚫 Skipping talent: ${description || categoryName} (${lineKey}) - not selected in cast for combo ${comboId}`)
+          }
         }
       })
       
@@ -4360,17 +4429,30 @@ export default class extends Controller {
         // Disable validation on hidden talent category fields to prevent form submission errors
         this.disableValidationOnHiddenFields()
 
-        // Inject the exclusivity data
-        this.injectExclusivityDataIntoForm()
-
-        // Inject calculated preview values before submitting
-        this.injectCalculatedPreviewValues()
-
-        // After a short delay, submit the form
-        setTimeout(() => {
+        // Use Promise-based approach for data injection
+        Promise.all([
+          this.injectExclusivityDataIntoForm(),
+          this.injectCalculatedPreviewValues()
+        ])
+        .then(() => {
           console.log('🔄 Re-submitting form with injected data...')
+
+          // Verify combinations data was injected
+          const combinationsInput = form.querySelector('input[name="combinations"]')
+          if (combinationsInput && combinationsInput.value) {
+            console.log('✅ Combinations data verified before submission:', JSON.parse(combinationsInput.value))
+          } else {
+            console.warn('⚠️  No combinations data found in form before submission!')
+          }
+
           form.submit()
-        }, 100)
+        })
+        .catch(error => {
+          console.error('❌ Error during data injection:', error)
+          // Still submit the form even if injection fails to avoid blocking the user
+          console.log('🔄 Submitting form despite injection errors...')
+          form.submit()
+        })
       })
     })
 
@@ -4452,16 +4534,20 @@ export default class extends Controller {
 
   injectCalculatedPreviewValues() {
     // Capture and inject all calculated values from the preview tables
-    console.log('🔄 Injecting calculated preview values into form...')
+    return new Promise((resolve, reject) => {
+      try {
+        console.log('🔄 Injecting calculated preview values into form...')
+        console.log('🔍 Available quote preview tables:', document.querySelectorAll('.quote-preview-table').length)
 
     const form = document.querySelector('form[data-controller="quotation-form"]') ||
                  document.querySelector('form:not(.button_to)') ||
                  this.element.querySelector('form')
 
-    if (!form) {
-      console.log('❌ No suitable form found for preview values injection')
-      return
-    }
+        if (!form) {
+          console.log('❌ No suitable form found for preview values injection')
+          reject(new Error('No suitable form found for preview values injection'))
+          return
+        }
 
     // Remove any existing calculated value fields
     document.querySelectorAll('input[name*="calculated_"]').forEach(field => {
@@ -4473,16 +4559,33 @@ export default class extends Controller {
 
     quoteTables.forEach(table => {
       const comboId = table.closest('[data-combo]')?.getAttribute('data-combo')
-      if (!comboId) return
+      if (!comboId) {
+        console.log('⚠️  Found table without combo id:', table)
+        return
+      }
 
       console.log(`📊 Processing combo ${comboId} for calculated values`)
+      console.log('📊 Table structure:', table.outerHTML.substring(0, 500) + '...')
 
-      // Extract values from table rows
-      const rows = table.querySelectorAll('tbody tr:not([class*="border-t"]):not([class*="bg-gray"]):not([class*="bg-blue"])')
+      // Extract values from table rows - be more specific about which rows to process
+      const tbody = table.querySelector('tbody.quote-preview-rows')
+      if (!tbody) {
+        console.log(`⚠️  No tbody.quote-preview-rows found in table for combo ${comboId}`)
+        return
+      }
 
-      rows.forEach((row) => {
+      const rows = tbody.querySelectorAll('tr')
+      console.log(`📊 Found ${rows.length} data rows in combo ${comboId} tbody`)
+
+      rows.forEach((row, rowIndex) => {
+        console.log(`📊 Processing row ${rowIndex + 1}:`, row.innerHTML.substring(0, 200) + '...')
         const cells = row.querySelectorAll('td')
-        if (cells.length < 8) return // Skip if not a full data row
+        console.log(`📊 Row ${rowIndex + 1} has ${cells.length} cells`)
+
+        if (cells.length < 8) {
+          console.log(`⚠️  Skipping row ${rowIndex + 1} - only ${cells.length} cells (need 8)`)
+          return // Skip if not a full data row
+        }
 
         // Extract values from the row
         const talentDescription = cells[0]?.textContent?.trim()
@@ -4628,7 +4731,96 @@ export default class extends Controller {
       console.log(`✅ Added guarantee state: ${isGuaranteed} for combo ${comboId}`)
     })
 
-    console.log(`✅ Finished injecting calculated preview values`)
+        // Capture screenshots of quote preview tables
+        this.captureQuotePreviewScreenshots(form)
+
+        // Create a summary combinations field with all the data
+        this.createCombinationsSummaryField(form)
+
+        console.log(`✅ Finished injecting calculated preview values`)
+        resolve()
+      } catch (error) {
+        console.error('❌ Error injecting calculated preview values:', error)
+        reject(error)
+      }
+    })
+  }
+
+  createCombinationsSummaryField(form) {
+    // Create a JSON summary of all combinations data for the Rails controller
+    console.log('🔄 Creating combinations summary field...')
+
+    // Remove any existing combinations summary field
+    const existingField = form.querySelector('input[name="combinations"]')
+    if (existingField) {
+      console.log('🗑️ Removing existing combinations field')
+      existingField.remove()
+    }
+
+    // Collect all combination data from the form fields that were just created
+    const combinationsData = {}
+    const quoteTables = document.querySelectorAll('.quote-preview-table')
+    console.log(`🔍 Found ${quoteTables.length} quote tables to process`)
+
+    quoteTables.forEach(table => {
+      const comboId = table.closest('[data-combo]')?.getAttribute('data-combo')
+      if (!comboId) return
+
+      // Get basic combination info from the DOM
+      const comboElement = table.closest('[data-combo]')
+      console.log(`🔍 Processing combo ${comboId}, element:`, comboElement)
+
+      // Extract basic info from the form fields rather than data attributes
+      const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
+      const duration = durationSelect?.value || comboElement?.getAttribute('data-duration') || 'unknown'
+
+      // Get territories from form checkboxes
+      const territoryCheckboxes = document.querySelectorAll(`input[name*="combinations[${comboId}][territories]"]:checked`)
+      const territories = Array.from(territoryCheckboxes).map(cb => cb.value)
+
+      // Get media types from form checkboxes
+      const mediaTypeCheckboxes = document.querySelectorAll(`input[name*="combinations[${comboId}][media_types]"]:checked`)
+      const mediaTypes = Array.from(mediaTypeCheckboxes).map(cb => cb.value)
+
+      console.log(`📊 Combo ${comboId} extracted data:`, { duration, territories, mediaTypes })
+
+      combinationsData[comboId] = {
+        duration: duration,
+        territories: territories,
+        media_types: mediaTypes,
+        calculated_values: {}, // This would be populated by the individual fields we created
+        exclusivities: [],
+        is_guaranteed: false
+      }
+
+      console.log(`📊 After assignment, combinationsData[${comboId}]:`, combinationsData[comboId])
+
+      // Get guarantee state
+      const guaranteeCheckbox = table.querySelector(`.guarantee-checkbox[data-combo="${comboId}"]`)
+      if (guaranteeCheckbox && guaranteeCheckbox.checked) {
+        combinationsData[comboId].is_guaranteed = true
+      }
+
+      console.log(`📊 Collected data for combo ${comboId}:`, combinationsData[comboId])
+    })
+
+    // Create the summary field
+    const summaryField = document.createElement('input')
+    summaryField.type = 'hidden'
+    summaryField.name = 'combinations'
+    summaryField.value = JSON.stringify(combinationsData)
+    form.appendChild(summaryField)
+
+    console.log('✅ Created combinations summary field with data:', JSON.stringify(combinationsData, null, 2))
+    console.log('✅ Summary field element:', summaryField)
+
+    // Verify the field was added to the form
+    const verifyField = form.querySelector('input[name="combinations"]')
+    if (verifyField) {
+      console.log('✅ Verification: combinations field found in form with value:', verifyField.value.substring(0, 100) + '...')
+    } else {
+      console.error('❌ Verification: combinations field NOT found in form!')
+    }
   }
 
   disableValidationOnHiddenFields() {
@@ -4656,5 +4848,405 @@ export default class extends Controller {
     })
 
     console.log(`🔧 Removed validation on ${hiddenSections.length} hidden talent sections`)
+  }
+
+  captureQuotePreviewScreenshots(form) {
+    console.log('📸 Starting screenshot capture...')
+
+    try {
+      // Find all quote preview tables (one per combination)
+      const quotePreviewTables = document.querySelectorAll('.quote-preview-table')
+      console.log(`📸 Found ${quotePreviewTables.length} quote preview tables to capture`)
+
+      if (quotePreviewTables.length === 0) {
+        console.log('⚠️ No quote preview tables found to capture')
+        return
+      }
+
+      // Capture HTML content of each table instead of actual screenshot
+      quotePreviewTables.forEach((table, index) => {
+        // Find the parent container that includes the table and headers
+        const previewContainer = table.closest('.bg-gray-50') || table.parentElement
+
+        // Capture the HTML content with inline styles
+        const htmlContent = this.captureTableHTML(previewContainer)
+
+        // Create field to store the HTML content
+        const htmlField = document.createElement('input')
+        htmlField.type = 'hidden'
+        htmlField.name = `screenshot_group_${index + 1}`
+        htmlField.value = htmlContent
+        form.appendChild(htmlField)
+
+        console.log(`📸 Captured HTML for group ${index + 1}`)
+      })
+
+    } catch (error) {
+      console.error('❌ Error capturing screenshots:', error)
+    }
+  }
+
+  captureTableHTML(container) {
+    // Clone the container to avoid modifying the original
+    const clone = container.cloneNode(true)
+
+    // Add inline styles to preserve appearance
+    this.addInlineStyles(clone)
+
+    // Return the outer HTML
+    return clone.outerHTML
+  }
+
+  addInlineStyles(element) {
+    // Add basic table styling
+    const style = `
+      <style>
+        .quote-preview-table { border-collapse: collapse; width: 100%; border: 1px solid #d1d5db; }
+        .quote-preview-table th, .quote-preview-table td {
+          border: 1px solid #d1d5db;
+          padding: 8px;
+          text-align: left;
+          font-size: 14px;
+        }
+        .quote-preview-table th { background-color: #f3f4f6; font-weight: 600; }
+        .quote-preview-table tbody tr:nth-child(even) { background-color: #f9fafb; }
+        .bg-gray-50 { background-color: #f9fafb; padding: 16px; border-radius: 8px; }
+        .text-sm { font-size: 14px; }
+        .font-medium { font-weight: 500; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+      </style>
+    `
+
+    // Add the style element at the beginning
+    element.insertAdjacentHTML('afterbegin', style)
+  }
+
+  captureTableScreenshot(table, groupNumber, form) {
+    console.log(`📸 Capturing screenshot for group ${groupNumber}`)
+
+    try {
+      // Use html2canvas to capture the table
+      import('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js').then(() => {
+        // Find the parent container that includes the table and its headers
+        const previewContainer = table.closest('.bg-gray-50') || table.parentElement
+
+        html2canvas(previewContainer, {
+          backgroundColor: '#f9fafb',
+          scale: 2, // Higher quality
+          useCORS: true,
+          allowTaint: true
+        }).then(canvas => {
+          // Convert canvas to base64 data URL
+          const screenshotData = canvas.toDataURL('image/png')
+          console.log(`✅ Screenshot captured for group ${groupNumber}`)
+
+          // Create hidden input field to store the screenshot
+          const screenshotField = document.createElement('input')
+          screenshotField.type = 'hidden'
+          screenshotField.name = `screenshot_group_${groupNumber}`
+          screenshotField.value = screenshotData
+          form.appendChild(screenshotField)
+
+          console.log(`📝 Added screenshot field for group ${groupNumber}`)
+        }).catch(error => {
+          console.error(`❌ Error generating screenshot for group ${groupNumber}:`, error)
+        })
+      }).catch(error => {
+        console.error('❌ Error loading html2canvas:', error)
+      })
+
+    } catch (error) {
+      console.error(`❌ Error capturing table screenshot for group ${groupNumber}:`, error)
+    }
+  }
+
+  // Cast Selection Feature
+  setupCastSelection() {
+    console.log('🎭 Setting up Cast Selection feature')
+
+    // Add event listeners for talent inputs
+    document.addEventListener('input', (e) => {
+      if (e.target.name && e.target.name.includes('talent_count')) {
+        console.log('🎯 CONTROLLER: Talent count input detected:', e.target.name, e.target.value)
+        setTimeout(() => this.updateCastSelection(), 50)
+      }
+      if (e.target.name && e.target.name.includes('description')) {
+        console.log('🎯 CONTROLLER: Talent description input detected:', e.target.name, e.target.value)
+        setTimeout(() => this.updateCastSelection(), 50)
+      }
+    })
+
+    // Add event listeners for cast selection checkboxes
+    document.addEventListener('change', (e) => {
+      console.log('📋 Change event detected on:', e.target, 'classes:', e.target.classList.toString())
+      if (e.target.classList.contains('cast-selection-checkbox')) {
+        console.log('🎭 Cast selection changed:', e.target.checked, e.target.value)
+        console.log('🎭 About to call updateQuotePreview')
+        this.updateQuotePreview()
+        console.log('🎭 updateQuotePreview call completed')
+      }
+    })
+
+    // Initial population
+    setTimeout(() => this.updateCastSelection(), 500)
+  }
+
+  updateCastSelection() {
+    console.log('🎭 CONTROLLER updateCastSelection called')
+    const categories = {
+      1: 'Lead',
+      2: 'Second Lead',
+      3: 'Featured Extra',
+      4: 'Teenager',
+      5: 'Kid',
+      6: 'Walk-on',
+      7: 'Extras'
+    }
+
+    // Get all talent that has been entered - including all lines within each category
+    const availableTalent = []
+
+    Object.keys(categories).forEach(categoryId => {
+      const section = document.getElementById(`talent-category-${categoryId}`)
+      console.log(`🔍 Checking category ${categoryId}:`, section ? 'found' : 'not found', section?.classList.contains('hidden') ? 'hidden' : 'visible')
+
+      if (section) {
+        // Get ALL talent input rows in this category (not just the main one)
+        const inputRows = section.querySelectorAll('.talent-input-row')
+        console.log(`📊 Found ${inputRows.length} talent rows in category ${categoryId}`)
+
+        inputRows.forEach((row, rowIndex) => {
+          // Get talent data from each row
+          const descriptionField = row.querySelector('.talent-description, [name*="description"]')
+          const rateField = row.querySelector('[name*="adjusted_rate"]') ||
+                           row.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)
+          const countField = row.querySelector('[name*="talent_count"]') ||
+                            row.querySelector(`[data-talent-input="${categoryId}"]`)
+
+          const description = descriptionField?.value || ''
+          const rate = parseInt(rateField?.value) || 0
+          const count = parseInt(countField?.value) || 0
+
+          console.log(`📊 Row ${rowIndex} in category ${categoryId}:`, { description, rate, count })
+
+          // Include this row if it has talent count > 0
+          if (count > 0) {
+            const lineDescription = description.trim()
+              ? `${categories[categoryId]} - ${description.trim()}`
+              : categories[categoryId]
+
+            availableTalent.push({
+              categoryId: categoryId,
+              categoryName: categories[categoryId],
+              description: lineDescription,
+              talentCount: count,
+              adjustedRate: rate,
+              lineIndex: rowIndex,
+              isMainLine: rowIndex === 0
+            })
+            console.log(`✅ Added talent: ${lineDescription} (${count} × R${rate})`)
+          }
+        })
+      }
+    })
+
+    console.log('🎭 Available talent found:', availableTalent)
+
+    // Update cast selection in all combination sections
+    document.querySelectorAll('.cast-selection-container').forEach(container => {
+      const comboId = container.getAttribute('data-combo')
+      const castList = container.querySelector('.cast-selection-list')
+      console.log(`📋 Updating cast selection for combo ${comboId}:`, castList ? 'container found' : 'container not found')
+
+      if (castList) {
+        // Always preserve existing selections before any updates
+        const existingSelections = []
+        castList.querySelectorAll('.cast-selection-checkbox:checked').forEach(checkbox => {
+          existingSelections.push(checkbox.value)
+        })
+        console.log('💾 Preserving existing selections before update:', existingSelections)
+
+        if (availableTalent.length === 0) {
+          castList.innerHTML = '<p class="text-sm text-gray-400 italic">Enter talent above to see cast selection options</p>'
+        } else {
+          let castHTML = ''
+
+          // Group by category for better organization
+          const groupedTalent = {}
+          availableTalent.forEach(talent => {
+            if (!groupedTalent[talent.categoryName]) {
+              groupedTalent[talent.categoryName] = []
+            }
+            groupedTalent[talent.categoryName].push(talent)
+          })
+
+          // Render organized by category
+          Object.keys(groupedTalent).forEach(categoryName => {
+            castHTML += `<div class="mb-3">`
+            castHTML += `<h4 class="text-xs font-semibold text-gray-600 mb-2">${categoryName}</h4>`
+
+            groupedTalent[categoryName].forEach(talent => {
+              const uniqueId = `cast_${comboId}_${talent.categoryId}_${talent.lineIndex}`
+              const checkboxValue = `${talent.categoryId}_${talent.lineIndex}`
+              castHTML += `
+                <div class="flex items-center space-x-2 py-1">
+                  <input type="checkbox"
+                         id="${uniqueId}"
+                         name="combinations[${comboId}][selected_cast][]"
+                         value="${checkboxValue}"
+                         class="cast-selection-checkbox text-blue-600 focus:ring-blue-500"
+                         data-combo="${comboId}"
+                         data-category="${talent.categoryId}"
+                         data-line="${talent.lineIndex}">
+                  <label for="${uniqueId}" class="text-sm text-gray-700 flex-1">
+                    ${talent.description} (${talent.talentCount} × R${talent.adjustedRate.toLocaleString()})
+                    ${talent.isMainLine ? '' : ' <span class="text-xs text-blue-600">[Line ' + (talent.lineIndex + 1) + ']</span>'}
+                  </label>
+                </div>
+              `
+            })
+
+            castHTML += `</div>`
+          })
+
+          castList.innerHTML = castHTML
+
+          // Restore previous selections
+          existingSelections.forEach(value => {
+            const checkbox = castList.querySelector(`input[value="${value}"]`)
+            if (checkbox) {
+              checkbox.checked = true
+              console.log('✅ Restored selection:', value)
+            }
+          })
+        }
+      }
+    })
+  }
+
+  updateQuotePreview() {
+    console.log('🎭 CAST SELECTION: Updating quote preview with selected cast only')
+
+    // Simply call the original populateAllTables method
+    // The filtering is now handled in getAllTalentLines based on cast selection
+    this.populateAllTables()
+  }
+
+  // Legacy method content removed to preserve all original functionality
+  updateQuotePreviewLegacy() {
+    // Override the quote preview to only show selected cast
+    console.log('🎭 CAST SELECTION: Updating quote preview with selected cast only')
+
+    // Find ANY table body that might be the quote preview
+    const allTbodies = document.querySelectorAll('tbody')
+    console.log('🔍 Found', allTbodies.length, 'tbody elements:', allTbodies)
+
+    // Try to find the right one by looking for one that has quote-related content
+    let previewRows = null
+    allTbodies.forEach((tbody, index) => {
+      console.log(`🔍 Tbody ${index}:`, tbody.className, tbody.getAttribute('data-combo'))
+      if (tbody.className.includes('quote-preview') || tbody.getAttribute('data-combo')) {
+        previewRows = tbody
+        console.log(`✅ Using tbody ${index} as previewRows`)
+      }
+    })
+
+    if (!previewRows && allTbodies.length > 0) {
+      // Fallback: use the first tbody we can find
+      previewRows = allTbodies[0]
+      console.log('🆘 FALLBACK: Using first tbody element')
+    }
+
+    console.log('🔍 Final previewRows element:', previewRows)
+    if (!previewRows) {
+      console.log('❌ Still no previewRows element found!')
+      return
+    }
+
+    // Clear only talent-related rows created by cast selection, preserve other rows (buyout, usage, etc.)
+    if (previewRows) {
+      const talentRows = previewRows.querySelectorAll('tr[data-talent-row="true"], tr.talent-row')
+      talentRows.forEach(row => row.remove())
+      console.log('🔄 Removed', talentRows.length, 'existing cast selection talent rows')
+    }
+
+    let hasTalent = false
+    let combo1Total = 0
+
+    // Get active combination for cast selection
+    const activeCombination = document.querySelector('.combination-content.active')
+    console.log('🔍 activeCombination:', activeCombination)
+    if (activeCombination) {
+      const selectedCastCheckboxes = activeCombination.querySelectorAll('.cast-selection-checkbox:checked')
+      console.log('🔍 selectedCastCheckboxes found:', selectedCastCheckboxes.length, selectedCastCheckboxes)
+
+      selectedCastCheckboxes.forEach(checkbox => {
+        const castValue = checkbox.value // Format: "categoryId_lineIndex"
+        const [categoryId] = castValue.split('_')
+
+        // Find the talent data for this selection
+        const section = document.getElementById(`talent-category-${categoryId}`)
+        if (section) {
+          const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0
+          const description = section.querySelector(`[data-description-input="${categoryId}"]`)?.value || section.querySelector('.talent-description')?.value || ''
+          const rate = parseInt(section.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)?.value) || 0
+
+          if (talentCount > 0) {
+            // Get combination ID for calculations (default to '1')
+            const comboId = activeCombination?.getAttribute('data-combo') || '1'
+
+            // Calculate proper exclusivity and buyout values
+            const categoryExclusivities = this.getExclusivitiesForCategory(comboId, categoryId)
+            const lineSpecificExclusivities = this.getExclusivitiesForSpecificLine(comboId, categoryId, 'main')
+            const applicableExclusivities = [...categoryExclusivities, ...lineSpecificExclusivities]
+
+            // Calculate buyout percentage for this talent
+            const buyoutPercentage = this.calculateRowBuyoutPercentage(comboId, applicableExclusivities, categoryId, rate, 'main')
+
+            // Generate exclusivity display
+            const exclusivityDisplay = applicableExclusivities.length > 0
+              ? applicableExclusivities.map(ex => `${ex.name} ${ex.percentage}%`).join(', ')
+              : '-'
+
+            // Calculate total with buyout
+            const buyoutMultiplier = buyoutPercentage / 100
+            const productFactor = this.lastProductFactor || 1.0
+            const totalWithBuyout = talentCount * rate * buyoutMultiplier * productFactor
+
+            combo1Total += totalWithBuyout
+
+            const row = document.createElement('tr')
+            row.className = 'border-b border-gray-300 talent-row'
+            row.setAttribute('data-talent-row', 'true')
+            row.innerHTML = `
+              <td class="py-2 px-3 text-sm text-gray-800 border-r border-gray-300">${description}</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">R${rate.toLocaleString()}</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">${talentCount}</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">${exclusivityDisplay}</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">1</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">${Math.floor(buyoutPercentage)}%</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">R${Math.floor(totalWithBuyout / talentCount).toLocaleString()}</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-right">R${Math.floor(totalWithBuyout).toLocaleString()}</td>
+            `
+            previewRows.appendChild(row)
+            hasTalent = true
+          }
+        }
+      })
+    }
+
+    // Update group 1 total
+    const combo1TotalElement = document.getElementById('combo-1-total')
+    if (combo1TotalElement) {
+      combo1TotalElement.textContent = `R${combo1Total.toLocaleString()}`
+    }
+
+    // If no talent lines, show placeholder
+    if (!hasTalent) {
+      const emptyRow = document.createElement('tr')
+      emptyRow.innerHTML = '<td colspan="4" class="py-4 text-center text-gray-500 italic">No cast selected from Cast Selection above</td>'
+      previewRows.appendChild(emptyRow)
+    }
   }
 }

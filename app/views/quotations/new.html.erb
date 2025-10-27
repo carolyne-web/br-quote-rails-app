@@ -309,6 +309,19 @@
             <!-- Combination 1 -->
             <div class="combination-content active" data-combo="1">
               <div class="space-y-6">
+                <!-- Cast Selection Section -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-600 mb-3">Cast Selection</label>
+                  <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div class="cast-selection-container" data-combo="1">
+                      <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this pricing group:</p>
+                      <div class="cast-selection-list space-y-2">
+                        <!-- Cast options will be populated here by JavaScript -->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-600 mb-3" for="combination_1_duration">Contract Duration</label>
@@ -544,6 +557,9 @@ function handleAddGroupClick(button) {
   const contentContainer = document.getElementById('combinations-content');
   const newContent = createCombinationContent(newComboId);
   contentContainer.appendChild(newContent);
+
+  // Update cast selection for new combination
+  setTimeout(() => updateCastSelection(), 50);
 
   // Add new combo table
   createComboTable(newComboId);
@@ -1002,6 +1018,19 @@ function removeUsageCombination(comboId) {
     
     content.innerHTML = `
       <div class="space-y-6">
+        <!-- Cast Selection Section -->
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-3">Cast Selection</label>
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div class="cast-selection-container" data-combo="${comboId}">
+              <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this pricing group:</p>
+              <div class="cast-selection-list space-y-2">
+                <!-- Cast options will be populated here by JavaScript -->
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-600" for="combination_${comboId}_duration">Contract Duration</label>
@@ -1267,51 +1296,72 @@ function removeUsageCombination(comboId) {
       previewRows.innerHTML = '';
     }
     
-    // Calculate talent costs from active talent categories
-    const activeTalentSections = document.querySelectorAll('[id^="talent-category-"]:not(.hidden)');
+    // Calculate talent costs from selected cast only (from Cast Selection checkboxes)
     let hasTalent = false;
     let baseTalentFeesOnly = 0; // Just the base fees for usage calculation
     let talentCategoryBreakdown = []; // Store breakdown for usage calculation
-    
-    // Get all visible talent categories and process their individual lines
-    document.querySelectorAll('[id^="talent-category-"]').forEach(section => {
-      if (section.classList.contains('hidden')) return;
-      
-      const categoryId = section.id.replace('talent-category-', '');
-      const categoryName = section.querySelector('h4')?.textContent || '';
-      
-      // Process all talent input rows in this category
-      const talentRows = section.querySelectorAll('.additional-lines .talent-input-row');
-      
-      talentRows.forEach(row => {
-        const descriptionInput = row.querySelector('.talent-description, [name*="description"]');
-        const talentCountInput = row.querySelector('.talent-count, [name*="talent_count"]');
-        const rateInput = row.querySelector('.rate-adjustment, [name*="adjusted_rate"]');
-        const daysInput = row.querySelector('.days-input, [name*="days_count"]');
-        
-        const description = descriptionInput?.value || categoryName;
-        const talentCount = parseInt(talentCountInput?.value) || 0;
-        const rate = parseInt(rateInput?.value) || 0;
-        const days = parseInt(daysInput?.value) || 0;
-        
-        // Only show lines with talent count > 0
-        if (talentCount > 0 && previewRows) {
-          const lineTotal = talentCount * rate * days;
-          combo1Total += lineTotal;
-          
-          const row = document.createElement('tr');
-          row.className = 'border-b border-gray-300';
-          row.innerHTML = `
-            <td class="py-2 px-3 text-sm text-gray-800 border-r border-gray-300">${description}</td>
-            <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">R${rate.toLocaleString()}</td>
-            <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">${talentCount}</td>
-            <td class="py-2 px-3 text-sm text-gray-800 text-right">R${lineTotal.toLocaleString()}</td>
-          `;
-          previewRows.appendChild(row);
-          hasTalent = true;
+
+    // Get selected cast from the active combination's cast selection
+    const activeCombination = document.querySelector('.combination-content.active');
+    if (activeCombination) {
+      const comboId = activeCombination.getAttribute('data-combo');
+      const selectedCastCheckboxes = activeCombination.querySelectorAll('.cast-selection-checkbox:checked');
+
+      selectedCastCheckboxes.forEach(checkbox => {
+        const castValue = checkbox.value; // Format: "categoryId_lineIndex"
+        const [categoryId, lineIndex] = castValue.split('_');
+
+        // Find the talent data for this selection
+        const section = document.getElementById(`talent-category-${categoryId}`);
+        if (section && !section.classList.contains('hidden')) {
+          const categoryName = section.querySelector('h4')?.textContent || '';
+
+          let talentData = null;
+
+          if (lineIndex === 'main') {
+            // Get main category data
+            talentData = {
+              description: section.querySelector(`[data-description-input="${categoryId}"]`)?.value || section.querySelector('.talent-description')?.value || categoryName,
+              talentCount: parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0,
+              rate: parseInt(section.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)?.value) || 0,
+              days: parseInt(section.querySelector(`[data-days-input="${categoryId}"]`)?.value) || 1
+            };
+          } else {
+            // Get additional line data
+            const additionalLines = section.querySelector(`tbody.additional-lines[data-category="${categoryId}"]`);
+            if (additionalLines) {
+              const lineRows = additionalLines.querySelectorAll('tr.talent-input-row');
+              const targetRow = lineRows[parseInt(lineIndex)];
+              if (targetRow) {
+                talentData = {
+                  description: targetRow.querySelector('input[name*="[lines]"][name*="[description]"]')?.value || '',
+                  talentCount: parseInt(targetRow.querySelector('input[name*="[lines]"][name*="[talent_count]"]')?.value) || 0,
+                  rate: parseInt(targetRow.querySelector('input[name*="[lines]"][name*="[adjusted_rate]"]')?.value) || 0,
+                  days: parseInt(targetRow.querySelector('input[name*="[lines]"][name*="[days_count]"]')?.value) || 1
+                };
+              }
+            }
+          }
+
+          // Add to preview if we have valid talent data
+          if (talentData && talentData.talentCount > 0 && previewRows) {
+            const lineTotal = talentData.talentCount * talentData.rate * talentData.days;
+            combo1Total += lineTotal;
+
+            const row = document.createElement('tr');
+            row.className = 'border-b border-gray-300';
+            row.innerHTML = `
+              <td class="py-2 px-3 text-sm text-gray-800 border-r border-gray-300">${talentData.description}</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">R${talentData.rate.toLocaleString()}</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">${talentData.talentCount}</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-right">R${lineTotal.toLocaleString()}</td>
+            `;
+            previewRows.appendChild(row);
+            hasTalent = true;
+          }
         }
       });
-    });
+    }
     
     // Update group 1 total
     if (combo1TotalElement) {
@@ -1321,7 +1371,7 @@ function removeUsageCombination(comboId) {
     // If no talent lines, show placeholder
     if (!hasTalent && previewRows) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="4" class="py-4 text-center text-gray-500 italic">No talent selected</td>';
+      emptyRow.innerHTML = '<td colspan="4" class="py-4 text-center text-gray-500 italic">No cast selected from Cast Selection above</td>';
       previewRows.appendChild(emptyRow);
     }
     
@@ -1394,7 +1444,7 @@ function removeUsageCombination(comboId) {
     }
     
     // A) Talent Fees = talentTotal (includes base + standby + overtime)
-    const talentFees = talentTotal;
+    const talentFees = window.talentTotal || 0;
     
     // B) Usage/Buyout = Sum of all combinations
     const usageBuyoutTotal = totalUsageBuyout;
@@ -1787,11 +1837,26 @@ function removeUsageCombination(comboId) {
       
       if (categoryId) {
         updateCategoryTotal(categoryId);
+        updateCastSelection();
       }
     }
-    
+
     if (typeof updateQuotePreview === 'function') {
       updateQuotePreview();
+    }
+
+    // Also update cast selection for any input that might affect talent
+    if (e.target.closest('[id^="talent-category-"]') ||
+        e.target.hasAttribute('data-talent-input') ||
+        e.target.hasAttribute('data-description-input') ||
+        e.target.hasAttribute('data-adjusted-rate-input') ||
+        e.target.classList.contains('talent-description') ||
+        e.target.classList.contains('talent-count') ||
+        e.target.name?.includes('talent_count') ||
+        e.target.name?.includes('description') ||
+        e.target.name?.includes('adjusted_rate')) {
+      console.log('🎯 Triggering updateCastSelection from input change:', e.target);
+      updateCastSelection();
     }
   });
 
@@ -1847,6 +1912,9 @@ function removeUsageCombination(comboId) {
 
     // Update talent summary
     updateTalentSummary();
+
+    // Update cast selection whenever talent totals change
+    updateCastSelection();
   }
 
   // Function to update the Talent Summary section
@@ -1907,6 +1975,158 @@ function removeUsageCombination(comboId) {
     }
   }
 
+  // Function to update cast selection options in all combinations
+  function updateCastSelection() {
+    console.log('🎭 GLOBAL updateCastSelection called');
+
+    // Use the controller's updateCastSelection method if available
+    if (window.quotationFormController && typeof window.quotationFormController.updateCastSelection === 'function') {
+      console.log('🎭 Delegating to controller updateCastSelection');
+      window.quotationFormController.updateCastSelection();
+      return;
+    } else {
+      console.log('🎭 Controller not available, using fallback logic');
+    }
+    const categories = {
+      1: 'Lead',
+      2: 'Second Lead',
+      3: 'Featured Extra',
+      4: 'Teenager',
+      5: 'Kid',
+      6: 'Walk-on',
+      7: 'Extras'
+    };
+
+    // Get all talent that has been entered
+    const availableTalent = [];
+
+    Object.keys(categories).forEach(categoryId => {
+      const section = document.getElementById(`talent-category-${categoryId}`);
+      console.log(`🔍 Checking category ${categoryId}:`, section ? 'found' : 'not found', section?.classList.contains('hidden') ? 'hidden' : 'visible');
+      if (section) {
+        const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0;
+        const description = section.querySelector(`[data-description-input="${categoryId}"]`)?.value || section.querySelector('.talent-description')?.value || '';
+        const adjustedRate = parseInt(section.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)?.value) || 0;
+        console.log(`📊 Category ${categoryId} data:`, { talentCount, description, adjustedRate });
+
+        // Include main category entry if it has talent count > 0
+        if (talentCount > 0) {
+          availableTalent.push({
+            categoryId: categoryId,
+            categoryName: categories[categoryId],
+            description: description || categories[categoryId],
+            talentCount: talentCount,
+            adjustedRate: adjustedRate,
+            lineIndex: 'main'
+          });
+        }
+
+        // Check for additional lines in this category
+        const additionalLines = section.querySelector(`tbody.additional-lines[data-category="${categoryId}"]`);
+        if (additionalLines) {
+          const lineRows = additionalLines.querySelectorAll('tr.talent-input-row');
+          lineRows.forEach((row, index) => {
+            // Skip the first row (index 0) as it's the main entry
+            if (index > 0) {
+              const lineDescription = row.querySelector('input[name*="[lines]"][name*="[description]"]')?.value || '';
+              const lineTalentCount = parseInt(row.querySelector('input[name*="[lines]"][name*="[talent_count]"]')?.value) || 0;
+              const lineAdjustedRate = parseInt(row.querySelector('input[name*="[lines]"][name*="[adjusted_rate]"]')?.value) || 0;
+
+              if (lineTalentCount > 0 && lineDescription) {
+                availableTalent.push({
+                  categoryId: categoryId,
+                  categoryName: categories[categoryId],
+                  description: lineDescription,
+                  talentCount: lineTalentCount,
+                  adjustedRate: lineAdjustedRate,
+                  lineIndex: index
+                });
+              }
+            }
+          });
+        }
+      }
+    });
+
+    console.log('🎭 Available talent found:', availableTalent);
+
+    // Update cast selection in all combination sections
+    document.querySelectorAll('.cast-selection-container').forEach(container => {
+      const comboId = container.getAttribute('data-combo');
+      const castList = container.querySelector('.cast-selection-list');
+      console.log(`📋 Updating cast selection for combo ${comboId}:`, castList ? 'container found' : 'container not found');
+
+      if (castList) {
+        // Always preserve existing selections before any updates
+        const existingSelections = []
+        castList.querySelectorAll('.cast-selection-checkbox:checked').forEach(checkbox => {
+          existingSelections.push(checkbox.value)
+        })
+        console.log('💾 Preserving existing selections before update:', existingSelections)
+
+        if (availableTalent.length === 0) {
+          castList.innerHTML = '<p class="text-sm text-gray-400 italic">Enter talent above to see cast selection options</p>';
+        } else {
+          let castHTML = '';
+
+          // Group by category for better organization
+          const groupedTalent = {};
+          availableTalent.forEach(talent => {
+            if (!groupedTalent[talent.categoryName]) {
+              groupedTalent[talent.categoryName] = [];
+            }
+            groupedTalent[talent.categoryName].push(talent);
+          });
+
+          // Render organized by category
+          Object.keys(groupedTalent).forEach(categoryName => {
+            castHTML += `<div class="mb-3">`;
+            castHTML += `<h4 class="text-xs font-semibold text-gray-600 mb-2">${categoryName}</h4>`;
+
+            groupedTalent[categoryName].forEach(talent => {
+              const uniqueId = `cast_${comboId}_${talent.categoryId}_${talent.lineIndex}`;
+              castHTML += `
+                <div class="flex items-center space-x-2 py-1">
+                  <input type="checkbox"
+                         id="${uniqueId}"
+                         name="combinations[${comboId}][selected_cast][]"
+                         value="${talent.categoryId}_${talent.lineIndex}"
+                         class="cast-selection-checkbox text-blue-600 focus:ring-blue-500"
+                         data-combo="${comboId}">
+                  <label for="${uniqueId}" class="text-sm text-gray-700 flex-1">
+                    ${talent.description} (${talent.talentCount} × R${talent.adjustedRate.toLocaleString()})
+                  </label>
+                </div>
+              `;
+            });
+
+            castHTML += `</div>`;
+          });
+
+          castList.innerHTML = castHTML;
+
+          // Restore previous selections
+          existingSelections.forEach(value => {
+            const checkbox = castList.querySelector(`input[value="${value}"]`)
+            if (checkbox) {
+              checkbox.checked = true
+              console.log('✅ Restored selection:', value)
+            }
+          })
+
+          // Add event listeners to cast selection checkboxes
+          castList.querySelectorAll('.cast-selection-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+              if (typeof updateQuotePreview === 'function') {
+                updateQuotePreview();
+              }
+            });
+          });
+        }
+      }
+    });
+  }
+
   // Initial calculation
   if (typeof updateQuotePreview === 'function') {
     updateQuotePreview();
@@ -1914,6 +2134,44 @@ function removeUsageCombination(comboId) {
 
   // Initial talent summary update
   setTimeout(updateTalentSummary, 100);
+
+  // Initial cast selection update - ensure it runs after DOM is ready
+  setTimeout(updateCastSelection, 150);
+
+  // Multiple attempts to ensure cast selection is populated
+  setTimeout(updateCastSelection, 500);
+  setTimeout(updateCastSelection, 1000);
+
+  // Also call updateCastSelection when talent categories are toggled visible
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('talent-category-btn')) {
+      // Delay to allow the category to be shown first
+      setTimeout(updateCastSelection, 100);
+    }
+  });
+
+  // Add event delegation for cast selection checkboxes
+  document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('cast-selection-checkbox')) {
+      console.log('🎭 Cast selection changed:', e.target.checked, e.target.value);
+      if (typeof updateQuotePreview === 'function') {
+        updateQuotePreview();
+      }
+    }
+  });
+
+  // More aggressive talent input detection - catch ALL inputs
+  document.addEventListener('input', function(e) {
+    // Check if this is a talent-related input
+    if (e.target.type === 'number' && e.target.name && e.target.name.includes('talent_count')) {
+      console.log('🎯 DIRECT: Talent count input detected:', e.target.name, e.target.value);
+      setTimeout(updateCastSelection, 50);
+    }
+    if (e.target.type === 'text' && e.target.name && e.target.name.includes('description')) {
+      console.log('🎯 DIRECT: Talent description input detected:', e.target.name, e.target.value);
+      setTimeout(updateCastSelection, 50);
+    }
+  });
 ;
 
 // Action button functions
