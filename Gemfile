@@ -23,7 +23,7 @@ gem "jbuilder"
 gem "bcrypt", "~> 3.1.7"
 
 # Session management
-gem "redis", "~> 4.0"
+gem "redis", "~> 5.4"
 
 # PDF Generation
 gem 'prawn'
