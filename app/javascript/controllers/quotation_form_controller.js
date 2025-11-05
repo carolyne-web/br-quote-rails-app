@@ -24,10 +24,10 @@ export default class extends Controller {
       }
     })
 
-    // Clear exclusivity data for new quotes to prevent persistence
+    // Clear exclusivity data for new quotes to prevent persistence from previous quotes
     if (window.location.pathname.includes('/quotations/new')) {
-      console.log('New quotation detected - clearing exclusivity data')
-      window.exclusivityData = {}
+      console.log('New quotation detected - clearing all exclusivity data')
+      this.clearExclusivityData()
     }
 
     // Initialize arrays first
@@ -72,6 +72,33 @@ export default class extends Controller {
       window.quotationDocumentClickHandler = null
       console.log('Global document click listener removed')
     }
+  }
+
+  // Method to clear all exclusivity data to prevent persistence between quotes
+  clearExclusivityData() {
+    console.log('🧹 Clearing all exclusivity data...')
+
+    // Clear global variables
+    window.exclusivityData = {}
+    window.lineExclusivityData = {}
+
+    // Clear all exclusivity-related hidden form fields
+    document.querySelectorAll('input[name*="exclusivity"], input[name*="exclusivities"]').forEach(field => {
+      console.log('Removing exclusivity field:', field.name)
+      field.remove()
+    })
+
+    // Clear exclusivity tags and visual elements
+    document.querySelectorAll('.exclusivity-tag, [data-exclusivity]').forEach(element => {
+      element.remove()
+    })
+
+    // Clear exclusivity dropdowns and selections
+    document.querySelectorAll('select[name*="exclusivity"]').forEach(select => {
+      select.selectedIndex = 0
+    })
+
+    console.log('✅ Exclusivity data cleared successfully')
   }
 
   setupMainRowEventListeners() {
@@ -4435,23 +4462,31 @@ export default class extends Controller {
           this.injectCalculatedPreviewValues()
         ])
         .then(() => {
-          console.log('🔄 Re-submitting form with injected data...')
+          console.log('🔄 Submitting form with injected data via AJAX...')
 
           // Verify combinations data was injected
           const combinationsInput = form.querySelector('input[name="combinations"]')
           if (combinationsInput && combinationsInput.value) {
             console.log('✅ Combinations data verified before submission:', JSON.parse(combinationsInput.value))
+
+            // Debug: Check all calculated_values fields that exist in the form
+            const allCalculatedFields = form.querySelectorAll('input[name*="calculated_values"]')
+            console.log(`🔍 FORM SUBMISSION DEBUG: Found ${allCalculatedFields.length} calculated_values fields in form:`)
+            allCalculatedFields.forEach(field => {
+              console.log(`   ${field.name} = ${field.value}`)
+            })
           } else {
             console.warn('⚠️  No combinations data found in form before submission!')
           }
 
-          form.submit()
+          // Use AJAX submission for preview
+          this.submitFormViaAjax(form)
         })
         .catch(error => {
           console.error('❌ Error during data injection:', error)
           // Still submit the form even if injection fails to avoid blocking the user
           console.log('🔄 Submitting form despite injection errors...')
-          form.submit()
+          this.submitFormViaAjax(form)
         })
       })
     })
@@ -4615,10 +4650,12 @@ export default class extends Controller {
         const totalText = cells[7]?.textContent?.replace(/[R,\s]/g, '')
 
         // Find category and line info from the row structure
-        const categoryMatch = talentDescription?.match(/^(Lead|Second Lead|Featured Extra|Teenager|Kid)/)
-        const categoryId = this.getCategoryIdFromDescription(categoryMatch?.[0] || '')
+        const categoryId = this.getCategoryIdFromDescription(talentDescription || '')
 
-        if (!categoryId || !dayFeeText || !unitCount) return
+        if (!categoryId || !dayFeeText || !unitCount) {
+          console.log(`⚠️  Skipping row for ${talentDescription}: categoryId=${categoryId}, dayFee=${dayFeeText}, unit=${unitCount}`)
+          return
+        }
 
         const dayFee = parseFloat(dayFeeText) || 0
         const unit = parseInt(unitCount) || 0
@@ -4632,10 +4669,11 @@ export default class extends Controller {
           parseInt(isAdditionalLine.dataset.line) || 0 : 0
 
         console.log(`📊 Combo ${comboId}, Category ${categoryId}, Line ${lineIndex}: ${talentDescription}`)
-        console.log(`   Buyout: ${buyoutPercentage}%, Per Talent: R${perTalent}, Total: R${total}`)
+        console.log(`   Day Fee: R${dayFee}, Unit: ${unit}, Buyout: ${buyoutPercentage}%, Per Talent: R${perTalent}, Total: R${total}`)
 
         // Create hidden fields for these calculated values
         const fieldPrefix = `combinations[${comboId}][calculated_values][${categoryId}][${lineIndex}]`
+        console.log(`   Will create field prefix: ${fieldPrefix}`)
 
         // Day fee (base rate)
         const dayFeeField = document.createElement('input')
@@ -4695,6 +4733,7 @@ export default class extends Controller {
 
         console.log(`✅ Added calculated values for ${talentDescription} in combo ${comboId}`)
         console.log(`   Exclusivity: "${exclusivityValue}", Commercials: ${commercialCount}, Per Talent: R${perTalent}`)
+        console.log(`   Created field: ${fieldPrefix}[calculated_buyout_percentage] = ${buyoutPercentage}`)
 
         if (exclusivityValue) {
           console.log(`🔑 Exclusivity successfully captured: "${exclusivityValue}" for ${talentDescription}`)
@@ -4782,13 +4821,38 @@ export default class extends Controller {
       const mediaTypeCheckboxes = document.querySelectorAll(`input[name*="combinations[${comboId}][media_types]"]:checked`)
       const mediaTypes = Array.from(mediaTypeCheckboxes).map(cb => cb.value)
 
+      // Debug form field detection
+      console.log(`🔍 Combo ${comboId} form field detection:`)
+      console.log(`   Duration select found: ${!!durationSelect}, value: ${duration}`)
+      console.log(`   Territory checkboxes found: ${territoryCheckboxes.length}, values: ${territories}`)
+      console.log(`   Media type checkboxes found: ${mediaTypeCheckboxes.length}, values: ${mediaTypes}`)
+
       console.log(`📊 Combo ${comboId} extracted data:`, { duration, territories, mediaTypes })
+
+      // Collect calculated values from the hidden fields that were just created
+      const calculatedValues = {}
+      const calculatedFields = form.querySelectorAll(`input[name*="combinations[${comboId}][calculated_values]"]`)
+
+      console.log(`🔍 Looking for calculated fields for combo ${comboId}`)
+      console.log(`🔍 Found ${calculatedFields.length} calculated fields:`, Array.from(calculatedFields).map(f => f.name))
+
+      calculatedFields.forEach(field => {
+        const nameMatch = field.name.match(/combinations\[(\d+)\]\[calculated_values\]\[(\d+)\]\[(\d+)\]\[(.+)\]/)
+        if (nameMatch) {
+          const [, , categoryId, lineIndex, fieldName] = nameMatch
+          if (!calculatedValues[categoryId]) calculatedValues[categoryId] = {}
+          if (!calculatedValues[categoryId][lineIndex]) calculatedValues[categoryId][lineIndex] = {}
+          calculatedValues[categoryId][lineIndex][fieldName] = field.value
+        }
+      })
+
+      console.log(`💰 Collected calculated values for combo ${comboId}:`, calculatedValues)
 
       combinationsData[comboId] = {
         duration: duration,
         territories: territories,
         media_types: mediaTypes,
-        calculated_values: {}, // This would be populated by the individual fields we created
+        calculated_values: calculatedValues,
         exclusivities: [],
         is_guaranteed: false
       }
@@ -5248,5 +5312,81 @@ export default class extends Controller {
       emptyRow.innerHTML = '<td colspan="4" class="py-4 text-center text-gray-500 italic">No cast selected from Cast Selection above</td>'
       previewRows.appendChild(emptyRow)
     }
+  }
+
+  submitFormViaAjax(form) {
+    const previewBtn = document.getElementById('preview-quote-btn')
+
+    // Show loading state
+    if (previewBtn) {
+      previewBtn.disabled = true
+      previewBtn.textContent = 'Generating Preview...'
+    }
+
+    // Prepare form data
+    const formData = new FormData(form)
+
+    // Submit via AJAX
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'text/html'
+      }
+    })
+    .then(response => {
+      console.log('Response status:', response.status)
+      console.log('Response headers:', response.headers)
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`)
+      }
+      return response.text()
+    })
+    .then(html => {
+      // Parse the response and extract the complete page content
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(html, 'text/html')
+
+      // Replace the entire body content to simulate page navigation
+      document.body.innerHTML = doc.body.innerHTML
+
+      // Update the page title if it exists
+      const newTitle = doc.querySelector('title')
+      if (newTitle) {
+        document.title = newTitle.textContent
+      }
+
+      // Update the URL without reloading the page
+      // Look for quotation ID or final quotation ID in the response
+      const quotationIdElement = doc.querySelector('[data-quotation-id]')
+      const finalQuotationIdElement = doc.querySelector('[data-final-quotation-id]')
+
+      let newPath = '/quotations'
+      if (finalQuotationIdElement) {
+        newPath = `/final_quotations/${finalQuotationIdElement.dataset.finalQuotationId}`
+      } else if (quotationIdElement) {
+        newPath = `/quotations/${quotationIdElement.dataset.quotationId}`
+      }
+
+      const currentUrl = new URL(window.location)
+      currentUrl.pathname = newPath
+      window.history.pushState({}, '', currentUrl.toString())
+
+      // Scroll to top to simulate page navigation
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+    .catch(error => {
+      console.error('Error generating preview:', error)
+      alert('Error generating quote preview. Please try again.')
+    })
+    .finally(() => {
+      // Reset button state (only if button still exists after page replacement)
+      const currentBtn = document.getElementById('preview-quote-btn')
+      if (currentBtn) {
+        currentBtn.disabled = false
+        currentBtn.textContent = 'Preview Quote'
+      }
+    })
   }
 }

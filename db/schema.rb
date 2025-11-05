@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_21_121807) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_30_143245) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -254,6 +254,18 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_21_121807) do
     t.index ["code"], name: "index_territories_on_code"
     t.index ["group_name"], name: "index_territories_on_group_name"
     t.index ["name", "media_type"], name: "index_territories_on_name_and_media_type", unique: true
+  end
+
+  create_table "territory_media_exceptions", force: :cascade do |t|
+    t.string "territory_name", null: false
+    t.string "media_type", null: false
+    t.decimal "percentage", precision: 6, scale: 2, null: false
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["media_type"], name: "index_territory_media_exceptions_on_media_type"
+    t.index ["territory_name", "media_type"], name: "index_territory_media_exceptions_unique", unique: true
+    t.index ["territory_name"], name: "index_territory_media_exceptions_on_territory_name"
   end
 
   add_foreign_key "day_on_sets", "talent_categories"

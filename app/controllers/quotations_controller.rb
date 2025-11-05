@@ -9,7 +9,13 @@ class QuotationsController < ApplicationController
   def show
     # Check if a final quotation already exists for this quotation (unless force regenerate)
     if @quotation.final_quotations.any? && params[:regenerate] != 'true'
-      redirect_to @quotation.final_quotations.last
+      # For AJAX requests (inline preview), don't redirect - show the content directly
+      if request.xhr?
+        @final_quotation = @quotation.final_quotations.last
+        render template: 'final_quotations/show'
+      else
+        redirect_to @quotation.final_quotations.last
+      end
     else
       # If regenerating, delete existing final quotations first
       if params[:regenerate] == 'true'
@@ -21,6 +27,9 @@ class QuotationsController < ApplicationController
       # Parse JSON string if needed
       if combinations_data.present? && combinations_data.is_a?(String)
         combinations_data = JSON.parse(combinations_data)
+      elsif combinations_data.present? && combinations_data.is_a?(ActionController::Parameters)
+        # Convert ActionController::Parameters to Hash to support .any? method
+        combinations_data = combinations_data.to_h
       end
 
       # If no params combinations, check if we have stored combinations data in quotation_detail
@@ -41,7 +50,14 @@ class QuotationsController < ApplicationController
         if final_quotation.persisted?
           # Clear the stored combinations data after successful generation
           @quotation.quotation_detail.update(combinations_data: nil) if @quotation.quotation_detail
-          redirect_to final_quotation
+
+          # Handle AJAX requests for inline preview
+          if request.xhr?
+            @final_quotation = final_quotation
+            render template: 'final_quotations/show'
+          else
+            redirect_to final_quotation
+          end
         else
           flash[:alert] = "Failed to generate final quotation"
         end
@@ -51,10 +67,20 @@ class QuotationsController < ApplicationController
         final_quotation = FinalQuotationGenerator.new(@quotation).generate
 
         if final_quotation.persisted?
-          redirect_to final_quotation
+          # Handle AJAX requests for inline preview
+          if request.xhr?
+            @final_quotation = final_quotation
+            render template: 'final_quotations/show'
+          else
+            redirect_to final_quotation
+          end
         else
           flash[:alert] = "Failed to generate final quotation"
-          redirect_to quotations_path
+          if request.xhr?
+            render json: { error: "Failed to generate final quotation" }, status: :unprocessable_entity
+          else
+            redirect_to quotations_path
+          end
         end
       end
     end
@@ -103,13 +129,19 @@ class QuotationsController < ApplicationController
       # Check if any combination has guarantee enabled
       if params[:combinations].present?
         has_guarantee = false
+        Rails.logger.info "🛡️ DEBUG: Checking guarantee status in combinations..."
+        Rails.logger.info "🛡️ DEBUG: combinations_data: #{combinations_data.inspect}"
         combinations_data.each do |combo_id, combo_data|
-          if combo_data["is_guaranteed"] == "1"
+          Rails.logger.info "🛡️ DEBUG: Combo #{combo_id} - is_guaranteed: #{combo_data["is_guaranteed"].inspect}"
+          if combo_data["is_guaranteed"] == "1" || combo_data["is_guaranteed"] == true
             has_guarantee = true
+            Rails.logger.info "🛡️ DEBUG: Found guarantee enabled for combo #{combo_id}"
             break
           end
         end
+        Rails.logger.info "🛡️ DEBUG: Final guarantee status: #{has_guarantee}"
         @quotation.update(is_guaranteed: has_guarantee)
+        Rails.logger.info "🛡️ DEBUG: Quotation #{@quotation.id} updated with is_guaranteed: #{@quotation.reload.is_guaranteed}"
       end
 
       # Calculate totals (product type adjustments are now handled in calculator)
@@ -138,7 +170,39 @@ class QuotationsController < ApplicationController
       store_preview_screenshots(@quotation)
 
       flash[:notice] = "Quotation created successfully"
-      redirect_to @quotation
+
+      # Handle AJAX requests for inline preview
+      if request.xhr?
+        # Generate or retrieve the final quotation and render its template
+        # Try to get combinations data from params first, then from stored database data
+        combinations_data = params[:combinations]
+        # Parse JSON string if needed
+        if combinations_data.present? && combinations_data.is_a?(String)
+          combinations_data = JSON.parse(combinations_data)
+        elsif combinations_data.present? && combinations_data.is_a?(ActionController::Parameters)
+          # Convert ActionController::Parameters to Hash to support .any? method
+          combinations_data = combinations_data.to_h
+        end
+
+        # Check if we have combinations data with calculated values to generate final quotation
+        if combinations_data.present? && combinations_data.any? { |combo_id, combo_data| combo_data["calculated_values"].present? }
+          Rails.logger.info "✅ Generating final quotation with JavaScript calculated values"
+          final_quotation = FinalQuotationGenerator.new(@quotation, combinations_data).generate
+        else
+          # Generate a basic final quotation from the database data without JavaScript calculations
+          Rails.logger.info "📝 Generating basic final quotation from database data"
+          final_quotation = FinalQuotationGenerator.new(@quotation).generate
+        end
+
+        if final_quotation.persisted?
+          @final_quotation = final_quotation
+          render template: 'final_quotations/show'
+        else
+          render json: { error: "Failed to generate final quotation" }, status: :unprocessable_entity
+        end
+      else
+        redirect_to @quotation
+      end
     else
       load_form_data
       render :new

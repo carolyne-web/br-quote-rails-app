@@ -473,7 +473,7 @@ class FinalQuotationGenerator
   end
 
   def create_talent_lines_for_group(group, combo_id = nil, combo_exclusivities = [], calculated_values = {})
-    # Create talent lines - one per day_on_set (individual line)
+    # Create talent lines ONLY for selected talent (those with calculated values)
     @quotation.talent_categories.includes(:day_on_sets).each do |category|
       category.day_on_sets.each_with_index do |day_on_set, line_index|
         # Skip if no talent count
@@ -483,7 +483,11 @@ class FinalQuotationGenerator
         category_calculated = calculated_values[category.category_type.to_s] || {}
         line_calculated = category_calculated[line_index.to_s] || {}
 
-        create_talent_line_from_day_on_set(group, category, day_on_set, combo_id, combo_exclusivities, line_calculated)
+        # ONLY create talent lines for talent that was selected in cast selection
+        # (indicated by having calculated values from JavaScript)
+        if line_calculated.present? && line_calculated["day_fee"].present?
+          create_talent_line_from_day_on_set(group, category, day_on_set, combo_id, combo_exclusivities, line_calculated)
+        end
       end
     end
   end

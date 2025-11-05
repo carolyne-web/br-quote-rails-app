@@ -520,13 +520,14 @@
         <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3 sm:justify-end">
           <%= link_to "Cancel", quotations_path, 
               class: "px-6 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition text-center" %>
-          <%= f.submit "Generate Quote",
-              id: "generate-quote-btn",
+          <%= f.submit "Preview Quote",
+              id: "preview-quote-btn",
               class: "px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition" %>
         </div>
       </div>
     </main>
   <% end %>
+
 </div>
 
 
@@ -2347,5 +2348,22 @@ function updateAdjustedRate(categoryId) {
   
   return adjustedRate;
 }
+
+// Quote Preview Close Functionality
+function setupQuotePreview() {
+  const previewArea = document.getElementById('quote-preview-area');
+  const closeBtn = document.getElementById('close-preview-btn');
+
+  // Handle close preview
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function() {
+      previewArea.classList.add('hidden');
+    });
+  }
+}
+
+// Initialize quote preview close functionality on page load
+document.addEventListener('DOMContentLoaded', setupQuotePreview);
+document.addEventListener('turbo:load', setupQuotePreview);
 
 </script>

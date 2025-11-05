@@ -38,6 +38,7 @@ Rails.application.routes.draw do
         patch :bulk_update
       end
     end
+    resources :territory_media_exceptions, path: 'territory-exceptions', as: 'territory_exceptions'
     resources :quotations, only: [ :index, :show ] do
       member do
         get :pdf

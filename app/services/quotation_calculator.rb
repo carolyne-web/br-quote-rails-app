@@ -209,15 +209,15 @@ class QuotationCalculator
 
   def calculate_media_multiplier
     return 1.0 unless @detail
-    
+
     # Check for territory override - if active, force All Media
     total_percentage = @territories.sum(:percentage)
     duration_months = parse_duration_months(@detail&.duration)
-    
+
     if should_apply_territory_override?(duration_months, total_percentage)
       return 1.0  # Force All Media = 100% when territory override is active
     end
-    
+
     # Get media types from the form submission
     media_types = []
     if @quotation.respond_to?(:media_types) && @quotation.media_types.present?
@@ -225,10 +225,16 @@ class QuotationCalculator
     elsif @detail.respond_to?(:selected_media_types) && @detail.selected_media_types.present?
       media_types = @detail.selected_media_types
     end
-    
+
     return 1.0 if media_types.empty?
-    
-    # NEW MEDIA LOGIC to match frontend
+
+    # NEW: Check for territory-media exceptions and calculate combined percentage
+    exception_percentage = calculate_territory_media_combined_percentage(media_types)
+    if exception_percentage > 0
+      return exception_percentage / 100.0 # Convert percentage to multiplier
+    end
+
+    # Fallback to original media logic when no exceptions apply
     if media_types.include?('all_media')
       1.0 # All Media = 100%
     elsif media_types.count == 1 && media_types.include?('all_moving')
@@ -242,6 +248,36 @@ class QuotationCalculator
     else
       1.0 # Default
     end
+  end
+
+  # Calculate combined territory-media percentage using exceptions when available
+  def calculate_territory_media_combined_percentage(media_types)
+    return 0 if @territories.empty? || media_types.empty?
+
+    total_percentage = 0
+
+    # For each media type, calculate the combined territory percentage
+    media_types.each do |media_type|
+      media_percentage = 0
+
+      @territories.each do |territory|
+        # Check if there's an exception for this territory + media type combination
+        exception = TerritoryMediaException.find_exception(territory.name, media_type)
+
+        if exception
+          # Use exception percentage
+          media_percentage += exception.percentage.to_f
+        else
+          # Use standard territory percentage
+          media_percentage += territory.percentage.to_f
+        end
+      end
+
+      # Take the highest media type percentage (not additive across media types)
+      total_percentage = [total_percentage, media_percentage].max
+    end
+
+    total_percentage
   end
 
   def calculate_duration_multiplier
