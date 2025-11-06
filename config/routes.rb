@@ -47,7 +47,7 @@ Rails.application.routes.draw do
   end
 
   # Production House Routes (to be added in next steps)
-  resources :quotations, except: [:edit, :update] do
+  resources :quotations do
     member do
       get :pdf
       post :duplicate

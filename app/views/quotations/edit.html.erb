@@ -11,6 +11,35 @@
       </script>
     <% end %>
 
+    <!-- Set correct radio button values for edit mode -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Set Product Type radio button
+        <% if @quotation.product_type.present? %>
+          const productTypeRadio = document.querySelector('input[name="quotation[product_type]"][value="<%= @quotation.product_type %>"]');
+          if (productTypeRadio) {
+            productTypeRadio.checked = true;
+            productTypeRadio.dispatchEvent(new Event('change'));
+            console.log('✅ Set product type radio: <%= @quotation.product_type %>');
+          } else {
+            console.warn('❌ Product type radio not found: <%= @quotation.product_type %>');
+          }
+        <% end %>
+
+        // Set Commercial Type radio button
+        <% if @quotation.commercial_type.present? %>
+          const commercialTypeRadio = document.querySelector('input[name="quotation[commercial_type]"][value="<%= @quotation.commercial_type %>"]');
+          if (commercialTypeRadio) {
+            commercialTypeRadio.checked = true;
+            commercialTypeRadio.dispatchEvent(new Event('change'));
+            console.log('✅ Set commercial type radio: <%= @quotation.commercial_type %>');
+          } else {
+            console.warn('❌ Commercial type radio not found: <%= @quotation.commercial_type %>');
+          }
+        <% end %>
+      });
+    </script>
+
     <!-- Sidebar -->
     <aside class="flex-shrink-0 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between shadow rounded-2xl" style="width: 20%; min-width: 20%;">
       <div class="flex-1 overflow-y-auto">
@@ -2421,6 +2450,17 @@ function populateFormFromStoredData() {
         if (guaranteeCheckbox) {
           guaranteeCheckbox.checked = comboData.is_guaranteed;
         }
+
+        // Handle cast selection
+        if (comboData.talent) {
+          Object.keys(comboData.talent).forEach(talentCategoryId => {
+            const castCheckbox = document.querySelector(`input[name="combinations[${comboId}][cast_selection][]"][value="${talentCategoryId}"]`);
+            if (castCheckbox) {
+              castCheckbox.checked = true;
+              console.log(`✅ Checked cast selection for talent category ${talentCategoryId} in combo ${comboId}`);
+            }
+          });
+        }
       });
 
       console.log('✅ Form auto-population completed');
@@ -2429,6 +2469,19 @@ function populateFormFromStoredData() {
       if (typeof updateCombinationDisplay === 'function') {
         updateCombinationDisplay();
       }
+
+      // Trigger cast selection updates for all combinations
+      setTimeout(() => {
+        if (window.quotationFormController && typeof window.quotationFormController.updateCastSelection === 'function') {
+          console.log('🎭 Triggering cast selection update after auto-population');
+          window.quotationFormController.updateCastSelection();
+        }
+
+        if (window.quotationFormController && typeof window.quotationFormController.populateAllTables === 'function') {
+          console.log('🔄 Triggering table population after auto-population');
+          window.quotationFormController.populateAllTables();
+        }
+      }, 500);
 
     } catch (error) {
       console.error('❌ Error auto-populating form:', error);
@@ -2440,10 +2493,10 @@ function populateFormFromStoredData() {
 document.addEventListener('DOMContentLoaded', setupQuotePreview);
 document.addEventListener('turbo:load', setupQuotePreview);
 
-// Auto-populate form when page loads
+} // End of script loading check
+
+// Auto-populate form when page loads (always run, even if script already loaded)
 document.addEventListener('DOMContentLoaded', populateFormFromStoredData);
 document.addEventListener('turbo:load', populateFormFromStoredData);
-
-} // End of script loading check
 
 </script>

@@ -1,9 +1,9 @@
 class QuotationsController < ApplicationController
   before_action :require_login
-  before_action :set_quotation, only: [ :show, :destroy, :pdf, :duplicate, :generate_final ]
+  before_action :set_quotation, only: [ :show, :edit, :update, :destroy, :pdf, :duplicate, :generate_final ]
 
   def index
-    @quotations = current_production_house.quotations.order(created_at: :desc)
+    @quotations = current_production_house.quotations.order(created_at: :desc).page(params[:page]).per(25)
   end
 
   def show
@@ -89,9 +89,38 @@ class QuotationsController < ApplicationController
   def new
     @quotation = current_production_house.quotations.build
     @quotation.build_quotation_detail
-    
+
     # Initialize with empty talent categories (user will add as needed)
     load_form_data
+  end
+
+  def edit
+    # Check if we're editing from a final quotation
+    if params[:edit_from].present?
+      populate_from_final_quotation(params[:edit_from])
+    end
+
+    # Load form data with all associations
+    load_form_data
+  end
+
+  def update
+    if @quotation.update(quotation_params)
+      # Process talent categories, territories, etc. (reuse existing logic from create)
+      process_talent_categories
+      process_territories
+
+      # Store combinations data if provided
+      if params[:combinations].present?
+        @quotation.quotation_detail ||= @quotation.build_quotation_detail
+        @quotation.quotation_detail.update(combinations_data: params[:combinations])
+      end
+
+      redirect_to @quotation, notice: "Quotation updated successfully"
+    else
+      load_form_data
+      render :edit
+    end
   end
 
   def create
@@ -531,4 +560,49 @@ class QuotationsController < ApplicationController
     end
   end
 
+  def populate_from_final_quotation(final_quotation_id)
+    final_quotation = FinalQuotation.find(final_quotation_id)
+
+    # Since we're editing the original quotation, it already has all the data
+    # We just need to load the stored combinations data for the form
+    Rails.logger.info "🔄 Loading combinations data for editing quotation #{@quotation.id} from final quotation #{final_quotation_id}"
+
+    if final_quotation.original_combinations_data.present?
+      begin
+        @stored_combinations_data = JSON.parse(final_quotation.original_combinations_data)
+        Rails.logger.info "✅ Loaded stored combinations data for editing: #{@stored_combinations_data.keys.count} combinations"
+
+        # Update talent categories with counts from stored combinations data
+        update_talent_categories_from_combinations(@stored_combinations_data)
+
+      rescue JSON::ParserError => e
+        Rails.logger.error "❌ Failed to parse stored combinations data: #{e.message}"
+        @stored_combinations_data = nil
+      end
+    else
+      Rails.logger.warn "⚠️ No stored combinations data found in final quotation #{final_quotation.id}"
+      @stored_combinations_data = nil
+    end
+
+  rescue ActiveRecord::RecordNotFound
+    flash[:alert] = "Final quotation not found"
+  end
+
+  def update_talent_categories_from_combinations(combinations_data)
+    return unless combinations_data.present?
+
+    combinations_data.each do |combination_key, combo_data|
+      talent_data = combo_data["talent"] || {}
+
+      talent_data.each do |talent_category_id, talent_info|
+        talent_category = @quotation.talent_categories.find_by(id: talent_category_id)
+        next unless talent_category
+
+        talent_count = talent_info["unit_count"].to_i
+        talent_category.update(talent_count: talent_count) if talent_count > 0
+
+        Rails.logger.info "Updated talent category #{talent_category_id} with count: #{talent_count}"
+      end
+    end
+  end
 end

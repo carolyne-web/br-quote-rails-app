@@ -20,24 +20,15 @@
     </div>
 
     <div class="flex flex-wrap gap-3">
-      <%= link_to quotation_path(@final_quotation.quotation), class: "flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2 px-4 text-white text-sm font-medium leading-normal hover:opacity-90 transition-opacity", style: "background-color: #1173D4;" do %>
+      <%= link_to edit_quotation_path(@final_quotation.quotation, edit_from: @final_quotation.id), class: "flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2 px-4 text-white text-sm font-medium leading-normal hover:opacity-90 transition-opacity", style: "background-color: #1173D4;" do %>
         <span class="material-symbols-outlined mr-2">edit</span>
         <span class="truncate">Edit Quote</span>
       <% end %>
 
-      <button class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2.5 px-4 bg-gray-200 text-gray-900 text-sm font-medium leading-normal hover:bg-gray-300 transition-colors">
+      <%= link_to pdf_final_quotation_path(@final_quotation), class: "flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2.5 px-4 bg-gray-200 text-gray-900 text-sm font-medium leading-normal hover:bg-gray-300 transition-colors", target: "_blank" do %>
         <span class="material-symbols-outlined mr-2">download</span>
         <span class="truncate">Download PDF</span>
-      </button>
-
-      <button class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2.5 px-4 bg-gray-200 text-gray-900 text-sm font-medium leading-normal hover:bg-gray-300 transition-colors">
-        <span class="material-symbols-outlined mr-2">send</span>
-        <span class="truncate">Send Quote</span>
-      </button>
-
-      <button class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2.5 px-4 bg-gray-200 text-gray-900 text-sm font-medium leading-normal hover:bg-gray-300 transition-colors">
-        <span class="material-symbols-outlined">more_horiz</span>
-      </button>
+      <% end %>
     </div>
   </div>
 
@@ -88,10 +79,10 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
-                <% # Show talent lines from first group only to avoid duplicates in Talent Summary %>
-                <% first_group = @final_quotation.final_quotation_groups.ordered.first %>
-                <% if first_group %>
-                  <% first_group.final_quotation_talent_lines.each do |talent_line| %>
+                <% # Show all unique talent lines across all groups in Talent Summary %>
+                <% all_talent_lines = @final_quotation.final_quotation_groups.flat_map(&:final_quotation_talent_lines) %>
+                <% unique_talent_lines = all_talent_lines.group_by { |line| [line.category_type, line.description] }.map { |key, lines| lines.first } %>
+                <% unique_talent_lines.each do |talent_line| %>
                     <tr class="hover:bg-gray-50">
                       <td class="px-4 py-3 text-sm font-medium text-gray-900 border-b">
                         <%= talent_line.category_type %>
@@ -133,7 +124,6 @@
                         R<%= number_with_delimiter(talent_line.total_talent_fee) %>
                       </td>
                     </tr>
-                  <% end %>
                 <% end %>
               </tbody>
               <tfoot class="bg-gray-50">
@@ -142,9 +132,9 @@
                     Talent Summary Total:
                   </td>
                   <td class="px-4 py-3 text-sm font-bold text-green-600 text-right border-t">
-                    <% # Sum from first group only to match displayed lines %>
-                    <% first_group_total = @final_quotation.final_quotation_groups.ordered.first&.final_quotation_talent_lines&.sum(&:total_talent_fee) || 0 %>
-                    R<%= number_with_delimiter(first_group_total) %>
+                    <% # Sum from all unique talent lines displayed in summary %>
+                    <% talent_summary_total = unique_talent_lines.sum(&:total_talent_fee) %>
+                    R<%= number_with_delimiter(talent_summary_total) %>
                   </td>
                 </tr>
               </tfoot>
@@ -252,7 +242,7 @@
                             display_percentage = 0
                           end
                         %>
-                        <%= display_percentage.floor %>%
+                        <%= number_with_precision(display_percentage, precision: 1) %>%
                       </td>
                       <td class="px-3 py-2 text-right border">R<%= number_with_delimiter(line.per_talent_amount || (line.total_line_cost / line.talent_count)) %></td>
                       <td class="px-3 py-2 text-right border font-medium">R<%= number_with_delimiter(line.total_line_cost) %></td>
@@ -260,7 +250,7 @@
                   <% end %>
                 </tbody>
                 <tfoot class="bg-gray-50">
-                  <% if @final_quotation.is_guaranteed %>
+                  <% if @final_quotation.is_guaranteed && group.is_guaranteed %>
                     <%
                       # Calculate guarantee savings for this group
                       group_total = group.final_quotation_talent_lines.sum(&:total_line_cost)
@@ -294,7 +284,7 @@
               </table>
             </div>
 
-            <% if @final_quotation.is_guaranteed %>
+            <% if @final_quotation.is_guaranteed && group.is_guaranteed %>
               <%
                 # Calculate guarantee savings for this group
                 group_total = group.final_quotation_talent_lines.sum(&:total_line_cost)
@@ -316,8 +306,8 @@
 
       <!-- Screenshot Test -->
       <% if @final_quotation.quotation.quotation_detail&.preview_screenshots.present? %>
-        <div class="bg-white border rounded-lg p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Screenshot Test</h2>
+        <div class="bg-white border rounded-lg p-6 hidden">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Screcenshot Test</h2>
           <p class="text-sm text-gray-600 mb-4">Preview screenshots captured from the quotation form:</p>
 
           <% begin %>
@@ -336,6 +326,32 @@
         </div>
       <% end %>
 
+    </div>
+
+    <!-- Grand Total Section -->
+    <div class="bg-white border rounded-lg p-6">
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-gray-900">Grand Total</h2>
+        <div class="text-right">
+          <%
+            # Calculate Grand Total: Talent Summary Total + All Group Totals
+            all_talent_lines_for_summary = @final_quotation.final_quotation_groups.flat_map(&:final_quotation_talent_lines)
+            unique_talent_lines_for_summary = all_talent_lines_for_summary.group_by { |line| [line.category_type, line.description] }.map { |key, lines| lines.first }
+            talent_summary_total_for_grand = unique_talent_lines_for_summary.sum(&:total_talent_fee)
+            all_group_totals = @final_quotation.final_quotation_groups.sum { |group| group.final_quotation_talent_lines.sum(&:total_line_cost) }
+            grand_total = talent_summary_total_for_grand + all_group_totals
+          %>
+          <div class="text-sm text-gray-600 mb-2">
+            Talent Summary Total: <span class="font-medium">R<%= number_with_delimiter(talent_summary_total_for_grand) %></span>
+          </div>
+          <div class="text-sm text-gray-600 mb-2">
+            All Group Totals: <span class="font-medium">R<%= number_with_delimiter(all_group_totals) %></span>
+          </div>
+          <div class="text-2xl font-bold text-green-600 border-t pt-2">
+            R<%= number_with_delimiter(grand_total) %>
+          </div>
+        </div>
+      </div>
     </div>
 
 

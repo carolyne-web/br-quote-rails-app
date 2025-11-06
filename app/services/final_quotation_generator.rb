@@ -44,7 +44,10 @@ class FinalQuotationGenerator
       # Final calculated totals
       total_talent_fee: @calculation[:total_talent_fee],
       total_usage_fee: @calculation[:usage_buyout_total],
-      total_amount: @calculation[:total]
+      total_amount: @calculation[:total],
+
+      # Store original combinations data for editing
+      original_combinations_data: @combinations_data&.to_json
     )
   end
 
@@ -266,8 +269,11 @@ class FinalQuotationGenerator
       end
     end
 
-    # Apply guarantee discount if applicable
-    if @quotation.is_guaranteed
+    # Apply guarantee discount if applicable - check group-specific guarantee status
+    if group&.is_guaranteed
+      usage_fee *= 0.75
+    elsif group.nil? && @quotation.is_guaranteed
+      # Fallback for single group scenarios
       usage_fee *= 0.75
     end
 
@@ -352,7 +358,7 @@ class FinalQuotationGenerator
     group_unlimited_versions = combo_data["unlimited_versions"] == "1"
 
     # Check if this specific combination has guarantee enabled
-    group_is_guaranteed = combo_data["is_guaranteed"] == "1"
+    group_is_guaranteed = combo_data["is_guaranteed"] == "1" || combo_data["is_guaranteed"] == true
 
     group = final_quotation.final_quotation_groups.create!(
       group_number: group_number,
