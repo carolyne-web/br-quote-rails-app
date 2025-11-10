@@ -12,7 +12,15 @@ class FinalQuotationTalentLine < ApplicationRecord
   private
 
   def calculate_totals
-    # Calculate base fees
+    # Skip auto-calculation if this line has a custom buyout_percentage (indicates JavaScript-calculated)
+    # JavaScript lines should preserve their exact calculated values
+    if buyout_percentage.present? && buyout_percentage > 0
+      # This is a JavaScript-calculated line - don't override the manually set values
+      # The total_line_cost and other values were set by the FinalQuotationGenerator
+      return
+    end
+
+    # Calculate base fees for database-calculated lines only
     self.base_fee = talent_count * adjusted_rate * shoot_days
     self.rehearsal_fee = talent_count * adjusted_rate * rehearsal_days * 0.5
     self.travel_fee = talent_count * adjusted_rate * travel_days * 0.5

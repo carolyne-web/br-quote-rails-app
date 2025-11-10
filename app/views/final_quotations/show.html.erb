@@ -214,7 +214,8 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <% group.final_quotation_talent_lines.each do |line| %>
+                  <% # Only show talent lines with usage_fee > 0 in Usage Summary (excludes walk-ons/extras) %>
+                  <% group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.each do |line| %>
                     <tr class="border-b">
                       <td class="px-3 py-2 border"><%= line.description %></td>
                       <td class="px-3 py-2 text-right border">R<%= number_with_delimiter(line.adjusted_rate.to_i) %></td>
@@ -252,8 +253,8 @@
                 <tfoot class="bg-gray-50">
                   <% if @final_quotation.is_guaranteed && group.is_guaranteed %>
                     <%
-                      # Calculate guarantee savings for this group
-                      group_total = group.final_quotation_talent_lines.sum(&:total_line_cost)
+                      # Calculate guarantee savings for this group (only usage-related lines)
+                      group_total = group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost)
                       original_amount = group_total / 0.75  # Current amount is 75% of original
                       savings = original_amount - group_total
                     %>
@@ -277,7 +278,7 @@
                       -
                     </td>
                     <td class="px-3 py-2 text-sm font-bold text-blue-600 text-right border-t">
-                      R<%= number_with_delimiter(group.final_quotation_talent_lines.sum(&:total_line_cost)) %>
+                      R<%= number_with_delimiter(group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost)) %>
                     </td>
                   </tr>
                 </tfoot>
@@ -286,8 +287,8 @@
 
             <% if @final_quotation.is_guaranteed && group.is_guaranteed %>
               <%
-                # Calculate guarantee savings for this group
-                group_total = group.final_quotation_talent_lines.sum(&:total_line_cost)
+                # Calculate guarantee savings for this group (only usage-related lines)
+                group_total = group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost)
                 original_amount = group_total / 0.75  # Current amount is 75% of original
                 savings = original_amount - group_total
               %>
@@ -306,7 +307,7 @@
 
       <!-- Screenshot Test -->
       <% if @final_quotation.quotation.quotation_detail&.preview_screenshots.present? %>
-        <div class="bg-white border rounded-lg p-6 hidden">
+        <div class="bg-white border rounded-lg p-6">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Screcenshot Test</h2>
           <p class="text-sm text-gray-600 mb-4">Preview screenshots captured from the quotation form:</p>
 
@@ -338,7 +339,7 @@
             all_talent_lines_for_summary = @final_quotation.final_quotation_groups.flat_map(&:final_quotation_talent_lines)
             unique_talent_lines_for_summary = all_talent_lines_for_summary.group_by { |line| [line.category_type, line.description] }.map { |key, lines| lines.first }
             talent_summary_total_for_grand = unique_talent_lines_for_summary.sum(&:total_talent_fee)
-            all_group_totals = @final_quotation.final_quotation_groups.sum { |group| group.final_quotation_talent_lines.sum(&:total_line_cost) }
+            all_group_totals = @final_quotation.final_quotation_groups.sum { |group| group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost) }
             grand_total = talent_summary_total_for_grand + all_group_totals
           %>
           <div class="text-sm text-gray-600 mb-2">

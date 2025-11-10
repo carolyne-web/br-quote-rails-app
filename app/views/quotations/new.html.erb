@@ -552,13 +552,29 @@ if (window.quotationFormScriptLoaded) {
 function handleAddGroupClick(button) {
   console.log('handleAddGroupClick called');
 
-  // Prevent double-clicks
-  if (button.disabled) return;
+  // Prevent double-clicks and rapid clicking
+  if (button.disabled || button.dataset.processing === 'true') {
+    console.log('Button disabled or already processing, ignoring click');
+    return;
+  }
+
   button.disabled = true;
+  button.dataset.processing = 'true';
+  console.log('Button disabled and marked as processing');
 
   // Calculate next combo ID based on existing combos
   const existingTabs = document.querySelectorAll('.combination-tab');
   const newComboId = existingTabs.length + 1;
+
+  // Check if this combo ID already exists (additional safety check)
+  const existingCombo = document.querySelector(`[data-combo="${newComboId}"]`);
+  if (existingCombo) {
+    console.log('Combo ID already exists, aborting');
+    button.disabled = false;
+    button.dataset.processing = 'false';
+    return;
+  }
+
   console.log('Creating new group with ID:', newComboId);
 
   // Add new tab
@@ -614,10 +630,12 @@ function handleAddGroupClick(button) {
     }
   }, 100);
 
-  // Re-enable the button after a short delay
+  // Re-enable the button after all operations complete (increased delay for safety)
   setTimeout(() => {
     button.disabled = false;
-  }, 500);
+    button.dataset.processing = 'false';
+    console.log('Button re-enabled and processing flag cleared');
+  }, 1000);
 
   console.log('New group created successfully');
 
@@ -2277,48 +2295,7 @@ document.addEventListener('DOMContentLoaded', initializeQuotationForm);
 document.addEventListener('turbo:load', initializeQuotationForm);
 document.addEventListener('turbo:render', initializeQuotationForm);
 
-// Global event listener for Add Group button (backup/fallback)
-document.addEventListener('click', function(e) {
-  console.log('Global click detected on:', e.target);
-
-  if (e.target.id === 'add-combination' || e.target.closest('#add-combination')) {
-    console.log('Add Group button clicked - global handler');
-    e.preventDefault();
-    e.stopPropagation();
-
-    const btn = e.target.id === 'add-combination' ? e.target : e.target.closest('#add-combination');
-
-    // Calculate next combo ID
-    const existingTabs = document.querySelectorAll('.combination-tab');
-    const newComboId = existingTabs.length + 1;
-    console.log('Creating new group with ID:', newComboId);
-
-    // Add new tab
-    const tabsContainer = document.getElementById('combination-tabs');
-    const newTab = document.createElement('button');
-    newTab.type = 'button';
-    newTab.className = 'combination-tab px-4 py-2 border-b-2 border-transparent text-gray-500 text-sm hover:text-blue-600';
-    newTab.setAttribute('data-combo', newComboId);
-    newTab.innerHTML = `Group ${newComboId} <span class="ml-2 text-red-500 hover:text-red-700 remove-combo-btn" data-combo-id="${newComboId}">×</span>`;
-    tabsContainer.appendChild(newTab);
-
-    // Add new content
-    const contentContainer = document.getElementById('combinations-content');
-    const newContent = createCombinationContent(newComboId);
-    contentContainer.appendChild(newContent);
-
-    // Switch to new combination
-    switchToCombination(newComboId);
-
-    console.log('New group created successfully');
-
-    // Update combo tables to populate the new group
-    if (window.quotationFormController) {
-      console.log('🔄 Populating tables for new group');
-      window.quotationFormController.populateAllTables();
-    }
-  }
-});
+// Global event listener removed - direct onclick handler is sufficient
 
 // Helper function to generate territories HTML for a given combo ID
 function generateTerritoriesHTML(comboId) {

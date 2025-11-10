@@ -1900,9 +1900,9 @@ export default class extends Controller {
       pills.push(durationText)
     }
 
-    // Add territory pills
-    const territories = this.getSelectedTerritories(comboId)
-    pills.push(...territories)
+    // Territory pills removed per user request
+    // const territories = this.getSelectedTerritories(comboId)
+    // pills.push(...territories)
 
     // Add media type pills
     const mediaTypes = this.getSelectedMediaTypes(comboId)
@@ -2005,13 +2005,14 @@ export default class extends Controller {
     
     // Re-populate when relevant form data changes
     document.addEventListener('input', (e) => {
-      if (e.target.classList.contains('talent-description') ||
-          e.target.name?.includes('description') ||
+      if (e.target.name?.includes('description') ||
           e.target.name?.includes('adjusted_rate') ||
           e.target.name?.includes('talent_count') ||
-          e.target.matches('[data-description-input]') ||
-          e.target.matches('[data-adjusted-rate-input]') ||
-          e.target.matches('[data-talent-input]')) {
+          e.target.name?.includes('overtime_hours') ||
+          e.target.name?.includes('rehearsal_days') ||
+          e.target.name?.includes('travel_days') ||
+          e.target.name?.includes('down_days') ||
+          e.target.name?.includes('days_count')) {
         console.log('Form input changed, repopulating tables:', e.target)
         this.populateAllTables()
       }
@@ -2395,7 +2396,7 @@ export default class extends Controller {
       const categoryId = section.id.replace('talent-category-', '')
       const categoryIdNum = parseInt(categoryId)
       
-      // Only include categories 1-5
+      // Only include categories 1-5 (Walk-on and Extras should only appear in final quotation talent summaries)
       if (categoryIdNum < 1 || categoryIdNum > 5) {
         return
       }
@@ -4375,7 +4376,22 @@ export default class extends Controller {
             }
           }
         } else {
-          guaranteeAmountSpan.textContent = ''
+          // Don't clear the message if checkbox is checked - recalculate instead
+          const guaranteeCheckbox = document.querySelector(`.guarantee-checkbox[data-combo="${comboId}"]`)
+          if (guaranteeCheckbox && guaranteeCheckbox.checked) {
+            // Checkbox is checked but isGuaranteed is false - recalculate the savings
+            const totalZarSpan = document.querySelector(`.total-zar-amount[data-combo="${comboId}"]`)
+            if (totalZarSpan) {
+              const guaranteedAmount = parseFloat(totalZarSpan.textContent.replace(/[R,\s]/g, '')) || 0
+              if (guaranteedAmount > 0) {
+                const originalAmount = guaranteedAmount / 0.75
+                const savings = originalAmount - guaranteedAmount
+                guaranteeAmountSpan.innerHTML = `<span style="color: red;">R${this.formatNumber(savings)} saving</span>`
+              }
+            }
+          } else {
+            guaranteeAmountSpan.textContent = ''
+          }
         }
       }
     }, 100) // Small delay to ensure table is updated
@@ -5080,9 +5096,17 @@ export default class extends Controller {
     }
 
     // Get all talent that has been entered - including all lines within each category
+    // BUT only include categories 1-5 for Cast Selection (exclude Walk-on and Extras)
     const availableTalent = []
 
     Object.keys(categories).forEach(categoryId => {
+      const categoryIdNum = parseInt(categoryId)
+
+      // Skip categories 6 (Walk-on) and 7 (Extras) for cast selection
+      if (categoryIdNum < 1 || categoryIdNum > 5) {
+        console.log(`⏭️  Skipping category ${categoryId} (${categories[categoryId]}) for cast selection`)
+        return
+      }
       const section = document.getElementById(`talent-category-${categoryId}`)
       console.log(`🔍 Checking category ${categoryId}:`, section ? 'found' : 'not found', section?.classList.contains('hidden') ? 'hidden' : 'visible')
 
@@ -5108,7 +5132,7 @@ export default class extends Controller {
           // Include this row if it has talent count > 0
           if (count > 0) {
             const lineDescription = description.trim()
-              ? `${categories[categoryId]} - ${description.trim()}`
+              ? description.trim()
               : categories[categoryId]
 
             availableTalent.push({
@@ -5326,18 +5350,41 @@ export default class extends Controller {
   }
 
   submitFormViaAjax(form) {
+    console.log('🚀 submitFormViaAjax called')
     const previewBtn = document.getElementById('preview-quote-btn')
+    console.log('🔍 Preview button found:', previewBtn)
 
-    // Show loading state
+    // Prevent double submission
+    if (previewBtn && (previewBtn.disabled || previewBtn.dataset.processing === 'true')) {
+      console.log('🚫 Preview Quote button already processing, ignoring submission')
+      return
+    }
+
+    // Show loading state with enhanced visual feedback
     if (previewBtn) {
+      console.log('🔄 Setting loading state on preview button')
       previewBtn.disabled = true
-      previewBtn.textContent = 'Generating Preview...'
+      previewBtn.dataset.processing = 'true'
+
+      // Add visual loading indicator with spinner
+      previewBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generating Preview...'
+
+      // Also change button background to indicate processing
+      previewBtn.classList.add('opacity-75', 'cursor-wait')
+      previewBtn.classList.remove('hover:bg-blue-700')
+
+      console.log('✅ Enhanced loading state set - disabled:', previewBtn.disabled, 'innerHTML contains spinner:', previewBtn.innerHTML.includes('animate-spin'))
+    } else {
+      console.error('❌ Preview button not found with ID: preview-quote-btn')
     }
 
     // Prepare form data
     const formData = new FormData(form)
 
     // Submit via AJAX
+    console.log('🚀 Starting form submission to:', form.action)
+    console.log('📦 Form data entries:', Array.from(formData.entries()).length)
+
     fetch(form.action, {
       method: 'POST',
       body: formData,
@@ -5388,15 +5435,29 @@ export default class extends Controller {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     })
     .catch(error => {
-      console.error('Error generating preview:', error)
-      alert('Error generating quote preview. Please try again.')
+      console.error('❌ Error generating preview:', error)
+      console.error('❌ Error stack:', error.stack)
+      console.error('❌ Form data:', Array.from(formData.entries()))
+      console.error('❌ Form action:', form.action)
+      alert(`Error generating quote preview: ${error.message}\nCheck console for details.`)
     })
     .finally(() => {
+      console.log('🔄 Form submission completed, resetting button state')
       // Reset button state (only if button still exists after page replacement)
       const currentBtn = document.getElementById('preview-quote-btn')
       if (currentBtn) {
+        console.log('🔄 Resetting preview button state')
         currentBtn.disabled = false
-        currentBtn.textContent = 'Preview Quote'
+        currentBtn.dataset.processing = 'false'
+        currentBtn.innerHTML = 'Preview Quote'
+
+        // Restore original button styling
+        currentBtn.classList.remove('opacity-75', 'cursor-wait')
+        currentBtn.classList.add('hover:bg-blue-700')
+
+        console.log('✅ Button state reset - disabled:', currentBtn.disabled, 'innerHTML:', currentBtn.innerHTML)
+      } else {
+        console.log('ℹ️ Preview button not found after submission (likely page replaced)')
       }
     })
   }
@@ -5445,15 +5506,86 @@ export default class extends Controller {
     // Step 1: Recreate talent combinations from calculated_values
     this.recreateTalentCombinationsFromStoredData(storedData)
 
-    // Step 2: Create licensing combinations (groups)
+    // Step 2: Update cast selection with loaded talent
+    setTimeout(() => {
+      this.updateCastSelectionAfterTalentLoad()
+    }, 100)
+
+    // Step 3: Create licensing combinations (groups)
     this.recreateLicensingCombinationsFromStoredData(storedData)
 
-    // Step 3: Rebuild preview tables
+    // Step 4: Rebuild preview tables
     setTimeout(() => {
       this.rebuildPreviewTablesFromStoredData(storedData)
     }, 500) // Small delay to ensure DOM is updated
 
     console.log('✅ Combinations recreation completed')
+  }
+
+  // Update cast selection after talent data is loaded
+  updateCastSelectionAfterTalentLoad() {
+    console.log('🎭 Updating cast selection after talent load...')
+
+    // First trigger the cast selection update to populate available options
+    this.updateCastSelection()
+
+    // Then mark the appropriate checkboxes as selected based on loaded talent data
+    setTimeout(() => {
+      this.markSelectedCastBasedOnLoadedTalent()
+    }, 100)
+
+    console.log('✅ Cast selection updated after talent load')
+  }
+
+  // Mark cast selection checkboxes based on which talent was actually loaded
+  markSelectedCastBasedOnLoadedTalent() {
+    console.log('🎯 Marking selected cast based on loaded talent...')
+
+    // Get the stored combinations data from the same source as other methods
+    const combinationsField = document.querySelector('input[name="combinations"]')
+    if (!combinationsField || !combinationsField.value) {
+      console.log('❌ No stored combinations data found in form field')
+      return
+    }
+
+    let storedData
+    try {
+      storedData = JSON.parse(combinationsField.value)
+    } catch (e) {
+      console.log('❌ Error parsing stored combinations data:', e)
+      return
+    }
+
+    // For each combination, mark the cast selection checkboxes
+    Object.entries(storedData).forEach(([comboKey, comboData]) => {
+      const comboNumber = comboKey.replace('combo_', '')
+      console.log(`🔍 Processing combo ${comboNumber} for cast selection...`)
+
+      if (comboData.calculated_values) {
+        Object.entries(comboData.calculated_values).forEach(([categoryId, talentLines]) => {
+          Object.entries(talentLines).forEach(([lineIndex, lineData]) => {
+            // Create the checkbox value that matches what was generated
+            const checkboxValue = `${categoryId}_${lineIndex}`
+
+            // Find the cast selection container for this combo
+            const castContainer = document.querySelector(`.cast-selection-container[data-combo="${comboNumber}"]`)
+            if (castContainer) {
+              const checkbox = castContainer.querySelector(`input[value="${checkboxValue}"]`)
+              if (checkbox) {
+                checkbox.checked = true
+                console.log(`✅ Marked cast selection: combo ${comboNumber}, category ${categoryId}, line ${lineIndex}`)
+              } else {
+                console.log(`⚠️ Cast selection checkbox not found: ${checkboxValue} in combo ${comboNumber}`)
+              }
+            } else {
+              console.log(`⚠️ Cast selection container not found for combo ${comboNumber}`)
+            }
+          })
+        })
+      }
+    })
+
+    console.log('🎯 Finished marking selected cast')
   }
 
   // Recreate talent combinations from calculated_values data
@@ -5809,32 +5941,875 @@ export default class extends Controller {
   recreateLicensingCombinationsFromStoredData(storedData) {
     console.log('🌍 Recreating licensing combinations (groups)...')
 
-    // This will need to create the separate groups in the licensing section
-    // Based on territories, media types, duration, etc.
-    Object.entries(storedData).forEach(([comboKey, comboData]) => {
-      console.log(`🏗️ Creating licensing group ${comboKey}:`, {
-        territories: comboData.territories,
-        mediaTypes: comboData.media_types,
-        duration: comboData.duration,
-        guaranteed: comboData.is_guaranteed
+    const combinations = Object.entries(storedData)
+    console.log(`📊 Found ${combinations.length} combinations to populate`)
+
+    if (combinations.length > 0) {
+      // Step 1: Create additional group tabs if needed
+      if (combinations.length > 1) {
+        this.createGroupTabs(combinations.length)
+      }
+
+      // Step 2: Populate each group with its corresponding combination data
+      combinations.forEach(([comboKey, comboData], index) => {
+        const groupNumber = index + 1
+        console.log(`🏗️ Populating Group ${groupNumber} with combination ${comboKey} data:`, {
+          territories: comboData.territories,
+          mediaTypes: comboData.media_types,
+          duration: comboData.duration,
+          guaranteed: comboData.is_guaranteed
+        })
+
+        // Populate this group with the combination data (with delay to avoid conflicts)
+        setTimeout(() => {
+          this.populateGroupData(groupNumber, comboData)
+        }, groupNumber * 100)
       })
 
-      // For now, just log the data - full implementation would create the licensing UI
+      // Step 3: Ensure Group 1 is active by default
+      setTimeout(() => {
+        this.switchToTab(1)
+      }, (combinations.length * 100) + 200)
+    }
+  }
+
+  // Create group tabs for multiple combinations
+  createGroupTabs(totalGroups) {
+    console.log(`📋 Creating ${totalGroups} group tabs`)
+
+    const tabsContainer = document.getElementById('combination-tabs')
+    if (!tabsContainer) {
+      console.warn('❌ combination-tabs container not found')
+      return
+    }
+
+    // Add click handler to Group 1 tab if it doesn't have one
+    const group1Tab = tabsContainer.querySelector('.combination-tab[data-combo="1"]')
+    if (group1Tab) {
+      // Remove existing listeners to avoid duplicates
+      const newGroup1Tab = group1Tab.cloneNode(true)
+      group1Tab.parentNode.replaceChild(newGroup1Tab, group1Tab)
+
+      // Add our click handler
+      newGroup1Tab.addEventListener('click', () => this.switchToTab(1))
+      console.log(`✅ Added click handler to Group 1 tab`)
+    }
+
+    // Clear existing tabs except the first one
+    const existingTabs = tabsContainer.querySelectorAll('.combination-tab')
+    for (let i = 1; i < existingTabs.length; i++) {
+      existingTabs[i].remove()
+    }
+
+    // Create additional tabs if needed
+    for (let i = 2; i <= totalGroups; i++) {
+      const newTab = document.createElement('button')
+      newTab.type = 'button'
+      newTab.className = 'combination-tab px-4 py-2 border-b-2 border-transparent text-gray-600 font-medium text-sm'
+      newTab.setAttribute('data-combo', i.toString())
+      newTab.textContent = `Group ${i}`
+
+      // Add click handler
+      newTab.addEventListener('click', () => this.switchToTab(i))
+
+      tabsContainer.appendChild(newTab)
+      console.log(`✅ Created tab for Group ${i}`)
+    }
+
+    // Also create corresponding content divs
+    this.createGroupContentDivs(totalGroups)
+  }
+
+  // Create content divs for additional groups using proper form structure
+  createGroupContentDivs(totalGroups) {
+    const contentContainer = document.getElementById('combinations-content')
+    if (!contentContainer) return
+
+    // Use the existing createCombinationContent function if available, otherwise create proper form structure
+    for (let i = 2; i <= totalGroups; i++) {
+      let contentDiv = contentContainer.querySelector(`[data-combo="${i}"]`)
+      if (!contentDiv) {
+        // Check if createCombinationContent function exists (from the view)
+        if (typeof createCombinationContent === 'function') {
+          console.log(`🏗️ Using createCombinationContent for Group ${i}`)
+          contentDiv = createCombinationContent(i)
+          contentContainer.appendChild(contentDiv)
+        } else {
+          // Fallback: clone the structure from Group 1
+          const group1Content = contentContainer.querySelector('[data-combo="1"]')
+          if (group1Content) {
+            console.log(`🏗️ Cloning Group 1 structure for Group ${i}`)
+            contentDiv = group1Content.cloneNode(true)
+            contentDiv.setAttribute('data-combo', i.toString())
+            contentDiv.classList.remove('active')
+            contentDiv.style.display = 'none'
+
+            // Update all form field names and IDs within the cloned content
+            this.updateFormFieldsForNewGroup(contentDiv, i)
+            contentContainer.appendChild(contentDiv)
+          } else {
+            // Ultimate fallback: create minimal structure
+            contentDiv = document.createElement('div')
+            contentDiv.className = 'combination-content'
+            contentDiv.setAttribute('data-combo', i.toString())
+            contentDiv.innerHTML = `<p class="text-gray-500">Group ${i} content structure needs to be implemented</p>`
+            contentContainer.appendChild(contentDiv)
+          }
+        }
+        console.log(`✅ Created content div for Group ${i}`)
+      }
+    }
+  }
+
+  // Update form field names and IDs when cloning content for a new group
+  updateFormFieldsForNewGroup(contentDiv, groupNumber) {
+    console.log(`🔧 Updating form fields for Group ${groupNumber}`)
+
+    // Update all input, select, and textarea elements
+    contentDiv.querySelectorAll('input, select, textarea').forEach(field => {
+      console.log(`🔧 Processing field:`, field.name, field.id)
+
+      if (field.name) {
+        // Handle various naming patterns for combinations
+        const oldName = field.name
+        if (field.name.includes('combinations[1]')) {
+          field.name = field.name.replace(/combinations\[1\]/g, `combinations[${groupNumber}]`)
+        } else if (field.name.includes('combinations[combination_1]')) {
+          field.name = field.name.replace(/combinations\[combination_1\]/g, `combinations[combination_${groupNumber}]`)
+        } else if (field.name.includes('[1]')) {
+          field.name = field.name.replace(/\[1\]/g, `[${groupNumber}]`)
+        }
+        console.log(`🔧 Updated name: ${oldName} → ${field.name}`)
+      }
+
+      if (field.id) {
+        const oldId = field.id
+        // Handle various ID patterns
+        if (field.id.includes('-1-')) {
+          field.id = field.id.replace(/-1-/g, `-${groupNumber}-`)
+        } else if (field.id.includes('_1_')) {
+          field.id = field.id.replace(/_1_/g, `_${groupNumber}_`)
+        } else if (field.id.endsWith('-1')) {
+          field.id = field.id.replace(/-1$/, `-${groupNumber}`)
+        } else if (field.id.endsWith('_1')) {
+          field.id = field.id.replace(/_1$/, `_${groupNumber}`)
+        } else if (/1$/.test(field.id)) {
+          field.id = field.id.replace(/1$/, groupNumber.toString())
+        }
+        console.log(`🔧 Updated ID: ${oldId} → ${field.id}`)
+      }
+
+      // Reset form values
+      if (field.type === 'checkbox' || field.type === 'radio') {
+        field.checked = false
+      } else if (field.type !== 'hidden') {
+        field.value = ''
+      }
+    })
+
+    // Update labels and other elements with for attributes
+    contentDiv.querySelectorAll('label[for]').forEach(label => {
+      const oldFor = label.getAttribute('for')
+      let newFor = oldFor
+      if (oldFor.includes('-1-')) {
+        newFor = oldFor.replace(/-1-/g, `-${groupNumber}-`)
+      } else if (oldFor.includes('_1_')) {
+        newFor = oldFor.replace(/_1_/g, `_${groupNumber}_`)
+      } else if (oldFor.endsWith('-1')) {
+        newFor = oldFor.replace(/-1$/, `-${groupNumber}`)
+      } else if (oldFor.endsWith('_1')) {
+        newFor = oldFor.replace(/_1$/, `_${groupNumber}`)
+      } else if (/1$/.test(oldFor)) {
+        newFor = oldFor.replace(/1$/, groupNumber.toString())
+      }
+      label.setAttribute('for', newFor)
+      console.log(`🔧 Updated label for: ${oldFor} → ${newFor}`)
+    })
+
+    // Update data attributes
+    contentDiv.querySelectorAll('[data-combo]').forEach(element => {
+      element.setAttribute('data-combo', groupNumber.toString())
+      console.log(`🔧 Updated data-combo to: ${groupNumber}`)
+    })
+
+    console.log(`✅ Updated form fields for Group ${groupNumber}`)
+  }
+
+  // Switch to a specific group tab
+  switchToTab(groupNumber) {
+    console.log(`🔄 Switching to Group ${groupNumber}`)
+
+    // Update tab styles - be more specific to avoid conflicts
+    document.querySelectorAll('#combination-tabs .combination-tab').forEach(tab => {
+      tab.classList.remove('border-blue-500', 'text-blue-600', 'font-medium')
+      tab.classList.add('border-transparent', 'text-gray-600')
+    })
+
+    const activeTab = document.querySelector(`#combination-tabs .combination-tab[data-combo="${groupNumber}"]`)
+    console.log(`🔍 Looking for tab with data-combo="${groupNumber}":`, activeTab)
+    if (activeTab) {
+      activeTab.classList.add('border-blue-500', 'text-blue-600', 'font-medium')
+      activeTab.classList.remove('border-transparent', 'text-gray-600')
+      console.log(`✅ Activated tab for Group ${groupNumber}`)
+    } else {
+      console.log(`❌ Tab for Group ${groupNumber} not found`)
+    }
+
+    // Update content visibility - be more specific to avoid conflicts
+    document.querySelectorAll('#combinations-content .combination-content').forEach(content => {
+      content.classList.remove('active')
+      content.style.display = 'none'
+    })
+
+    const activeContent = document.querySelector(`#combinations-content .combination-content[data-combo="${groupNumber}"]`)
+    console.log(`🔍 Looking for content with data-combo="${groupNumber}":`, activeContent)
+    if (activeContent) {
+      activeContent.classList.add('active')
+      activeContent.style.display = 'block'
+      console.log(`✅ Switched to Group ${groupNumber} content`)
+    } else {
+      console.log(`❌ Group ${groupNumber} content not found`)
+    }
+
+    // AVOID calling global switchToCombination to prevent conflicts
+    // if (typeof switchToCombination === 'function') {
+    //   switchToCombination(groupNumber)
+    // }
+  }
+
+  // Populate group data (duration, territories, media types, etc.)
+  populateGroupData(groupNumber, comboData) {
+    console.log(`📝 Populating Group ${groupNumber} with data:`, comboData)
+
+    // Populate duration
+    this.populateGroupDuration(groupNumber, comboData.duration)
+
+    // Populate territories
+    this.populateGroupTerritories(groupNumber, comboData.territories)
+
+    // Populate media types
+    this.populateGroupMediaTypes(groupNumber, comboData.media_types)
+
+    // Populate unlimited options
+    this.populateGroupUnlimitedOptions(groupNumber, comboData)
+
+    console.log(`✅ Completed populating Group ${groupNumber}`)
+  }
+
+  // Populate duration dropdown for a group
+  populateGroupDuration(groupNumber, duration) {
+    if (!duration) return
+
+    // Try multiple naming patterns to find the duration select
+    let durationSelect = document.querySelector(`select[name="combinations[${groupNumber}][duration]"]`) ||
+                        document.querySelector(`select[name="combinations[combination_${groupNumber}][duration]"]`)
+
+    if (durationSelect) {
+      durationSelect.value = duration
+      durationSelect.dispatchEvent(new Event('change'))
+      console.log(`✅ Set Group ${groupNumber} duration: ${duration}`)
+    } else {
+      console.warn(`❌ Duration select not found for Group ${groupNumber}`)
+      // Log available selects for debugging
+      const allSelects = document.querySelectorAll('select[name*="duration"]')
+      console.log(`Available duration selects:`, Array.from(allSelects).map(s => s.name))
+    }
+  }
+
+  // Populate territory checkboxes for a group
+  populateGroupTerritories(groupNumber, territories) {
+    if (!territories || territories.length === 0) return
+
+    territories.forEach(territoryId => {
+      // Try multiple naming patterns to find the territory checkbox
+      let checkbox = document.querySelector(`input[name="combinations[${groupNumber}][territories][]"][value="${territoryId}"]`) ||
+                    document.querySelector(`input[name="combinations[combination_${groupNumber}][territories][]"][value="${territoryId}"]`)
+
+      if (checkbox) {
+        checkbox.checked = true
+        checkbox.dispatchEvent(new Event('change'))
+        console.log(`✅ Selected territory ${territoryId} for Group ${groupNumber}`)
+      } else {
+        console.warn(`❌ Territory checkbox not found: ${territoryId} for Group ${groupNumber}`)
+        // Log available territory checkboxes for debugging
+        const allTerritoryCheckboxes = document.querySelectorAll(`input[name*="territories"][value="${territoryId}"]`)
+        console.log(`Available territory checkboxes for ${territoryId}:`, Array.from(allTerritoryCheckboxes).map(c => c.name))
+      }
     })
   }
 
-  // Rebuild preview tables from stored data
-  rebuildPreviewTablesFromStoredData(storedData) {
-    console.log('📊 Rebuilding preview tables...')
+  // Populate media type checkboxes for a group
+  populateGroupMediaTypes(groupNumber, mediaTypes) {
+    if (!mediaTypes || mediaTypes.length === 0) return
 
-    // This would rebuild the quote preview tables
-    // For now, just trigger the existing preview generation
-    const previewButton = document.getElementById('preview-quote-btn')
-    if (previewButton) {
-      console.log('🔄 Triggering preview generation...')
-      // previewButton.click() // Uncomment when ready to test
+    mediaTypes.forEach(mediaType => {
+      // Try multiple naming patterns to find the media type checkbox
+      let checkbox = document.querySelector(`input[name="combinations[${groupNumber}][media_types][]"][value="${mediaType}"]`) ||
+                    document.querySelector(`input[name="combinations[combination_${groupNumber}][media_types][]"][value="${mediaType}"]`)
+
+      if (checkbox) {
+        checkbox.checked = true
+        checkbox.dispatchEvent(new Event('change'))
+        console.log(`✅ Selected media type ${mediaType} for Group ${groupNumber}`)
+      } else {
+        console.warn(`❌ Media type checkbox not found: ${mediaType} for Group ${groupNumber}`)
+        // Log available media type checkboxes for debugging
+        const allMediaCheckboxes = document.querySelectorAll(`input[name*="media_types"][value="${mediaType}"]`)
+        console.log(`Available media checkboxes for ${mediaType}:`, Array.from(allMediaCheckboxes).map(c => c.name))
+      }
+    })
+  }
+
+  // Populate unlimited stills/versions for a group
+  populateGroupUnlimitedOptions(groupNumber, comboData) {
+    // Unlimited stills
+    if (comboData.unlimited_stills) {
+      let stillsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_stills]"]`) ||
+                          document.querySelector(`input[name="combinations[combination_${groupNumber}][unlimited_stills]"]`)
+      if (stillsCheckbox) {
+        stillsCheckbox.checked = true
+        stillsCheckbox.dispatchEvent(new Event('change'))
+        console.log(`✅ Set unlimited stills for Group ${groupNumber}`)
+      } else {
+        console.warn(`❌ Unlimited stills checkbox not found for Group ${groupNumber}`)
+      }
+    }
+
+    // Unlimited versions
+    if (comboData.unlimited_versions) {
+      let versionsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_versions]"]`) ||
+                            document.querySelector(`input[name="combinations[combination_${groupNumber}][unlimited_versions]"]`)
+      if (versionsCheckbox) {
+        versionsCheckbox.checked = true
+        versionsCheckbox.dispatchEvent(new Event('change'))
+        console.log(`✅ Set unlimited versions for Group ${groupNumber}`)
+      } else {
+        console.warn(`❌ Unlimited versions checkbox not found for Group ${groupNumber}`)
+      }
     }
   }
+
+  // Switch to a specific tab (basic implementation)
+  switchToTab(tabNumber) {
+    console.log(`🔄 Switching to Group ${tabNumber} tab`)
+
+    // Update tab appearance
+    document.querySelectorAll('.combination-tab').forEach(tab => {
+      tab.classList.remove('border-blue-500', 'text-blue-600')
+      tab.classList.add('border-transparent', 'text-gray-600')
+    })
+
+    const activeTab = document.querySelector(`.combination-tab[data-combo="${tabNumber}"]`)
+    if (activeTab) {
+      activeTab.classList.remove('border-transparent', 'text-gray-600')
+      activeTab.classList.add('border-blue-500', 'text-blue-600')
+    }
+
+    // Update content visibility
+    document.querySelectorAll('.combination-content').forEach(content => {
+      content.classList.remove('active')
+      content.style.display = 'none'
+    })
+
+    const activeContent = document.querySelector(`.combination-content[data-combo="${tabNumber}"]`)
+    if (activeContent) {
+      activeContent.classList.add('active')
+      activeContent.style.display = 'block'
+    }
+  }
+
+  // Rebuild preview tables from stored data to work like /new
+  rebuildPreviewTablesFromStoredData(storedData) {
+    console.log('📊 Rebuilding interactive preview tables like /new...')
+
+    setTimeout(() => {
+      // Ensure all group sections exist
+      this.ensureGroupSectionsExist(storedData)
+
+      // STEP 1: Populate form fields with raw data from stored data
+      this.populateFormFieldsFromStoredData(storedData)
+
+      // STEP 2: Populate exclusivity data for interactive functionality
+      this.populateExclusivityFromStoredData(storedData)
+
+      // STEP 3: Update combination summaries (pills) for all groups using existing system
+      Object.entries(storedData).forEach(([,], index) => {
+        const groupNumber = index + 1
+        this.updateComboSummary(groupNumber)
+      })
+
+      // STEP 4: Use the existing populateAllTables function to populate the preview
+      this.populateAllTables()
+
+      // STEP 5: Call the existing updateQuotePreview function to make it interactive
+      if (typeof updateQuotePreview === 'function') {
+        console.log('🔄 Calling existing updateQuotePreview function...')
+        updateQuotePreview()
+        console.log('✅ Interactive quote preview updated')
+      }
+
+      // STEP 6: Debug and fix selectors after everything is rendered
+      setTimeout(() => {
+        this.debugAndFixSelectors(storedData)
+      }, 200)
+
+    }, 500)
+  }
+
+
+  // Populate form fields with raw data from stored combinations data
+  populateFormFieldsFromStoredData(storedData) {
+    console.log('📝 Populating form fields from stored data...')
+
+    Object.entries(storedData).forEach(([, comboData], index) => {
+      const groupNumber = index + 1
+      console.log(`📋 Populating form fields for Group ${groupNumber}:`, comboData)
+
+      // Populate talent fields
+      if (comboData.calculated_values) {
+        Object.entries(comboData.calculated_values).forEach(([categoryId, talentLines]) => {
+          Object.entries(talentLines).forEach(([lineIndex, lineData]) => {
+            // Populate talent count
+            const talentCountField = document.querySelector(`input[name="talent[${categoryId}][lines][${lineIndex}][talent_count]"]`)
+            if (talentCountField && lineData.unit_count) {
+              talentCountField.value = lineData.unit_count
+              console.log(`✅ Set talent count for category ${categoryId}, line ${lineIndex}: ${lineData.unit_count}`)
+            }
+
+            // Populate commercial count
+            const commercialCountField = document.querySelector(`input[name="talent[${categoryId}][lines][${lineIndex}][commercial_count]"]`)
+            if (commercialCountField && lineData.commercial_count) {
+              commercialCountField.value = lineData.commercial_count
+              console.log(`✅ Set commercial count for category ${categoryId}, line ${lineIndex}: ${lineData.commercial_count}`)
+            }
+
+            // Populate description
+            const descriptionField = document.querySelector(`input[name="talent[${categoryId}][description]"]`)
+            if (descriptionField && lineData.description) {
+              descriptionField.value = lineData.description
+              console.log(`✅ Set description for category ${categoryId}: ${lineData.description}`)
+            }
+          })
+        })
+      }
+
+      // Set combination-level fields (duration, territories, media types, guarantee)
+      this.populateCombinationFields(groupNumber, comboData)
+    })
+
+    console.log('✅ Form fields populated from stored data')
+  }
+
+  // Populate exclusivity data for interactive functionality
+  populateExclusivityFromStoredData(storedData) {
+    console.log('🔐 Populating exclusivity data from stored data...')
+
+    // Initialize exclusivity data structure
+    if (!window.exclusivityData) {
+      window.exclusivityData = {}
+    }
+
+    Object.entries(storedData).forEach(([, comboData], index) => {
+      const groupNumber = index + 1
+      console.log(`🔐 Processing exclusivity for Group ${groupNumber}:`, comboData)
+
+      if (comboData.calculated_values) {
+        Object.entries(comboData.calculated_values).forEach(([categoryId, talentLines]) => {
+          Object.entries(talentLines).forEach(([lineIndex, lineData]) => {
+            if (lineData.exclusivity_type && lineData.exclusivity_type !== '-') {
+              const key = `${groupNumber}_${categoryId}_${lineIndex}`
+
+              // Create exclusivity entry
+              window.exclusivityData[key] = {
+                scope: 'line', // Assuming line-level exclusivity
+                type: lineData.exclusivity_type,
+                comboId: groupNumber,
+                categoryId: categoryId,
+                lineIndex: lineIndex,
+                description: lineData.description || `Category ${categoryId}`
+              }
+
+              // Actually update the DOM element to show the exclusivity value
+              this.updateExclusivityInTable(groupNumber, categoryId, lineIndex, lineData.exclusivity_type)
+
+              console.log(`✅ Set exclusivity for ${key}: ${lineData.exclusivity_type}`)
+            }
+          })
+        })
+      }
+    })
+
+    console.log('✅ Exclusivity data populated:', window.exclusivityData)
+  }
+
+  // Update exclusivity display in the table DOM
+  updateExclusivityInTable(groupNumber, categoryId, lineIndex, exclusivityType) {
+    console.log(`🎯 Updating exclusivity in table for ${groupNumber}_${categoryId}_${lineIndex}: ${exclusivityType}`)
+
+    // Based on the debug output, find preview tables and their exclusivity cells
+    const previewTables = document.querySelectorAll('.quote-preview-table, .preview-table, table[id*="preview"], table[class*="preview"]')
+    console.log(`📊 Found ${previewTables.length} preview tables`)
+
+    // Use the group number to select the correct table (0-based index)
+    const targetTable = previewTables[groupNumber - 1]
+    if (!targetTable) {
+      console.log(`⚠️ No table found for group ${groupNumber}`)
+      return false
+    }
+
+    console.log(`📊 Using table ${groupNumber - 1} for Group ${groupNumber}`)
+
+    // Find exclusivity cells in this table
+    const exclusivityCells = targetTable.querySelectorAll('td[data-field="exclusivity"], td.exclusivity, td:has(.exclusivity-plus-btn)')
+    console.log(`🔍 Found ${exclusivityCells.length} exclusivity cells in target table`)
+
+    if (exclusivityCells.length === 0) {
+      console.log(`⚠️ No exclusivity cells found in table for group ${groupNumber}`)
+      return false
+    }
+
+    // Calculate which cell to update based on the talent row order
+    let targetCellIndex = this.calculateTargetCellIndex(categoryId, lineIndex)
+    console.log(`🎯 Calculated target cell index: ${targetCellIndex}`)
+
+    if (targetCellIndex < exclusivityCells.length) {
+      const targetCell = exclusivityCells[targetCellIndex]
+      console.log(`🎯 Targeting cell ${targetCellIndex}, current content: "${targetCell.textContent.trim()}"`)
+
+      // Replace the content with exclusivity type
+      const plusBtn = targetCell.querySelector('.exclusivity-plus-btn')
+      if (plusBtn) {
+        // Replace the plus button container with exclusivity text
+        targetCell.innerHTML = `<span class="exclusivity-text">${exclusivityType}</span>`
+      } else {
+        targetCell.textContent = exclusivityType
+      }
+
+      console.log(`✅ Updated exclusivity cell ${targetCellIndex} to show: ${exclusivityType}`)
+      return true
+    } else {
+      console.log(`⚠️ Target cell index ${targetCellIndex} exceeds available cells (${exclusivityCells.length})`)
+      return false
+    }
+  }
+
+  // Calculate target cell index based on talent order
+  calculateTargetCellIndex(categoryId, lineIndex) {
+    // This method calculates which exclusivity cell to target based on the order of talent in the table
+    // The cells should be in the same order as the talent rows appear in the preview table
+
+    let cellIndex = 0
+
+    // Get all visible talent categories and count their lines to determine cell index
+    const categories = [1, 2, 3, 4, 5, 6, 7]
+    for (const catId of categories) {
+      if (catId < parseInt(categoryId)) {
+        // Count visible talent lines in this category
+        const catSection = document.querySelector(`#talent-category-${catId}`)
+        if (catSection && !catSection.classList.contains('hidden')) {
+          const rows = catSection.querySelectorAll('.talent-input-row')
+          cellIndex += rows.length
+        }
+      }
+    }
+
+    // Add the line index within the current category
+    cellIndex += parseInt(lineIndex)
+
+    return cellIndex
+  }
+
+  // Broader search for exclusivity cell if specific selectors fail
+  searchAndUpdateExclusivityCell(groupNumber, categoryId, lineIndex, exclusivityType) {
+    const table = document.querySelector(`.quote-preview-table[data-combo="${groupNumber}"]`) ||
+                  document.querySelector(`[data-combo="${groupNumber}"] .quote-preview-table`)
+
+    if (table) {
+      const rows = table.querySelectorAll('tbody tr')
+      rows.forEach((row, rowIndex) => {
+        // Look for exclusivity cells (typically the 4th column based on the original table structure)
+        const exclusivityCell = row.cells[3] // 0-indexed, so 4th column
+        if (exclusivityCell && exclusivityCell.textContent.includes('+')) {
+          // This is likely our exclusivity cell with a "+" button
+          const span = exclusivityCell.querySelector('span')
+          if (span && span.textContent === '+') {
+            span.textContent = exclusivityType
+            console.log(`✅ Updated exclusivity via broad search: row ${rowIndex} -> ${exclusivityType}`)
+          }
+        }
+      })
+    }
+  }
+
+  // Populate combination-level fields (duration, territories, media types, guarantee)
+  populateCombinationFields(groupNumber, comboData) {
+    console.log(`⚙️ Populating combination fields for Group ${groupNumber}...`)
+
+    // Set duration
+    if (comboData.duration) {
+      const durationRadio = document.querySelector(`input[name="combinations[combination_${groupNumber}][duration]"][value="${comboData.duration}"]`)
+      if (durationRadio) {
+        durationRadio.checked = true
+        console.log(`✅ Set duration for Group ${groupNumber}: ${comboData.duration}`)
+      }
+    }
+
+    // Set territories
+    if (comboData.territories && Array.isArray(comboData.territories)) {
+      comboData.territories.forEach(territoryId => {
+        const territoryCheckbox = document.querySelector(`input[name="combinations[combination_${groupNumber}][territories][]"][value="${territoryId}"]`)
+        if (territoryCheckbox) {
+          territoryCheckbox.checked = true
+          console.log(`✅ Selected territory for Group ${groupNumber}: ${territoryId}`)
+        }
+      })
+    }
+
+    // Set media types
+    if (comboData.media_types && Array.isArray(comboData.media_types)) {
+      comboData.media_types.forEach(mediaType => {
+        const mediaCheckbox = document.querySelector(`input[name="combinations[combination_${groupNumber}][media_types][]"][value="${mediaType}"]`)
+        if (mediaCheckbox) {
+          mediaCheckbox.checked = true
+          console.log(`✅ Selected media type for Group ${groupNumber}: ${mediaType}`)
+        }
+      })
+    }
+
+    // Set guarantee
+    if (comboData.is_guaranteed) {
+      console.log(`🛡️ Setting guarantee for Group ${groupNumber}`)
+
+      // Try multiple selectors for the guarantee checkbox based on debug findings
+      const guaranteeSelectors = [
+        `input[name="combinations[combination_${groupNumber}][is_guaranteed]"]`,
+        `input[name="combinations[combination_1][is_guaranteed]"]`, // Fallback to combination_1
+        `input[name*="is_guaranteed"]`, // Broader search
+        `#is_guaranteed_${groupNumber}`,
+        `input[data-combo="${groupNumber}"][name*="is_guaranteed"]`,
+        `.combo-content[data-combo="${groupNumber}"] input[name*="guaranteed"]`,
+        `.guarantee-checkbox`, // Class-based selector
+        `input[class*="guarantee"]` // Any input with guarantee in class
+      ]
+
+      let guaranteeCheckbox = null
+      for (const selector of guaranteeSelectors) {
+        guaranteeCheckbox = document.querySelector(selector)
+        if (guaranteeCheckbox) {
+          console.log(`🛡️ Found guarantee checkbox with selector: ${selector}`)
+          break
+        }
+      }
+
+      if (guaranteeCheckbox) {
+        guaranteeCheckbox.checked = true
+        // Trigger change event to update calculations
+        guaranteeCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log(`✅ Set and triggered guarantee for Group ${groupNumber}: ${comboData.is_guaranteed}`)
+      } else {
+        console.log(`⚠️ Guarantee checkbox not found for Group ${groupNumber}`)
+        // Try to find it by searching within the group content
+        this.searchAndSetGuaranteeCheckbox(groupNumber)
+      }
+    }
+  }
+
+  // Search for guarantee checkbox when standard selectors fail
+  searchAndSetGuaranteeCheckbox(groupNumber) {
+    console.log(`🔍 Searching for guarantee checkbox for Group ${groupNumber}`)
+
+    // Look within the specific group content
+    const groupContent = document.querySelector(`[data-combo="${groupNumber}"]`) ||
+                        document.querySelector(`.combo-content[data-combo="${groupNumber}"]`) ||
+                        document.querySelector(`.combination-content[data-combo="${groupNumber}"]`)
+
+    if (groupContent) {
+      const checkboxes = groupContent.querySelectorAll('input[type="checkbox"]')
+      checkboxes.forEach(checkbox => {
+        if (checkbox.name && (checkbox.name.includes('guaranteed') || checkbox.name.includes('is_guaranteed'))) {
+          checkbox.checked = true
+          checkbox.dispatchEvent(new Event('change', { bubbles: true }))
+          console.log(`✅ Found and set guarantee checkbox via search: ${checkbox.name}`)
+        }
+      })
+    } else {
+      console.log(`⚠️ Could not find group content for Group ${groupNumber}`)
+    }
+  }
+
+  // Ensure all group sections exist in the Quote Preview
+  ensureGroupSectionsExist(storedData) {
+    console.log('🔧 Ensuring all group sections exist in Quote Preview...')
+
+    const previewContainer = document.querySelector('#combo-tables-container')
+    if (!previewContainer) {
+      console.warn('❌ Quote Preview container not found')
+      return
+    }
+
+    Object.entries(storedData).forEach(([,], index) => {
+      const groupNumber = index + 1
+
+      // Check if group section exists, if not create it
+      let groupSection = previewContainer.querySelector(`[data-combo="${groupNumber}"]`)
+      if (!groupSection && groupNumber > 1) {
+        console.log(`🏗️ Creating preview section for Group ${groupNumber}`)
+        groupSection = this.createQuotePreviewGroupSection(groupNumber)
+        previewContainer.appendChild(groupSection)
+      }
+    })
+  }
+
+
+  // Create a Quote Preview section for a group
+  createQuotePreviewGroupSection(groupNumber) {
+    const section = document.createElement('div')
+    section.className = 'combo-table-section mb-6'
+    section.setAttribute('data-combo', groupNumber.toString())
+
+    section.innerHTML = `
+      <!-- Dynamic Group Pills -->
+      <div class="combo-summary-pills mb-4 flex flex-wrap gap-2" data-combo="${groupNumber}">
+        <!-- Pills will be populated by JavaScript -->
+      </div>
+
+      <div class="bg-gray-50 rounded-lg p-4">
+        <!-- Talent Lines Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border border-gray-300 quote-preview-table">
+            <thead>
+              <tr class="bg-gray-100 border-b border-gray-300">
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Talent</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Day Fee</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Unit</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Exclusivity</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300"># of Comms</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Buyout %</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700 border-r border-gray-300">Per Talent</th>
+                <th class="text-center py-2 px-3 text-sm font-medium text-gray-700">Total (R)</th>
+              </tr>
+            </thead>
+            <tbody class="quote-preview-rows" data-combo="${groupNumber}">
+              <!-- Talent lines will be populated here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `
+
+    return section
+  }
+
+
+  // Create the combination form structure for a group
+  createCombinationFormStructure(groupNumber, comboData) {
+    const combinationsInput = document.querySelector('input[name="combinations"]')
+    if (!combinationsInput) {
+      console.log('⚠️ Combinations input not found')
+      return
+    }
+
+    // Create hidden form fields that the existing preview system expects
+    const formContainer = combinationsInput.closest('form') || document.body
+
+    // Duration
+    if (comboData.duration) {
+      const durationInput = document.createElement('input')
+      durationInput.type = 'hidden'
+      durationInput.name = `combinations[combination_${groupNumber}][duration]`
+      durationInput.value = comboData.duration
+      formContainer.appendChild(durationInput)
+    }
+
+    // Territories
+    if (comboData.territories && Array.isArray(comboData.territories)) {
+      comboData.territories.forEach(territoryId => {
+        const territoryInput = document.createElement('input')
+        territoryInput.type = 'hidden'
+        territoryInput.name = `combinations[combination_${groupNumber}][territories][]`
+        territoryInput.value = territoryId
+        formContainer.appendChild(territoryInput)
+      })
+    }
+
+    // Media types
+    if (comboData.media_types && Array.isArray(comboData.media_types)) {
+      comboData.media_types.forEach(mediaType => {
+        const mediaInput = document.createElement('input')
+        mediaInput.type = 'hidden'
+        mediaInput.name = `combinations[combination_${groupNumber}][media_types][]`
+        mediaInput.value = mediaType
+        formContainer.appendChild(mediaInput)
+      })
+    }
+
+    console.log(`🏗️ Created combination form structure for Group ${groupNumber}`)
+  }
+
+  // Update combination form fields with stored data
+  updateCombinationFormFields(groupNumber, comboData) {
+    // Update duration
+    const durationInput = document.querySelector(`input[name="combinations[combination_${groupNumber}][duration]"]`)
+    if (durationInput && comboData.duration) {
+      durationInput.value = comboData.duration
+    }
+
+    // Update territories
+    if (comboData.territories && Array.isArray(comboData.territories)) {
+      // Remove existing territory inputs for this group
+      const existingTerritoryInputs = document.querySelectorAll(`input[name="combinations[combination_${groupNumber}][territories][]"]`)
+      existingTerritoryInputs.forEach(input => input.remove())
+
+      // Add new territory inputs
+      const formContainer = document.querySelector('form') || document.body
+      comboData.territories.forEach(territoryId => {
+        const territoryInput = document.createElement('input')
+        territoryInput.type = 'hidden'
+        territoryInput.name = `combinations[combination_${groupNumber}][territories][]`
+        territoryInput.value = territoryId
+        formContainer.appendChild(territoryInput)
+      })
+    }
+
+    // Update media types
+    if (comboData.media_types && Array.isArray(comboData.media_types)) {
+      // Remove existing media type inputs for this group
+      const existingMediaInputs = document.querySelectorAll(`input[name="combinations[combination_${groupNumber}][media_types][]"]`)
+      existingMediaInputs.forEach(input => input.remove())
+
+      // Add new media type inputs
+      const formContainer = document.querySelector('form') || document.body
+      comboData.media_types.forEach(mediaType => {
+        const mediaInput = document.createElement('input')
+        mediaInput.type = 'hidden'
+        mediaInput.name = `combinations[combination_${groupNumber}][media_types][]`
+        mediaInput.value = mediaType
+        formContainer.appendChild(mediaInput)
+      })
+    }
+
+    console.log(`🔄 Updated combination form fields for Group ${groupNumber}`)
+  }
+
+  // Update exclusivity settings for a group
+  updateExclusivityForGroup(groupNumber, exclusivityType) {
+    // Find and update exclusivity radio buttons for this group
+    const exclusivityInput = document.querySelector(`input[name="combinations[combination_${groupNumber}][exclusivity_type]"][value="${exclusivityType}"]`)
+    if (exclusivityInput) {
+      exclusivityInput.checked = true
+      console.log(`✅ Set exclusivity for Group ${groupNumber} to: ${exclusivityType}`)
+    } else {
+      // Create the exclusivity input if it doesn't exist
+      const formContainer = document.querySelector('form') || document.body
+      const hiddenExclusivityInput = document.createElement('input')
+      hiddenExclusivityInput.type = 'hidden'
+      hiddenExclusivityInput.name = `combinations[combination_${groupNumber}][exclusivity_type]`
+      hiddenExclusivityInput.value = exclusivityType
+      formContainer.appendChild(hiddenExclusivityInput)
+      console.log(`🏗️ Created exclusivity input for Group ${groupNumber}: ${exclusivityType}`)
+    }
+  }
+
 
   // Populate talent fields for a specific category
   populateTalentFields(categoryId, talentInfo) {
@@ -5907,5 +6882,175 @@ export default class extends Controller {
       guaranteeCheckbox.checked = isGuaranteed === "1" || isGuaranteed === true
       console.log(`✅ Set guarantee: ${guaranteeCheckbox.checked}`)
     }
+  }
+
+  // Debug and fix DOM selectors for exclusivity, guarantee, and commercial count
+  debugAndFixSelectors(storedData) {
+    console.log('🔧 DEBUG: Inspecting DOM structure to fix selectors...')
+
+    // Debug exclusivity cells
+    this.debugExclusivityCells(storedData)
+
+    // Debug guarantee checkboxes
+    this.debugGuaranteeCheckboxes(storedData)
+
+    // Debug commercial count inputs
+    this.debugCommercialCountInputs(storedData)
+  }
+
+  debugExclusivityCells(storedData) {
+    console.log('🎯 DEBUG EXCLUSIVITY: Inspecting exclusivity cells...')
+
+    // Find all preview tables
+    const previewTables = document.querySelectorAll('.quote-preview-table, .preview-table, table[id*="preview"], table[class*="preview"]')
+    console.log(`Found ${previewTables.length} potential preview tables:`, previewTables)
+
+    previewTables.forEach((table, tableIndex) => {
+      console.log(`📊 Table ${tableIndex}:`, {
+        id: table.id,
+        className: table.className,
+        innerHTML: table.innerHTML.substring(0, 200) + '...'
+      })
+
+      // Look for exclusivity cells in this table
+      const exclusivityCells = table.querySelectorAll('td[data-field="exclusivity"], td.exclusivity, td:has(.exclusivity-plus-btn)')
+      console.log(`  Found ${exclusivityCells.length} exclusivity cells in table ${tableIndex}`)
+
+      exclusivityCells.forEach((cell, cellIndex) => {
+        console.log(`    Exclusivity cell ${cellIndex}:`, {
+          textContent: cell.textContent,
+          innerHTML: cell.innerHTML,
+          dataset: cell.dataset,
+          className: cell.className
+        })
+      })
+    })
+
+    // Now try to match stored data to actual DOM structure
+    Object.entries(storedData).forEach(([, comboData], index) => {
+      const groupNumber = index + 1
+      console.log(`🔍 Looking for Group ${groupNumber} exclusivity cells...`)
+
+      if (comboData.calculated_values) {
+        Object.entries(comboData.calculated_values).forEach(([categoryId, talentLines]) => {
+          Object.entries(talentLines).forEach(([lineIndex, lineData]) => {
+            if (lineData.exclusivity_type && lineData.exclusivity_type !== '-') {
+              console.log(`  Should show "${lineData.exclusivity_type}" for Group ${groupNumber}, Category ${categoryId}, Line ${lineIndex}`)
+
+              // Try various selector strategies
+              const selectors = [
+                `#preview-table-${groupNumber} td[data-field="exclusivity"]:nth-of-type(${parseInt(lineIndex) + 1})`,
+                `table[data-group="${groupNumber}"] td.exclusivity:nth-of-type(${parseInt(lineIndex) + 1})`,
+                `#combination-${groupNumber} td[data-field="exclusivity"]`,
+                `[data-group="${groupNumber}"] [data-field="exclusivity"]`,
+                `.group-${groupNumber}-table td:has(.exclusivity-plus-btn)`
+              ]
+
+              selectors.forEach(selector => {
+                const cell = document.querySelector(selector)
+                console.log(`    Selector "${selector}": ${cell ? 'FOUND' : 'NOT FOUND'}`)
+                if (cell) {
+                  console.log(`      Cell content: "${cell.textContent.trim()}"`)
+                  console.log(`      Cell HTML: ${cell.innerHTML}`)
+                }
+              })
+            }
+          })
+        })
+      }
+    })
+  }
+
+  debugGuaranteeCheckboxes(storedData) {
+    console.log('✅ DEBUG GUARANTEE: Inspecting guarantee checkboxes...')
+
+    // Find all checkboxes
+    const allCheckboxes = document.querySelectorAll('input[type="checkbox"]')
+    console.log(`Found ${allCheckboxes.length} total checkboxes:`)
+
+    allCheckboxes.forEach((checkbox, index) => {
+      console.log(`  Checkbox ${index}:`, {
+        name: checkbox.name,
+        id: checkbox.id,
+        className: checkbox.className,
+        checked: checkbox.checked,
+        value: checkbox.value,
+        labels: Array.from(document.querySelectorAll(`label[for="${checkbox.id}"]`)).map(l => l.textContent.trim())
+      })
+    })
+
+    // Look specifically for guarantee-related checkboxes
+    const guaranteeSelectors = [
+      'input[name*="guarantee"]',
+      'input[name*="is_guaranteed"]',
+      'input[id*="guarantee"]',
+      'input[class*="guarantee"]',
+      'input[data-field="guarantee"]'
+    ]
+
+    guaranteeSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector)
+      console.log(`Selector "${selector}": Found ${elements.length} elements`)
+      elements.forEach((el, index) => {
+        console.log(`  Element ${index}:`, {
+          name: el.name,
+          id: el.id,
+          checked: el.checked,
+          type: el.type
+        })
+      })
+    })
+
+    // Check stored data for guarantee settings
+    Object.entries(storedData).forEach(([, comboData], index) => {
+      const groupNumber = index + 1
+      console.log(`🔍 Group ${groupNumber} should have guarantee: ${comboData.is_guaranteed}`)
+    })
+  }
+
+  debugCommercialCountInputs(storedData) {
+    console.log('🔢 DEBUG COMMERCIAL COUNT: Inspecting commercial count inputs...')
+
+    // Find all number inputs
+    const numberInputs = document.querySelectorAll('input[type="number"]')
+    console.log(`Found ${numberInputs.length} number inputs:`)
+
+    numberInputs.forEach((input, index) => {
+      console.log(`  Number input ${index}:`, {
+        name: input.name,
+        id: input.id,
+        className: input.className,
+        value: input.value,
+        placeholder: input.placeholder
+      })
+    })
+
+    // Look specifically for commercial-related inputs
+    const commercialSelectors = [
+      'input[name*="commercial"]',
+      'input[name*="num_commercials"]',
+      'input[class*="commercial"]',
+      'input[data-field="commercials"]',
+      '.combination-commercials'
+    ]
+
+    commercialSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector)
+      console.log(`Selector "${selector}": Found ${elements.length} elements`)
+      elements.forEach((el, index) => {
+        console.log(`  Element ${index}:`, {
+          name: el.name,
+          id: el.id,
+          value: el.value,
+          type: el.type
+        })
+      })
+    })
+
+    // Check stored data for commercial counts
+    Object.entries(storedData).forEach(([, comboData], index) => {
+      const groupNumber = index + 1
+      console.log(`🔍 Group ${groupNumber} should have commercial count: ${comboData.num_commercials}`)
+    })
   }
 }

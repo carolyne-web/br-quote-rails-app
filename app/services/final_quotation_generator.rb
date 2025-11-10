@@ -107,9 +107,31 @@ class FinalQuotationGenerator
       base_fee = daily_rate * day_on_set.days_count * talent_count
       per_talent_amount = base_fee / talent_count if talent_count > 0
       total_line_cost = base_fee
+
+      # Calculate individual component fees by working backwards from the exact totals
+      shoot_days = @detail&.shoot_days || 1
+      rehearsal_days = day_on_set.rehearsal_days || 0
+      travel_days = day_on_set.travel_days || 0
+      down_days = day_on_set.down_days || 0
+      overtime_hours = day_on_set.overtime_hours || 0.0
+
+      # Calculate individual fees
+      base_fee = talent_count * adjusted_rate * shoot_days
+      rehearsal_fee = talent_count * adjusted_rate * rehearsal_days * 0.5
+      travel_fee = talent_count * adjusted_rate * travel_days * 0.5
+      down_fee = talent_count * adjusted_rate * down_days * 0.5
+
+      # Calculate overtime
+      hourly_rate = adjusted_rate * 0.1
+      overtime_fee = talent_count * hourly_rate * overtime_hours * shoot_days
+
+      # Calculate night premium
+      night_fee = day_on_set.night_premium ? (talent_count * adjusted_rate * 0.5) : 0
+
+      total_talent_fee = base_fee + rehearsal_fee + travel_fee + down_fee + overtime_fee + night_fee
     end
 
-    # Calculate individual component fees by working backwards from the exact totals
+    # Calculate individual component fees
     shoot_days = @detail&.shoot_days || 1
     rehearsal_days = day_on_set.rehearsal_days || 0
     travel_days = day_on_set.travel_days || 0
@@ -117,26 +139,80 @@ class FinalQuotationGenerator
     overtime_hours = day_on_set.overtime_hours || 0
     days_count = day_on_set.days_count || shoot_days
 
-    # Calculate the base talent fees (this should match what was used in JavaScript)
-    base_fee = talent_count * adjusted_rate * days_count
-    rehearsal_fee = talent_count * adjusted_rate * rehearsal_days * 0.5
-    travel_fee = talent_count * adjusted_rate * travel_days * 0.5
-    down_fee = talent_count * adjusted_rate * down_days * 0.5
-    overtime_fee = talent_count * (adjusted_rate * 0.1) * overtime_hours * days_count
+    # Initialize all fee components
+    base_fee = 0
+    rehearsal_fee = 0
+    travel_fee = 0
+    down_fee = 0
+    overtime_fee = 0
+    night_fee = 0
+    total_talent_fee = 0
 
-    # Night premium: 50% of base rate for first shoot day only (if night premium is enabled)
-    night_fee = if day_on_set.night_premium
-      talent_count * adjusted_rate * 0.5 # 50% of day rate for talent count
-    else
-      0
+    # For JavaScript calculated values, skip database calculations - we'll handle it later
+    # For database calculations, use full breakdown including overtime, travel, etc.
+    unless calculated_values.present? && calculated_values["day_fee"].present?
+      # Database calculation: include all fee components
+      base_fee = talent_count * adjusted_rate * days_count
+      rehearsal_fee = talent_count * adjusted_rate * rehearsal_days * 0.5
+      travel_fee = talent_count * adjusted_rate * travel_days * 0.5
+      down_fee = talent_count * adjusted_rate * down_days * 0.5
+      overtime_fee = talent_count * (adjusted_rate * 0.1) * overtime_hours * days_count
+
+      # Night premium: 50% of base rate for first shoot day only (if night premium is enabled)
+      night_fee = if day_on_set.night_premium
+        talent_count * adjusted_rate * 0.5 # 50% of day rate for talent count
+      else
+        0
+      end
+
+      total_talent_fee = base_fee + rehearsal_fee + travel_fee + down_fee + overtime_fee + night_fee
     end
 
-    total_talent_fee = base_fee + rehearsal_fee + travel_fee + down_fee + overtime_fee + night_fee
+    # Calculate usage fee based on whether this talent was selected in cast selection
+    if calculated_values.present? && calculated_values["day_fee"].present?
+      # For JavaScript calculated values, the total_line_cost IS the absolute final amount
+      # DO NOT add any breakdown fees - the JavaScript total already includes everything
 
-    # Calculate usage fee from the exact JavaScript totals
-    # total_line_cost = total_talent_fee + usage_fee, so:
-    usage_fee = total_line_cost - total_talent_fee
-    usage_fee = [usage_fee, 0].max # Ensure non-negative
+      base_talent_fee = calculated_values["day_fee"].to_f * calculated_values["unit_count"].to_i
+      usage_fee = total_line_cost - base_talent_fee
+      usage_fee = [usage_fee, 0].max # Ensure non-negative
+
+      # For breakdown display, calculate the individual components but ensure they sum to the JavaScript talent fee
+      days_count = day_on_set.days_count || shoot_days
+
+      # Calculate the breakdown components for display
+      calculated_base_fee = talent_count * adjusted_rate * days_count
+      rehearsal_fee = talent_count * adjusted_rate * rehearsal_days * 0.5
+      travel_fee = talent_count * adjusted_rate * travel_days * 0.5
+      down_fee = talent_count * adjusted_rate * down_days * 0.5
+      overtime_fee = talent_count * (adjusted_rate * 0.1) * overtime_hours * days_count
+      night_fee = day_on_set.night_premium ? (talent_count * adjusted_rate * 0.5) : 0
+
+      # Calculate total additional fees (everything except base)
+      additional_fees = rehearsal_fee + travel_fee + down_fee + overtime_fee + night_fee
+
+      # For the Talent Summary: show the full breakdown total (base + all additional fees)
+      # This ensures the Talent Summary displays the correct total including all breakdown components
+      total_talent_fee = calculated_base_fee + additional_fees
+
+      # Adjust the base fee to show the actual calculated amount in breakdown
+      base_fee = calculated_base_fee
+
+      Rails.logger.info "   🔧 FINAL: talent_fee=#{total_talent_fee}, usage_fee=#{usage_fee}, total=#{total_line_cost}"
+      Rails.logger.info "   🔧 Components (display only): base=#{base_fee}, rehearsal=#{rehearsal_fee}, travel=#{travel_fee}, down=#{down_fee}, overtime=#{overtime_fee}, night=#{night_fee}"
+    else
+      # Non-selected talent (or walk-ons/extras): No usage fee
+      usage_fee = 0
+      total_line_cost = total_talent_fee # Only talent fee, no usage component
+    end
+
+    # Always preserve the original form breakdown data for talent summary display
+    # The user wants the final quotation to exactly mirror the Select Talent Categories section from /new
+    final_rehearsal_days = rehearsal_days
+    final_travel_days = travel_days
+    final_down_days = down_days
+    final_overtime_hours = overtime_hours
+    final_has_night_premium = day_on_set.night_premium || false
 
     group.final_quotation_talent_lines.create!(
       description: description,
@@ -146,33 +222,33 @@ class FinalQuotationGenerator
       rate_adjustment: rate_adjustment,
       adjusted_rate: adjusted_rate,
 
-      # Days specific to this talent line
+      # Days specific to this talent line - zeroed for JavaScript values
       shoot_days: days_count,
-      rehearsal_days: rehearsal_days,
-      travel_days: travel_days,
-      down_days: down_days,
-      overtime_hours: overtime_hours,
+      rehearsal_days: final_rehearsal_days,
+      travel_days: final_travel_days,
+      down_days: final_down_days,
+      overtime_hours: final_overtime_hours,
 
-      # Calculated fees
+      # Calculated fees - use the corrected values we calculated above
       base_fee: base_fee,
       rehearsal_fee: rehearsal_fee,
       travel_fee: travel_fee,
       down_fee: down_fee,
       overtime_fee: overtime_fee,
       night_fee: night_fee,
-      total_talent_fee: total_talent_fee,
+      total_talent_fee: total_talent_fee,  # This is now the corrected value
       usage_fee: usage_fee,
-      total_line_cost: total_line_cost,
+      total_line_cost: total_line_cost,    # This is now the corrected value
       buyout_percentage: buyout_percentage,
 
       # Night premium
-      has_night_premium: day_on_set.night_premium || false,
+      has_night_premium: final_has_night_premium,
       night_premium_amount: night_fee,
 
       # Exclusivity - use JavaScript-captured exclusivity if available, otherwise combination-specific
       exclusivity_type: line_exclusivity,
 
-      # Commercial count - use JavaScript-captured value if available, otherwise default to 1
+      # Commercial count - use JavaScript-calculated value if available, otherwise default to 1
       commercial_count: js_commercial_count&.to_i || 1,
 
       # Per talent amount - store the exact JavaScript-calculated value
@@ -479,7 +555,8 @@ class FinalQuotationGenerator
   end
 
   def create_talent_lines_for_group(group, combo_id = nil, combo_exclusivities = [], calculated_values = {})
-    # Create talent lines ONLY for selected talent (those with calculated values)
+    # Create talent lines for ALL talent with count > 0
+    # Usage fee calculation will determine which appear in Usage Summary vs Talent Summary
     @quotation.talent_categories.includes(:day_on_sets).each do |category|
       category.day_on_sets.each_with_index do |day_on_set, line_index|
         # Skip if no talent count
@@ -489,11 +566,24 @@ class FinalQuotationGenerator
         category_calculated = calculated_values[category.category_type.to_s] || {}
         line_calculated = category_calculated[line_index.to_s] || {}
 
-        # ONLY create talent lines for talent that was selected in cast selection
-        # (indicated by having calculated values from JavaScript)
-        if line_calculated.present? && line_calculated["day_fee"].present?
-          create_talent_line_from_day_on_set(group, category, day_on_set, combo_id, combo_exclusivities, line_calculated)
+        # Fallback: Try to match by description if line index doesn't work
+        if line_calculated.blank? && category_calculated.present?
+          category_calculated.each do |calc_line_index, calc_data|
+            if calc_data["description"].present? && day_on_set.description.present?
+              # Extract the actual description part (after the prefix like "LD - ")
+              calc_desc = calc_data["description"].split(" - ").last.to_s.strip
+              db_desc = day_on_set.description.strip
+              if calc_desc == db_desc
+                line_calculated = calc_data
+                Rails.logger.info "🔄 Matched by description: '#{db_desc}' (line #{line_index} -> calc line #{calc_line_index})"
+                break
+              end
+            end
+          end
         end
+
+        # Create talent line - usage_fee will be set based on calculated_values presence
+        create_talent_line_from_day_on_set(group, category, day_on_set, combo_id, combo_exclusivities, line_calculated)
       end
     end
   end
