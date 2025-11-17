@@ -7,7 +7,11 @@ class TerritoryMediaException < ApplicationRecord
   # Define available territory names (only territories that have exceptions)
   TERRITORY_NAMES = [
     'Worldwide',
-    'USA & Canada'
+    'USA',
+    'West Europe (excl UK)',
+    'West Europe (incl UK)',
+    'All Europe (excl UK)',
+    'All Europe (incl UK)'
   ].freeze
 
   # Define available media types (using current form values from /quotations/new)

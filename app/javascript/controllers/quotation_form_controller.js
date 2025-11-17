@@ -12,10 +12,16 @@ export default class extends Controller {
   }
 
   connect() {
-    console.log('Quotation form controller connected')
+    console.log('🔌 Quotation form controller CONNECTING...')
+    console.log('🔌 Element:', this.element)
 
-    // Make controller available globally for HTML callback functions
-    window.quotationFormController = this
+    try {
+      // Make controller available globally for HTML callback functions
+      window.quotationFormController = this
+      console.log('✅ Controller set on window.quotationFormController')
+    } catch (error) {
+      console.error('❌ Error setting controller on window:', error)
+    }
 
     // Prevent Enter key from submitting the form
     this.element.addEventListener('keydown', (event) => {
@@ -66,6 +72,8 @@ export default class extends Controller {
     setTimeout(() => {
       this.loadStoredCombinationsData()
     }, 1000)
+
+    console.log('✅ Quotation form controller connection COMPLETED successfully!')
   }
 
   disconnect() {
@@ -1120,12 +1128,26 @@ export default class extends Controller {
   }
 
   checkComboTerritoryOverride(comboId, threshold, durationMonths) {
-    // Calculate total percentage for this combo
+    // Calculate total percentage for this combo, considering territory exceptions
     const selectedTerritories = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
     let totalPercentage = 0
-    
+
+    // Get selected media types for this combo to check for exceptions
+    const selectedMediaTypes = this.getSelectedMediaTypesForCombo(comboId)
+
     selectedTerritories.forEach(checkbox => {
-      const percentage = parseFloat(checkbox.dataset.percentage) || 0
+      const territoryName = checkbox.dataset.territoryName || checkbox.textContent.trim()
+      let percentage = parseFloat(checkbox.dataset.percentage) || 0
+
+      // Check for territory exceptions for each selected media type
+      selectedMediaTypes.forEach(mediaType => {
+        const exceptionPercentage = this.findTerritoryException(territoryName, mediaType)
+        if (exceptionPercentage !== null) {
+          console.log(`🔄 Territory exception found: ${territoryName} + ${mediaType} = ${exceptionPercentage}% (instead of ${percentage}%)`)
+          percentage = exceptionPercentage
+        }
+      })
+
       totalPercentage += percentage
     })
     
@@ -1324,9 +1346,15 @@ export default class extends Controller {
         combinationsList.innerHTML = ''
       }
       
-      // Clear all input values in this section
+      // Clear input values and remove validation attributes for this specific removed category
       categorySection.querySelectorAll('input').forEach(input => {
+        // Clear values for the removed category
         input.value = input.type === 'number' ? '0' : ''
+
+        // Remove validation attributes to prevent form validation errors on hidden fields
+        input.removeAttribute('required')
+        input.removeAttribute('min')
+        input.removeAttribute('max')
       })
     }
     
@@ -1338,11 +1366,37 @@ export default class extends Controller {
       talentBtn.style.pointerEvents = 'auto'
     }
     
+    // Clean up any other hidden fields that might have validation issues
+    this.cleanupHiddenFieldValidation()
+
     // Recalculate totals
     this.calculateCategoryTotal(categoryId)
 
     // Update all combo tables to reflect the removed category
     this.populateAllTables()
+  }
+
+  cleanupHiddenFieldValidation() {
+    // Target specific problematic fields that cause "not focusable" errors
+    // These are typically fields with validation that are hidden or in hidden containers
+
+    // Clean up only inputs that are specifically causing validation issues
+    document.querySelectorAll('.talent-category-section.hidden input[min], .talent-category-section.hidden input[required]').forEach(input => {
+      input.removeAttribute('required')
+      input.removeAttribute('min')
+      input.removeAttribute('max')
+      console.log(`🧹 Cleaned validation from hidden field: ${input.name}`)
+    })
+
+    // Clean up night_count inputs that are hidden but have validation
+    document.querySelectorAll('input[name*="night_count"].hidden').forEach(input => {
+      input.removeAttribute('required')
+      input.removeAttribute('min')
+      input.removeAttribute('max')
+      console.log(`🧹 Cleaned validation from hidden night_count: ${input.name}`)
+    })
+
+    console.log('🧹 Targeted cleanup of problematic validation attributes completed')
   }
 
   // Utility method to format numbers with commas
@@ -1554,8 +1608,6 @@ export default class extends Controller {
       radio.addEventListener('change', this.handleCommercialTypeChange.bind(this))
     })
 
-    // Add event listeners to combination commercial inputs
-    this.setupComboCommercialListeners()
   }
 
 
@@ -1900,9 +1952,9 @@ export default class extends Controller {
       pills.push(durationText)
     }
 
-    // Territory pills removed per user request
-    // const territories = this.getSelectedTerritories(comboId)
-    // pills.push(...territories)
+    // Add territory pills
+    const territories = this.getSelectedTerritories(comboId)
+    pills.push(...territories)
 
     // Add media type pills
     const mediaTypes = this.getSelectedMediaTypes(comboId)
@@ -2395,9 +2447,9 @@ export default class extends Controller {
     document.querySelectorAll('[id^="talent-category-"]').forEach(section => {
       const categoryId = section.id.replace('talent-category-', '')
       const categoryIdNum = parseInt(categoryId)
-      
-      // Only include categories 1-5 (Walk-on and Extras should only appear in final quotation talent summaries)
-      if (categoryIdNum < 1 || categoryIdNum > 5) {
+
+      // Include all categories 1-7 including Walk-ons and Extras
+      if (categoryIdNum < 1 || categoryIdNum > 7) {
         return
       }
       
@@ -2429,8 +2481,12 @@ export default class extends Controller {
 
           if (isSelectedInCast) {
             // Format description with category abbreviation if description exists
-            const formattedDescription = description.trim()
-              ? `${categoryAbbr} - ${description.trim()}`
+            // Check if description already has the prefix to avoid duplication
+            const trimmedDescription = description.trim()
+            const formattedDescription = trimmedDescription
+              ? (trimmedDescription.startsWith(`${categoryAbbr} - `)
+                 ? trimmedDescription
+                 : `${categoryAbbr} - ${trimmedDescription}`)
               : categoryName
 
             lines.push({
@@ -2506,9 +2562,10 @@ export default class extends Controller {
     // Get base components for the row-specific calculation
     const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
     const duration = durationSelect?.value || ''
-    
+
     const territoryCheckboxes = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
     const territories = Array.from(territoryCheckboxes).map(cb => ({
+      name: cb.getAttribute('data-territory-name') || cb.textContent.trim(),
       percentage: parseFloat(cb.getAttribute('data-percentage') || 0)
     }))
     
@@ -2518,26 +2575,53 @@ export default class extends Controller {
     const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
     const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
     
-    // NEW FORMULA:
-    // Core Buyout Factor = duration × territory × media
-    const durationMultiplier = this.getDurationMultiplier(duration)
-    const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
-    const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
-    const coreBuyoutFactor = durationMultiplier * territoryMultiplier * mediaMultiplier
-    
-    // Buyout % = (Core Buyout Factor × 100)
-    //          + (unlimited options % × Core Buyout Factor)
-    //          + (row-specific custom exclusivities % × Core Buyout Factor)
-    
-    let percentage = coreBuyoutFactor * 100
-    
-    // Add unlimited options (percentage of core factor)
-    if (unlimitedStills) percentage += 15 * coreBuyoutFactor
-    if (unlimitedVersions) percentage += 15 * coreBuyoutFactor
-    
-    // Add only the exclusivities that apply to this specific row (percentage of core factor)
-    const rowExclusivityPercentage = applicableExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
-    percentage += rowExclusivityPercentage * coreBuyoutFactor
+    // Check for territory-media exceptions first (these override the entire calculation)
+    let territoryExceptionPercentage = null
+    territories.forEach(territory => {
+      mediaTypes.forEach(mediaType => {
+        const exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
+        if (exceptionPercentage !== null) {
+          console.log(`🔄 Territory exception found: ${territory.name} + ${mediaType} = ${exceptionPercentage}% (replaces entire calculation)`)
+          territoryExceptionPercentage = Math.max(territoryExceptionPercentage || 0, exceptionPercentage)
+        }
+      })
+    })
+
+    let percentage
+    if (territoryExceptionPercentage !== null) {
+      // Use territory exception as the base percentage (replaces duration × territory × media calculation)
+      console.log(`🎯 Using territory exception as base: ${territoryExceptionPercentage}%`)
+      percentage = territoryExceptionPercentage
+
+      // Still apply unlimited options and custom exclusivities as additional percentages
+      if (unlimitedStills) percentage += 15
+      if (unlimitedVersions) percentage += 15
+
+      const rowExclusivityPercentage = applicableExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
+      percentage += rowExclusivityPercentage
+
+    } else {
+      // Original calculation when no territory exceptions apply
+      // Core Buyout Factor = duration × territory × media
+      const durationMultiplier = this.getDurationMultiplier(duration)
+      const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
+      const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
+      const coreBuyoutFactor = durationMultiplier * territoryMultiplier * mediaMultiplier
+
+      // Buyout % = (Core Buyout Factor × 100)
+      //          + (unlimited options % × Core Buyout Factor)
+      //          + (row-specific custom exclusivities % × Core Buyout Factor)
+
+      percentage = coreBuyoutFactor * 100
+
+      // Add unlimited options (percentage of core factor)
+      if (unlimitedStills) percentage += 15 * coreBuyoutFactor
+      if (unlimitedVersions) percentage += 15 * coreBuyoutFactor
+
+      // Add only the exclusivities that apply to this specific row (percentage of core factor)
+      const rowExclusivityPercentage = applicableExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
+      percentage += rowExclusivityPercentage * coreBuyoutFactor
+    }
     
     // Apply product factor for Kids category (KD = category 5) when Kids > 1
     let productFactor = 1.0
@@ -2647,17 +2731,18 @@ export default class extends Controller {
 
   getMediaMultiplier(mediaTypes, territories, duration) {
     if (mediaTypes.length === 0) return 1.0
-    
+
     const totalPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
     const durationMonths = this.parseDurationMonths(duration)
-    
+
     // Force All Media if territory override is active
     if (this.shouldApplyTerritoryOverride(durationMonths, totalPercentage)) {
       return 1.0
     }
-    
+
     console.log(`🎬 MEDIA DEBUG - mediaTypes: [${mediaTypes.join(', ')}], length: ${mediaTypes.length}`)
-    
+
+    // Standard media logic (territory exceptions are handled in calculateRowBuyoutPercentage)
     if (mediaTypes.includes('all_media')) {
       console.log(`🎬 All Media selected - returning 1.0 (100%)`)
       return 1.0
@@ -2674,7 +2759,7 @@ export default class extends Controller {
       console.log(`🎬 Three+ media types selected - returning 1.0 (100%)`)
       return 1.0
     }
-    
+
     return 1.0
   }
 
@@ -2799,31 +2884,7 @@ export default class extends Controller {
     return []
   }
 
-  setupComboCommercialListeners() {
-    // Add event listeners to existing commercial inputs
-    const self = this
-    document.querySelectorAll('.combination-commercials').forEach(input => {
-      // Remove any existing listeners to avoid duplicates
-      input.removeEventListener('input', this.handleCommercialInput)
-      input.removeEventListener('keydown', this.handleCommercialKeydown)
 
-      // Add new listeners
-      input.addEventListener('input', this.handleCommercialInput.bind(self))
-      input.addEventListener('keydown', this.handleCommercialKeydown.bind(self))
-    })
-  }
-
-  handleCommercialInput(e) {
-    // Regenerate all combo tables to update commercial breakdown
-    this.populateAllTables()
-  }
-
-  handleCommercialKeydown(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      e.target.blur() // Remove focus from input
-    }
-  }
 
   handleCommercialTypeChange(e) {
     // Regenerate all combo tables to update commercial breakdown
@@ -3313,13 +3374,13 @@ export default class extends Controller {
 
     // Get all talent lines from ALL categories (including hidden ones)
     const allTalentLines = []
-    const categoryNames = {1: 'Lead', 2: 'Second Lead', 3: 'Featured Extra', 4: 'Teenager', 5: 'Kid'}
-    const categoryAbbrevs = {1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD'}
+    const categoryNames = {1: 'Lead', 2: 'Second Lead', 3: 'Featured Extra', 4: 'Teenager', 5: 'Kid', 6: 'Walk-on', 7: 'Extras'}
+    const categoryAbbrevs = {1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD', 6: 'WO', 7: 'EX'}
 
-    console.log('🔍 Looking for ALL talent categories (1-5)...')
+    console.log('🔍 Looking for ALL talent categories (1-7)...')
 
-    // Process categories in order (1, 2, 3, 4, 5) for organized display
-    const categoryIds = [1, 2, 3, 4, 5]
+    // Process categories in order (1, 2, 3, 4, 5, 6, 7) for organized display
+    const categoryIds = [1, 2, 3, 4, 5, 6, 7]
     for (let i = 0; i < categoryIds.length; i++) {
       const categoryId = categoryIds[i]
       const categorySection = document.querySelector(`#talent-category-${categoryId}`)
@@ -4481,7 +4542,8 @@ export default class extends Controller {
         event.preventDefault()
 
         // Disable validation on hidden talent category fields to prevent form submission errors
-        this.disableValidationOnHiddenFields()
+        console.log('🧹 Cleaning up hidden field validation before form submission...')
+        this.cleanupHiddenFieldValidation()
 
         // Use Promise-based approach for data injection
         Promise.all([
@@ -4875,11 +4937,17 @@ export default class extends Controller {
 
       console.log(`💰 Collected calculated values for combo ${comboId}:`, calculatedValues)
 
+      // Get num_commercials from form field
+      const commercialsInput = document.querySelector(`input[name*="combinations[${comboId}][num_commercials]"]`)
+      const numCommercials = commercialsInput?.value || 1
+      console.log(`🔢 Collected num_commercials for combo ${comboId}: ${numCommercials}`)
+
       combinationsData[comboId] = {
         duration: duration,
         territories: territories,
         media_types: mediaTypes,
         calculated_values: calculatedValues,
+        num_commercials: parseInt(numCommercials),
         exclusivities: [],
         is_guaranteed: false
       }
@@ -5102,7 +5170,7 @@ export default class extends Controller {
     Object.keys(categories).forEach(categoryId => {
       const categoryIdNum = parseInt(categoryId)
 
-      // Skip categories 6 (Walk-on) and 7 (Extras) for cast selection
+      // Only include categories 1-5 for cast selection (exclude Walk-on and Extras from Usage & Licensing)
       if (categoryIdNum < 1 || categoryIdNum > 5) {
         console.log(`⏭️  Skipping category ${categoryId} (${categories[categoryId]}) for cast selection`)
         return
@@ -5123,11 +5191,16 @@ export default class extends Controller {
           const countField = row.querySelector('[name*="talent_count"]') ||
                             row.querySelector(`[data-talent-input="${categoryId}"]`)
 
+          // Get the actual lineIndex from the DOM element's data-line attribute
+          const actualLineIndex = parseInt(row.dataset.lineIndex) ||
+                                 parseInt(countField?.dataset.line) ||
+                                 rowIndex
+
           const description = descriptionField?.value || ''
           const rate = parseInt(rateField?.value) || 0
           const count = parseInt(countField?.value) || 0
 
-          console.log(`📊 Row ${rowIndex} in category ${categoryId}:`, { description, rate, count })
+          console.log(`📊 Row ${rowIndex} in category ${categoryId} (lineIndex: ${actualLineIndex}):`, { description, rate, count })
 
           // Include this row if it has talent count > 0
           if (count > 0) {
@@ -5141,8 +5214,8 @@ export default class extends Controller {
               description: lineDescription,
               talentCount: count,
               adjustedRate: rate,
-              lineIndex: rowIndex,
-              isMainLine: rowIndex === 0
+              lineIndex: actualLineIndex,
+              isMainLine: actualLineIndex === 0
             })
             console.log(`✅ Added talent: ${lineDescription} (${count} × R${rate})`)
           }
@@ -5464,35 +5537,60 @@ export default class extends Controller {
 
   // Load stored combinations data for edit mode
   loadStoredCombinationsData() {
-    console.log('🔄 Checking for stored combinations data in edit mode...')
+    console.log('🔄 Checking for stored data in edit mode (dual structure)...')
 
-    // Check for the hidden combinations field
+    // Check for both hidden fields (dual data structure)
     const combinationsField = document.querySelector('input[name="combinations"]')
+    const talentDataField = document.querySelector('input[name="talent_data"]')
+
     if (!combinationsField || !combinationsField.value) {
       console.log('ℹ️ No stored combinations data found - this is a new quotation or edit without stored data')
+      console.log('🔄 Generating default preview from database data...')
+      // When there's no stored data, generate a default preview from database
+      this.populateAllTables()
       return
     }
 
     try {
-      const storedData = JSON.parse(combinationsField.value)
-      console.log('✅ Found stored combinations data:', storedData)
+      const storedCombinationsData = JSON.parse(combinationsField.value)
+      console.log('✅ Found stored combinations data:', storedCombinationsData)
 
-      // Debug: show what talent categories and campaign info we have
-      Object.entries(storedData).forEach(([comboKey, comboData]) => {
-        console.log(`🎭 Combo ${comboKey} talent categories:`, Object.keys(comboData.talent_categories || {}))
-        console.log(`📋 Combo ${comboKey} campaign info:`)
-        console.log(`   product_type: "${comboData.product_type}"`)
-        console.log(`   commercial_type: "${comboData.commercial_type}"`)
+      // Also load talent parameters if available
+      let storedTalentData = null
+      if (talentDataField && talentDataField.value) {
+        storedTalentData = JSON.parse(talentDataField.value)
+        console.log('✅ Found stored talent data:', storedTalentData)
+      } else {
+        console.log('⚠️ No talent data field found - using combinations data only')
+      }
+
+      // Debug: show what combinations and talent data we have
+      Object.entries(storedCombinationsData).forEach(([comboKey, comboData]) => {
+        console.log(`📋 Combo ${comboKey} info:`)
         console.log(`   duration: "${comboData.duration}"`)
         console.log(`   territories:`, comboData.territories)
         console.log(`   media_types:`, comboData.media_types)
-        Object.entries(comboData.talent_categories || {}).forEach(([categoryId, categoryData]) => {
-          console.log(`   Category ${categoryId} has ${categoryData.length} talent lines:`, categoryData.map(line => line.description))
-        })
+        console.log(`   is_guaranteed:`, comboData.is_guaranteed)
+        console.log(`   calculated_values:`, Object.keys(comboData.calculated_values || {}))
       })
 
-      // Populate form fields with stored data
-      this.populateFormFromStoredData(storedData)
+      if (storedTalentData) {
+        console.log('🎭 Talent data categories:', Object.keys(storedTalentData))
+        Object.entries(storedTalentData).forEach(([categoryId, categoryData]) => {
+          if (categoryData.lines && Array.isArray(categoryData.lines)) {
+            console.log(`   Category ${categoryId}: ${categoryData.lines.length} lines`)
+            categoryData.lines.forEach((lineData, index) => {
+              console.log(`     Line ${index}: ${lineData.description} (${lineData.talent_count} × R${lineData.adjusted_rate})`)
+            })
+          } else {
+            // Fallback for old structure
+            console.log(`   Category ${categoryId}: ${categoryData.description} (${categoryData.talent_count} × R${categoryData.adjusted_rate})`)
+          }
+        })
+      }
+
+      // Populate form fields with stored data (both parts)
+      this.populateFormFromStoredData(storedCombinationsData, storedTalentData)
 
     } catch (error) {
       console.error('❌ Error parsing stored combinations data:', error)
@@ -5500,11 +5598,21 @@ export default class extends Controller {
   }
 
   // Populate form fields from stored combinations data
-  populateFormFromStoredData(storedData) {
-    console.log('📝 Recreating combinations from stored data...')
+  populateFormFromStoredData(storedCombinationsData, storedTalentData) {
+    console.log('📝 Recreating form from dual stored data...')
 
-    // Step 1: Recreate talent combinations from calculated_values
-    this.recreateTalentCombinationsFromStoredData(storedData)
+    // Step 0: Load talent parameters from talent data (if available)
+    if (storedTalentData) {
+      console.log('🎯 Using stored talent data for form population - skipping combinations talent creation')
+      this.populateTalentParametersFromStoredData(storedTalentData)
+
+      // Step 1: Only recreate combinations structure (no talent lines) since we have stored talent data
+      this.recreateCombinationsStructureOnly(storedCombinationsData)
+    } else {
+      console.log('⚠️ No stored talent data available - using combinations data fallback')
+      // Step 1: Recreate talent combinations from calculated_values
+      this.recreateTalentCombinationsFromStoredData(storedCombinationsData, storedTalentData)
+    }
 
     // Step 2: Update cast selection with loaded talent
     setTimeout(() => {
@@ -5512,11 +5620,11 @@ export default class extends Controller {
     }, 100)
 
     // Step 3: Create licensing combinations (groups)
-    this.recreateLicensingCombinationsFromStoredData(storedData)
+    this.recreateLicensingCombinationsFromStoredData(storedCombinationsData)
 
     // Step 4: Rebuild preview tables
     setTimeout(() => {
-      this.rebuildPreviewTablesFromStoredData(storedData)
+      this.rebuildPreviewTablesFromStoredData(storedCombinationsData)
     }, 500) // Small delay to ensure DOM is updated
 
     console.log('✅ Combinations recreation completed')
@@ -5588,8 +5696,27 @@ export default class extends Controller {
     console.log('🎯 Finished marking selected cast')
   }
 
+  // Recreate combinations structure without creating talent lines (when we have stored talent data)
+  recreateCombinationsStructureOnly(storedData) {
+    console.log('🏗️ Recreating combinations structure only (no talent lines)...')
+
+    // Only collect the categories that exist in combinations data for cast selection purposes
+    const talentCategories = new Set()
+
+    Object.entries(storedData).forEach(([comboKey, comboData]) => {
+      if (comboData.calculated_values) {
+        Object.keys(comboData.calculated_values).forEach(categoryId => {
+          talentCategories.add(categoryId)
+        })
+      }
+    })
+
+    console.log('📊 Found categories in combinations data:', Array.from(talentCategories))
+    console.log('✅ Combinations structure recreation completed (no talent lines created)')
+  }
+
   // Recreate talent combinations from calculated_values data
-  recreateTalentCombinationsFromStoredData(storedData) {
+  recreateTalentCombinationsFromStoredData(storedData, storedTalentData = null) {
     console.log('👤 Recreating talent combinations...')
 
     // Collect ALL talent lines from all combinations, keeping duplicates
@@ -5639,12 +5766,12 @@ export default class extends Controller {
 
     // Create talent category sections and populate them
     talentCategories.forEach((talentLines, categoryId) => {
-      this.ensureTalentCategoryExistsAndPopulate(categoryId, talentLines)
+      this.ensureTalentCategoryExistsAndPopulate(categoryId, talentLines, storedTalentData)
     })
   }
 
   // Ensure talent category exists and populate it with stored data
-  ensureTalentCategoryExistsAndPopulate(categoryId, talentLines) {
+  ensureTalentCategoryExistsAndPopulate(categoryId, talentLines, storedTalentData = null) {
     console.log(`🏗️ Setting up category ${categoryId} with ${talentLines.length} talent lines`)
 
     // Check if talent category section exists
@@ -5661,15 +5788,32 @@ export default class extends Controller {
       return
     }
 
-    // Get the first talent line as the main category data
-    const firstLine = talentLines[0]
-    if (firstLine) {
-      this.populateTalentCategoryMainFields(categoryId, firstLine)
+    // Get the main category data from stored talent data if available, otherwise use combinations data
+    let mainCategoryData = talentLines[0] // fallback to combinations data
+
+    if (storedTalentData && storedTalentData[categoryId]) {
+      const categoryData = storedTalentData[categoryId]
+      if (categoryData.lines && Array.isArray(categoryData.lines) && categoryData.lines.length > 0) {
+        // Use the first line from stored talent data (which has correct values)
+        mainCategoryData = categoryData.lines[0]
+        console.log(`🎯 Using stored talent data for category ${categoryId} main fields:`, mainCategoryData)
+      } else if (categoryData.talent_count && categoryData.adjusted_rate) {
+        // Legacy structure
+        mainCategoryData = categoryData
+        console.log(`🎯 Using legacy stored talent data for category ${categoryId} main fields:`, mainCategoryData)
+      }
+    }
+
+    if (mainCategoryData) {
+      this.populateTalentCategoryMainFields(categoryId, mainCategoryData)
     }
 
     // Add additional talent lines if there are more
+    console.log(`📊 Category ${categoryId} has ${talentLines.length} total lines`)
     if (talentLines.length > 1) {
+      console.log(`➕ Adding ${talentLines.length - 1} additional lines to category ${categoryId}`)
       for (let i = 1; i < talentLines.length; i++) {
+        console.log(`🔄 Processing additional line ${i}: ${talentLines[i].description}`)
         this.addTalentLineToCategory(categoryId, talentLines[i])
       }
     }
@@ -5726,8 +5870,8 @@ export default class extends Controller {
 
     if (talentCountField) {
       try {
-        talentCountField.value = lineData.unit_count || ''
-        console.log(`✅ Set talent count: ${lineData.unit_count}`)
+        talentCountField.value = lineData.talent_count || ''
+        console.log(`✅ Set talent count: ${lineData.talent_count}`)
       } catch (error) {
         console.error(`❌ Error setting talent count: ${error.message}`)
       }
@@ -5748,8 +5892,8 @@ export default class extends Controller {
 
     if (adjustedRateField) {
       try {
-        adjustedRateField.value = lineData.day_fee || ''
-        console.log(`✅ Set day fee: ${lineData.day_fee}`)
+        adjustedRateField.value = lineData.adjusted_rate || ''
+        console.log(`✅ Set adjusted rate: ${lineData.adjusted_rate}`)
       } catch (error) {
         console.error(`❌ Error setting adjusted rate: ${error.message}`)
       }
@@ -5778,14 +5922,11 @@ export default class extends Controller {
     }
 
     if (overtimeField) {
-      let overtimeHours = 0
-      if (description.toLowerCase().includes('man') || description.toLowerCase().includes('woman')) {
-        overtimeHours = 1.0
-      }
-
-      if (overtimeHours > 0) {
-        overtimeField.value = overtimeHours
-        console.log(`✅ Set main overtime hours: ${overtimeHours}`)
+      // Only set overtime from actual stored data, not from description patterns
+      const storedOvertimeHours = lineData.overtime_hours || 0
+      if (storedOvertimeHours > 0) {
+        overtimeField.value = storedOvertimeHours
+        console.log(`✅ Set main overtime hours from stored data: ${storedOvertimeHours}`)
       }
     }
 
@@ -5854,15 +5995,15 @@ export default class extends Controller {
     }
 
     if (countInput) {
-      countInput.value = lineData.unit_count || 1
+      countInput.value = lineData.talent_count || 1
       countInput.dispatchEvent(new Event('input'))
-      console.log(`✅ Set line count: ${lineData.unit_count}`)
+      console.log(`✅ Set line count: ${lineData.talent_count}`)
     }
 
     if (rateInput) {
-      rateInput.value = lineData.day_fee || 0
+      rateInput.value = lineData.adjusted_rate || 0
       rateInput.dispatchEvent(new Event('input'))
-      console.log(`✅ Set line rate: ${lineData.day_fee}`)
+      console.log(`✅ Set line rate: ${lineData.adjusted_rate}`)
     }
 
     // Try to get additional fields from original quotation data
@@ -5871,16 +6012,12 @@ export default class extends Controller {
     // Also populate overtime for additional lines
     const lineOvertimeInput = lineRow.querySelector('input[name*="[overtime_hours]"]')
     if (lineOvertimeInput) {
-      let overtimeHours = 0
-      if (description.toLowerCase().includes('man') || description.toLowerCase().includes('woman')) {
-        overtimeHours = 1.0
-        console.log(`⏰ Set overtime for ${description}: ${overtimeHours}`)
-      }
-
-      if (overtimeHours > 0) {
-        lineOvertimeInput.value = overtimeHours
+      // Only set overtime from actual stored data, not from description patterns
+      const storedOvertimeHours = lineData.overtime_hours || 0
+      if (storedOvertimeHours > 0) {
+        lineOvertimeInput.value = storedOvertimeHours
         lineOvertimeInput.dispatchEvent(new Event('input'))
-        console.log(`✅ Set line overtime hours: ${overtimeHours}`)
+        console.log(`✅ Set line overtime hours from stored data: ${storedOvertimeHours}`)
       }
     }
 
@@ -6547,20 +6684,24 @@ export default class extends Controller {
 
     // Set duration
     if (comboData.duration) {
-      const durationRadio = document.querySelector(`input[name="combinations[combination_${groupNumber}][duration]"][value="${comboData.duration}"]`)
-      if (durationRadio) {
-        durationRadio.checked = true
+      const durationSelect = document.querySelector(`select[name="combinations[${groupNumber}][duration]"]`)
+      if (durationSelect) {
+        durationSelect.value = comboData.duration
         console.log(`✅ Set duration for Group ${groupNumber}: ${comboData.duration}`)
+      } else {
+        console.log(`⚠️ Duration select not found for Group ${groupNumber}`)
       }
     }
 
     // Set territories
     if (comboData.territories && Array.isArray(comboData.territories)) {
       comboData.territories.forEach(territoryId => {
-        const territoryCheckbox = document.querySelector(`input[name="combinations[combination_${groupNumber}][territories][]"][value="${territoryId}"]`)
+        const territoryCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][territories][]"][value="${territoryId}"]`)
         if (territoryCheckbox) {
           territoryCheckbox.checked = true
           console.log(`✅ Selected territory for Group ${groupNumber}: ${territoryId}`)
+        } else {
+          console.log(`⚠️ Territory checkbox not found for Group ${groupNumber}, territory: ${territoryId}`)
         }
       })
     }
@@ -6568,12 +6709,25 @@ export default class extends Controller {
     // Set media types
     if (comboData.media_types && Array.isArray(comboData.media_types)) {
       comboData.media_types.forEach(mediaType => {
-        const mediaCheckbox = document.querySelector(`input[name="combinations[combination_${groupNumber}][media_types][]"][value="${mediaType}"]`)
+        const mediaCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][media_types][]"][value="${mediaType}"]`)
         if (mediaCheckbox) {
           mediaCheckbox.checked = true
           console.log(`✅ Selected media type for Group ${groupNumber}: ${mediaType}`)
+        } else {
+          console.log(`⚠️ Media type checkbox not found for Group ${groupNumber}, media: ${mediaType}`)
         }
       })
+    }
+
+    // Set number of commercials
+    if (comboData.num_commercials) {
+      const commercialsInput = document.querySelector(`input[name="combinations[${groupNumber}][num_commercials]"]`)
+      if (commercialsInput) {
+        commercialsInput.value = comboData.num_commercials
+        console.log(`✅ Set commercials for Group ${groupNumber}: ${comboData.num_commercials}`)
+      } else {
+        console.log(`⚠️ Commercials input not found for Group ${groupNumber}`)
+      }
     }
 
     // Set guarantee
@@ -7031,7 +7185,6 @@ export default class extends Controller {
       'input[name*="num_commercials"]',
       'input[class*="commercial"]',
       'input[data-field="commercials"]',
-      '.combination-commercials'
     ]
 
     commercialSelectors.forEach(selector => {
@@ -7052,5 +7205,183 @@ export default class extends Controller {
       const groupNumber = index + 1
       console.log(`🔍 Group ${groupNumber} should have commercial count: ${comboData.num_commercials}`)
     })
+  }
+
+  // Populate talent parameters from stored talent data (shoot days, rehearsal days, etc.)
+  populateTalentParametersFromStoredData(talentData) {
+    console.log('🎭 Populating talent parameters from stored data...')
+
+    Object.entries(talentData).forEach(([categoryId, categoryData]) => {
+      console.log(`📋 Loading parameters for category ${categoryId}:`, categoryData)
+
+      // Handle new structure with multiple lines per category
+      if (categoryData.lines && Array.isArray(categoryData.lines)) {
+        console.log(`📝 Category ${categoryId} has ${categoryData.lines.length} talent lines`)
+
+        // Use the first line for main category parameters
+        const firstLine = categoryData.lines[0]
+        if (firstLine) {
+          this.populateFieldsFromTalentLine(categoryId, firstLine, true)
+
+          // If there are multiple lines, create additional talent input rows
+          if (categoryData.lines.length > 1) {
+            console.log(`➕ Creating ${categoryData.lines.length - 1} additional talent lines for category ${categoryId}`)
+
+            for (let i = 1; i < categoryData.lines.length; i++) {
+              const lineData = categoryData.lines[i]
+              console.log(`🔄 Creating additional line ${i} for category ${categoryId}:`, lineData)
+              this.addTalentLineToCategory(categoryId, lineData)
+            }
+          }
+        }
+
+        // For manual calculation, use first line data or sum all lines
+        const firstLineData = categoryData.lines[0]
+        if ((categoryId === '6' || categoryId === '7') && firstLineData) {
+          const total = (firstLineData.talent_count || 0) * parseFloat(firstLineData.adjusted_rate || 0)
+          const categoryTotalElement = document.querySelector(`#category-total-${categoryId}`)
+          if (categoryTotalElement && total > 0) {
+            categoryTotalElement.textContent = `R${total.toLocaleString()}`
+            console.log(`💰 Manually set category ${categoryId} total: R${total.toLocaleString()}`)
+          }
+        }
+      } else {
+        // Fallback for old structure (backward compatibility)
+        console.log(`⚠️ Using legacy data structure for category ${categoryId}`)
+        this.populateFieldsFromTalentLine(categoryId, categoryData, true)
+
+        // Manual calculation for categories 6-7 with old structure
+        if ((categoryId === '6' || categoryId === '7') && categoryData) {
+          const total = (categoryData.talent_count || 0) * parseFloat(categoryData.adjusted_rate || 0)
+          const categoryTotalElement = document.querySelector(`#category-total-${categoryId}`)
+          if (categoryTotalElement && total > 0) {
+            categoryTotalElement.textContent = `R${total.toLocaleString()}`
+            console.log(`💰 Manually set category ${categoryId} total: R${total.toLocaleString()}`)
+          }
+        }
+      }
+
+      // Make category visible if it has talent data (for edit mode)
+      const categorySection = document.getElementById(`talent-category-${categoryId}`)
+      if (categorySection && categorySection.classList.contains('hidden') && categoryData.lines && categoryData.lines.length > 0) {
+        // Check if the category has actual talent count data
+        const hasData = categoryData.lines.some(line => (line.talent_count && line.talent_count > 0))
+        if (hasData) {
+          categorySection.classList.remove('hidden')
+          console.log(`👁️ Made category ${categoryId} visible because it has stored talent data`)
+        }
+      }
+
+      // Trigger category total calculations
+      if (typeof window.updateCategoryTotal === 'function') {
+        window.updateCategoryTotal(categoryId)
+        console.log(`🔄 Triggered category total update for category ${categoryId}`)
+      }
+    })
+
+    console.log('✅ Talent parameters populated from stored data')
+
+    // Also trigger talent summary update to include the newly calculated totals
+    setTimeout(() => {
+      if (typeof window.updateTalentSummary === 'function') {
+        console.log('🔄 Updating talent summary after category total calculations')
+        window.updateTalentSummary()
+      }
+    }, 50)
+  }
+
+  // Helper function to populate fields from a single talent line
+  populateFieldsFromTalentLine(categoryId, talentInfo, isMainLine = false) {
+    // Populate all talent parameter fields for this category
+    const fields = {
+      shoot_days: talentInfo.days_count || talentInfo.shoot_days || 1,
+      rehearsal_days: talentInfo.rehearsal_days || 0,
+      down_days: talentInfo.down_days || 0,
+      travel_days: talentInfo.travel_days || 0,
+      overtime_hours: talentInfo.overtime_hours || 0,
+      night_premium: talentInfo.night_premium || false
+    }
+
+    Object.entries(fields).forEach(([fieldName, value]) => {
+      const fieldSelector = `input[name="talent[${categoryId}][${fieldName}]"], [data-${fieldName.replace('_', '-')}-input="${categoryId}"]`
+      const field = document.querySelector(fieldSelector)
+
+      if (field) {
+        if (field.type === 'checkbox' || fieldName === 'night_premium') {
+          field.checked = Boolean(value)
+          // Also update the hidden field for night premium
+          if (fieldName === 'night_premium') {
+            const hiddenField = document.querySelector(`[data-night-field="${categoryId}"]`)
+            if (hiddenField) {
+              hiddenField.value = value ? 'true' : 'false'
+            }
+            // Update button visual state
+            const nightBtn = document.querySelector(`[data-category="${categoryId}"].night-btn`)
+            if (nightBtn) {
+              nightBtn.dataset.active = value ? 'true' : 'false'
+              if (value) {
+                nightBtn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+                nightBtn.classList.remove('border-gray-300')
+              } else {
+                nightBtn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+                nightBtn.classList.add('border-gray-300')
+              }
+            }
+          }
+        } else {
+          field.value = value
+        }
+        console.log(`✅ Set ${fieldName} for category ${categoryId}: ${value}`)
+      } else {
+        console.log(`⚠️ Field not found for ${fieldName} in category ${categoryId}`)
+      }
+    })
+
+    // Only populate main fields if this is the main line
+    if (isMainLine) {
+      const talentCountField = document.querySelector(`[data-talent-input="${categoryId}"]`)
+      if (talentCountField && talentInfo.talent_count) {
+        talentCountField.value = talentInfo.talent_count
+        console.log(`✅ Set talent count for category ${categoryId}: ${talentInfo.talent_count}`)
+      }
+
+      const adjustedRateField = document.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)
+      if (adjustedRateField && talentInfo.adjusted_rate) {
+        adjustedRateField.value = talentInfo.adjusted_rate
+        console.log(`✅ Set adjusted rate for category ${categoryId}: ${talentInfo.adjusted_rate}`)
+      }
+
+      const descriptionField = document.querySelector(`[data-description-input="${categoryId}"]`)
+      if (descriptionField && talentInfo.description) {
+        descriptionField.value = talentInfo.description
+        console.log(`✅ Set description for category ${categoryId}: ${talentInfo.description}`)
+      }
+    }
+  }
+
+  // Helper function to find territory exception for a specific territory and media type
+  findTerritoryException(territoryName, mediaType) {
+    if (!window.territoryExceptions) {
+      return null
+    }
+
+    const exception = window.territoryExceptions.find(ex =>
+      ex.territory_name === territoryName && ex.media_type === mediaType
+    )
+
+    return exception ? exception.percentage : null
+  }
+
+  // Helper function to get selected media types for a specific combo
+  getSelectedMediaTypesForCombo(comboId) {
+    const selectedMediaTypes = []
+    const mediaCheckboxes = document.querySelectorAll(`.combination-media-checkbox[data-combo="${comboId}"]:checked`)
+
+    mediaCheckboxes.forEach(checkbox => {
+      selectedMediaTypes.push(checkbox.value)
+    })
+
+    // If no specific media types selected, assume all_media
+    return selectedMediaTypes.length > 0 ? selectedMediaTypes : ['all_media']
   }
 }

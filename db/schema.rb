@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_11_05_101829) do
+ActiveRecord::Schema[8.0].define(version: 2025_11_12_140720) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -237,10 +237,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_05_101829) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.decimal "overtime_hours"
-    t.integer "standby_days"
+    t.integer "down_days"
     t.text "description"
     t.string "exclusivity_type"
-    t.index ["quotation_id", "category_type"], name: "index_talent_categories_on_quotation_id_and_category_type", unique: true
+    t.integer "rehearsal_days"
+    t.integer "travel_days"
+    t.boolean "night_premium"
+    t.integer "shoot_days"
+    t.index ["quotation_id", "category_type"], name: "index_talent_categories_on_quotation_id_and_category_type"
     t.index ["quotation_id"], name: "index_talent_categories_on_quotation_id"
   end
 

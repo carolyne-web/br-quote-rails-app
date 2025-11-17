@@ -1,4 +1,4 @@
-<!-- app/views/quotations/new.html.erb -->
+<!-- app/views/quotations/edit.html.erb -->
 <div class="min-h-screen bg-gray-50 flex" data-controller="quotation-form">
   <%= form_with model: @quotation, local: true, class: "w-full flex px-6" do |f| %>
 
@@ -7,7 +7,21 @@
       <%= hidden_field_tag :combinations, @stored_combinations_data.to_json %>
       <script>
         console.log('🔄 Edit mode detected - stored combinations data available');
-        console.log('📊 Stored combinations:', <%= raw @stored_combinations_data.to_json %>);
+        console.log('📊 Stored combinations:', <%= @stored_combinations_data.to_json.html_safe %>);
+      </script>
+    <% end %>
+
+    <% if @stored_talent_data.present? %>
+      <!-- Hidden field with stored talent data for editing -->
+      <%= hidden_field_tag :talent_data, @stored_talent_data.to_json %>
+      <script>
+        console.log('🎭 Edit mode detected - stored talent data available');
+        try {
+          const storedTalentData = <%= @stored_talent_data.to_json.html_safe %>;
+          console.log('📊 Stored talent:', storedTalentData);
+        } catch(e) {
+          console.error('Failed to parse stored talent data:', e);
+        }
       </script>
     <% end %>
 
@@ -119,7 +133,7 @@
               <span class="text-sm font-medium">Brand Commercial</span>
             </label>
             <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <%= f.radio_button :commercial_type, 'non_brand', class: "text-blue-600 focus:ring-blue-500", id: "commercial_type_non_brand", checked: true %>
+              <%= f.radio_button :commercial_type, 'non_brand', class: "text-blue-600 focus:ring-blue-500", id: "commercial_type_non_brand" %>
               <span class="text-sm font-medium">Non-Brand Commercial</span>
             </label>
           </div>
@@ -633,10 +647,6 @@ function handleAddGroupClick(button) {
   setTimeout(() => {
     attachTabClickHandlers();
 
-    // Re-setup commercial listeners through the quotation form controller
-    if (typeof window.quotationFormController !== 'undefined') {
-      window.quotationFormController.setupComboCommercialListeners();
-    }
 
     // Setup unlimited options event listeners for the new group
     const unlimitedStillsInput = document.querySelector(`input[name="combinations[${newComboId}][unlimited_stills]"]`);
@@ -729,6 +739,11 @@ window.exclusivitySettings = <%= @exclusivity_settings.to_json.html_safe %>;
 window.territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
   [group_name || 'Individual Territories', territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
 }.to_h.to_json.html_safe %>;
+
+// Territory media exceptions for JavaScript calculations
+window.territoryExceptions = <%= @territory_exceptions.map { |ex|
+  { territory_name: ex.territory_name, media_type: ex.media_type, percentage: ex.percentage }
+}.to_json.html_safe %>;
 
 // Function to initialize the page functionality
 function initializeQuotationForm() {
@@ -1097,8 +1112,8 @@ function removeUsageCombination(comboId) {
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-600" for="combination_${comboId}_duration">Contract Duration</label>
-            <select name="combinations[${comboId}][duration]" id="combination_${comboId}_duration" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-duration" data-combo="${comboId}">
+            <label class="block text-sm font-medium text-gray-600 mb-3" for="combination_${comboId}_duration">Contract Duration</label>
+            <select name="combinations[${comboId}][duration]" id="combination_${comboId}_duration" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-duration" data-combo="${comboId}">
               <option value="">Select Contract Duration</option>
               <option value="3_months">Up to 3 Months</option>
               <option value="6_months">Up to 6 Months</option>
@@ -2013,8 +2028,8 @@ function removeUsageCombination(comboId) {
       1: 'Lead',
       2: 'Second Lead',
       3: 'Featured Extra',
-      4: 'Teenager',
-      5: 'Kid',
+      4: 'Teenagers',
+      5: 'Kids',
       6: 'Walk-on',
       7: 'Extras'
     };
@@ -2023,7 +2038,7 @@ function removeUsageCombination(comboId) {
     let grandTotal = 0;
     let hasActiveCategories = false;
 
-    // Loop through all talent categories
+    // Always use DOM-based calculation to capture all fee components including night fees, rehearsal fees, etc.
     Object.keys(categories).forEach(categoryId => {
       const section = document.getElementById(`talent-category-${categoryId}`);
       if (section && !section.classList.contains('hidden')) {
@@ -2037,9 +2052,102 @@ function removeUsageCombination(comboId) {
             hasActiveCategories = true;
             grandTotal += categoryTotal;
 
+            // Get talent count and format display with description like "LD - Donald Trump"
+            const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0;
+            const description = section.querySelector(`[data-description-input="${categoryId}"]`)?.value || '';
+            const categoryAbbrevs = { 1: 'LD', 2: '2L', 3: 'FE', 4: 'KD', 5: 'KD', 6: 'WO', 7: 'EX' };
+            const abbrev = categoryAbbrevs[categoryId] || '';
+
+            let displayText = categories[categoryId];
+            if (talentCount > 0) {
+              if (description && description.trim()) {
+                displayText = `${abbrev} - ${description}`;
+              } else {
+                displayText = `${talentCount} ${abbrev} ${categories[categoryId]}`;
+              }
+            }
+
             summaryHTML += `
               <div class="flex justify-between items-center py-1 border-b border-blue-100 last:border-b-0">
-                <span class="text-sm font-medium text-gray-700">${categories[categoryId]}</span>
+                <span class="text-sm font-medium text-gray-700">${displayText}</span>
+                <span class="text-sm font-semibold text-blue-600">R${categoryTotal.toLocaleString()}</span>
+              </div>
+            `;
+          }
+        }
+      }
+    });
+
+    if (!hasActiveCategories) {
+      summaryHTML = '<div class="text-gray-500 italic text-sm">No talent categories selected</div>';
+      grandTotal = 0;
+    }
+
+    categoryTotalsList.innerHTML = summaryHTML;
+
+    // Update grand total to show "Talent Summary Total" to match final quotation
+    const grandTotalElement = document.getElementById('talent-grand-total');
+    if (grandTotalElement) {
+      grandTotalElement.textContent = `R${grandTotal.toLocaleString()}`;
+      // Update the label to match final quotation
+      const grandTotalLabel = grandTotalElement.previousElementSibling;
+      if (grandTotalLabel && hasActiveCategories) {
+        grandTotalLabel.textContent = 'Talent Summary Total:';
+      }
+    }
+  }
+
+  // Fallback function for DOM-based talent summary (original logic for new quotations)
+  function updateTalentSummaryFromDOM() {
+    const categoryTotalsList = document.getElementById('category-totals-list');
+    if (!categoryTotalsList) return;
+
+    const categories = {
+      1: 'Lead',
+      2: 'Second Lead',
+      3: 'Featured Extra',
+      4: 'Teenagers',
+      5: 'Kids',
+      6: 'Walk-on',
+      7: 'Extras'
+    };
+
+    let summaryHTML = '';
+    let grandTotal = 0;
+    let hasActiveCategories = false;
+
+    // Loop through all talent categories in DOM
+    Object.keys(categories).forEach(categoryId => {
+      const section = document.getElementById(`talent-category-${categoryId}`);
+      if (section && !section.classList.contains('hidden')) {
+        const categoryTotalElement = section.querySelector(`#category-total-${categoryId}`);
+
+        if (categoryTotalElement) {
+          const totalText = categoryTotalElement.textContent.replace(/[R,\s]/g, '');
+          const categoryTotal = parseInt(totalText) || 0;
+
+          if (categoryTotal > 0) {
+            hasActiveCategories = true;
+            grandTotal += categoryTotal;
+
+            // Get talent count and format display with description like "LD - Donald Trump"
+            const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0;
+            const description = section.querySelector(`[data-description-input="${categoryId}"]`)?.value || '';
+            const categoryAbbrevs = { 1: 'LD', 2: '2L', 3: 'FE', 4: 'KD', 5: 'KD', 6: 'WO', 7: 'EX' };
+            const abbrev = categoryAbbrevs[categoryId] || '';
+
+            let displayText = categories[categoryId];
+            if (talentCount > 0) {
+              if (description && description.trim()) {
+                displayText = `${abbrev} - ${description}`;
+              } else {
+                displayText = `${talentCount} ${abbrev} ${categories[categoryId]}`;
+              }
+            }
+
+            summaryHTML += `
+              <div class="flex justify-between items-center py-1 border-b border-blue-100 last:border-b-0">
+                <span class="text-sm font-medium text-gray-700">${displayText}</span>
                 <span class="text-sm font-semibold text-blue-600">R${categoryTotal.toLocaleString()}</span>
               </div>
             `;
@@ -2078,8 +2186,8 @@ function removeUsageCombination(comboId) {
       1: 'Lead',
       2: 'Second Lead',
       3: 'Featured Extra',
-      4: 'Teenager',
-      5: 'Kid',
+      4: 'Teenagers',
+      5: 'Kids',
       6: 'Walk-on',
       7: 'Extras'
     };
@@ -2409,11 +2517,18 @@ function setupQuotePreview() {
 
 // Auto-populate form with stored combinations data if editing
 function populateFormFromStoredData() {
+  // Check if controller is available for proper talent data population
+  if (window.quotationFormController && typeof window.quotationFormController.parseStoredCombinationsData === 'function') {
+    console.log('🎭 Using controller for stored data population');
+    window.quotationFormController.parseStoredCombinationsData();
+    return;
+  }
+
   const combinationsField = document.querySelector('input[name="combinations"]');
   if (combinationsField && combinationsField.value) {
     try {
       const storedData = JSON.parse(combinationsField.value);
-      console.log('🔄 Auto-populating form from stored data:', storedData);
+      console.log('🔄 Auto-populating form from stored data (fallback):', storedData);
 
       Object.entries(storedData).forEach(([comboId, comboData]) => {
         console.log(`📋 Populating combo ${comboId}:`, comboData);
@@ -2494,8 +2609,21 @@ document.addEventListener('turbo:load', setupQuotePreview);
 
 } // End of script loading check
 
-// Auto-populate form when page loads (always run, even if script already loaded)
-document.addEventListener('DOMContentLoaded', populateFormFromStoredData);
-document.addEventListener('turbo:load', populateFormFromStoredData);
+// Auto-populate form when page loads with controller retry mechanism
+function waitForControllerAndPopulate(retries = 0) {
+  if (window.quotationFormController && typeof window.quotationFormController.parseStoredCombinationsData === 'function') {
+    console.log('🎭 Controller available, populating form data');
+    populateFormFromStoredData();
+  } else if (retries < 10) {
+    console.log(`⏳ Controller not ready yet, retrying in 100ms... (attempt ${retries + 1}/10)`);
+    setTimeout(() => waitForControllerAndPopulate(retries + 1), 100);
+  } else {
+    console.log('⚠️ Controller not available after 1 second, using fallback');
+    populateFormFromStoredData();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', waitForControllerAndPopulate);
+document.addEventListener('turbo:load', waitForControllerAndPopulate);
 
 </script>

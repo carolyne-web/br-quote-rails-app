@@ -48,8 +48,9 @@ class QuotationsController < ApplicationController
         final_quotation = FinalQuotationGenerator.new(@quotation, combinations_data).generate
 
         if final_quotation.persisted?
-          # Clear the stored combinations data after successful generation
-          @quotation.quotation_detail.update(combinations_data: nil) if @quotation.quotation_detail
+          # Don't clear combinations data - preserve for edit functionality
+          # Original comment: Clear the stored combinations data after successful generation
+          # @quotation.quotation_detail.update(combinations_data: nil) if @quotation.quotation_detail
 
           # Handle AJAX requests for inline preview
           if request.xhr?
@@ -90,6 +91,10 @@ class QuotationsController < ApplicationController
     @quotation = current_production_house.quotations.build
     @quotation.build_quotation_detail
 
+    # Initialize empty stored data for consistency with edit view
+    @stored_talent_data = nil
+    @stored_combinations_data = nil
+
     # Initialize with empty talent categories (user will add as needed)
     load_form_data
   end
@@ -98,6 +103,31 @@ class QuotationsController < ApplicationController
     # Check if we're editing from a final quotation
     if params[:edit_from].present?
       populate_from_final_quotation(params[:edit_from])
+    else
+      # Load stored combinations data from database for regular edit
+      if @quotation.quotation_detail&.combinations_data.present?
+        begin
+          stored_data = JSON.parse(@quotation.quotation_detail.combinations_data)
+          # Handle dual cache format (talent + combinations)
+          if stored_data.key?("talent") && stored_data.key?("combinations")
+            @stored_talent_data = stored_data["talent"]
+            @stored_combinations_data = stored_data["combinations"]
+          else
+            # Fallback for old format
+            @stored_combinations_data = stored_data
+            @stored_talent_data = build_talent_data_from_database
+          end
+          Rails.logger.info "✅ Loaded stored data: #{@stored_talent_data&.keys&.count || 0} talent categories + #{@stored_combinations_data&.keys&.count || 0} combinations"
+        rescue JSON::ParserError
+          Rails.logger.error "Failed to parse stored combinations data"
+          @stored_talent_data = build_talent_data_from_database
+          @stored_combinations_data = nil
+        end
+      else
+        # Fallback to building from database
+        @stored_talent_data = build_talent_data_from_database
+        @stored_combinations_data = nil
+      end
     end
 
     # Load form data with all associations
@@ -110,10 +140,65 @@ class QuotationsController < ApplicationController
       process_talent_categories
       process_territories
 
-      # Store combinations data if provided
+      # Extract guarantee, exclusivity, and commercials data (same logic as create)
+      if params[:combinations].present?
+        combinations_data = params[:combinations].is_a?(String) ? JSON.parse(params[:combinations]) : params[:combinations]
+
+        has_guarantee = false
+        common_exclusivity = nil
+        common_num_commercials = nil
+
+        combinations_data.each do |combo_id, combo_data|
+          # Check guarantee
+          if combo_data["is_guaranteed"] == "1" || combo_data["is_guaranteed"] == true
+            has_guarantee = true
+          end
+
+          # Extract exclusivity from exclusivities array or calculated_values (search all combinations)
+          if common_exclusivity.nil?
+            if combo_data["exclusivities"].present? && combo_data["exclusivities"].any?
+              common_exclusivity = combo_data["exclusivities"].first
+            elsif combo_data["calculated_values"].present?
+              combo_data["calculated_values"].each do |category_id, talent_lines|
+                talent_lines.each do |line_id, line_data|
+                  if line_data["exclusivity_type"].present? && line_data["exclusivity_type"] != ""
+                    common_exclusivity = line_data["exclusivity_type"]
+                    break
+                  end
+                end
+                break if common_exclusivity
+              end
+            end
+          end
+
+          # Extract number of commercials (use first non-nil value found)
+          if common_num_commercials.nil? && combo_data["num_commercials"].present?
+            common_num_commercials = combo_data["num_commercials"].to_i
+          end
+        end
+
+        # Update quotation with guarantee
+        @quotation.update(is_guaranteed: has_guarantee)
+
+        # Update quotation_detail with exclusivity and number of commercials
+        @quotation.quotation_detail ||= @quotation.build_quotation_detail
+        @quotation.quotation_detail.update(
+          exclusivity_type: common_exclusivity,
+          number_of_commercials: common_num_commercials
+        )
+
+        Rails.logger.info "🏆 Updated - guarantee: #{has_guarantee}, exclusivity: #{common_exclusivity}, commercials: #{common_num_commercials}"
+      end
+
+      # Store complete form data cache (talent + combinations) for fast edit loading
       if params[:combinations].present?
         @quotation.quotation_detail ||= @quotation.build_quotation_detail
-        @quotation.quotation_detail.update(combinations_data: params[:combinations])
+
+        # Build and store separated form data cache
+        form_cache = build_form_data_cache
+        @quotation.quotation_detail.update(combinations_data: form_cache.to_json)
+
+        Rails.logger.info "🏆 Updated dual cache: #{form_cache[:talent].keys.count} talent categories + #{form_cache[:combinations].keys.count} combinations"
       end
 
       redirect_to @quotation, notice: "Quotation updated successfully"
@@ -155,22 +240,56 @@ class QuotationsController < ApplicationController
       process_talent_categories
       process_territories
 
-      # Check if any combination has guarantee enabled
+      # Check if any combination has guarantee enabled and extract exclusivity/comms data
       if params[:combinations].present?
         has_guarantee = false
-        Rails.logger.info "🛡️ DEBUG: Checking guarantee status in combinations..."
-        Rails.logger.info "🛡️ DEBUG: combinations_data: #{combinations_data.inspect}"
+        common_exclusivity = nil
+        common_num_commercials = nil
+
+        Rails.logger.info "🛡️ DEBUG: Checking guarantee, exclusivity, and commercials in combinations..."
         combinations_data.each do |combo_id, combo_data|
           Rails.logger.info "🛡️ DEBUG: Combo #{combo_id} - is_guaranteed: #{combo_data["is_guaranteed"].inspect}"
+
+          # Check guarantee
           if combo_data["is_guaranteed"] == "1" || combo_data["is_guaranteed"] == true
             has_guarantee = true
-            Rails.logger.info "🛡️ DEBUG: Found guarantee enabled for combo #{combo_id}"
-            break
+          end
+
+          # Extract exclusivity from exclusivities array or calculated_values (search all combinations)
+          if common_exclusivity.nil?
+            if combo_data["exclusivities"].present? && combo_data["exclusivities"].any?
+              common_exclusivity = combo_data["exclusivities"].first
+            elsif combo_data["calculated_values"].present?
+              # Look for exclusivity in calculated values
+              combo_data["calculated_values"].each do |category_id, talent_lines|
+                talent_lines.each do |line_id, line_data|
+                  if line_data["exclusivity_type"].present? && line_data["exclusivity_type"] != ""
+                    common_exclusivity = line_data["exclusivity_type"]
+                    break
+                  end
+                end
+                break if common_exclusivity
+              end
+            end
+          end
+
+          # Extract number of commercials (use first non-nil value found)
+          if common_num_commercials.nil? && combo_data["num_commercials"].present?
+            common_num_commercials = combo_data["num_commercials"].to_i
           end
         end
-        Rails.logger.info "🛡️ DEBUG: Final guarantee status: #{has_guarantee}"
+
+        # Update quotation with guarantee
         @quotation.update(is_guaranteed: has_guarantee)
-        Rails.logger.info "🛡️ DEBUG: Quotation #{@quotation.id} updated with is_guaranteed: #{@quotation.reload.is_guaranteed}"
+
+        # Update quotation_detail with exclusivity and number of commercials
+        @quotation.quotation_detail ||= @quotation.build_quotation_detail
+        @quotation.quotation_detail.update(
+          exclusivity_type: common_exclusivity,
+          number_of_commercials: common_num_commercials
+        )
+
+        Rails.logger.info "🛡️ DEBUG: Updated - guarantee: #{has_guarantee}, exclusivity: #{common_exclusivity}, commercials: #{common_num_commercials}"
       end
 
       # Calculate totals (product type adjustments are now handled in calculator)
@@ -185,14 +304,18 @@ class QuotationsController < ApplicationController
         data: { total: calculation[:total] }
       )
 
-      # Store combinations data temporarily in database instead of session to avoid cookie overflow
+      # Store complete form data cache (talent + combinations) for fast edit loading
       if params[:combinations].present?
         # Ensure quotation_detail exists before updating
         @quotation.quotation_detail ||= @quotation.build_quotation_detail
-        # Store combinations data as JSON in quotation_detail for this request
+
+        # Build and store separated form data cache
+        form_cache = build_form_data_cache
         @quotation.quotation_detail.update(
-          combinations_data: combinations_data.to_json
+          combinations_data: form_cache.to_json
         )
+
+        Rails.logger.info "🏆 Stored dual cache: #{form_cache[:talent].keys.count} talent categories + #{form_cache[:combinations].keys.count} combinations"
       end
 
       # Store screenshot data from the preview tables
@@ -210,7 +333,7 @@ class QuotationsController < ApplicationController
           combinations_data = JSON.parse(combinations_data)
         elsif combinations_data.present? && combinations_data.is_a?(ActionController::Parameters)
           # Convert ActionController::Parameters to Hash to support .any? method
-          combinations_data = combinations_data.to_h
+          combinations_data = combinations_data.permit!.to_h
         end
 
         # Check if we have combinations data with calculated values to generate final quotation
@@ -350,6 +473,7 @@ class QuotationsController < ApplicationController
     @talent_settings = Setting.where(category: "talent").order(:key)
     @duration_settings = Setting.where(category: "duration").order(:key)
     @territories = Territory.all.order(:name)
+    @territory_exceptions = TerritoryMediaException.all
     
     # Raw exclusivity settings for popup
     @exclusivity_settings = Setting.where(category: "exclusivity").order(:key).map do |setting|
@@ -380,6 +504,7 @@ class QuotationsController < ApplicationController
       travel_days = category_data[:travel_days].to_i
       down_days = category_data[:down_days].to_i
       overtime_hours = category_data[:overtime_hours].to_f
+      night_premium = category_data[:night_premium] == "true" || category_data[:night_premium] == "1"
       # Collect all exclusivities for this category
       exclusivities = []
 
@@ -408,12 +533,17 @@ class QuotationsController < ApplicationController
         category_type: category_id
       )
 
-      # Update talent category fields
+      # Update talent category fields including all talent parameters
       talent_category.update!(
         description: description,
         adjusted_rate: adjusted_rate,
+        initial_count: talent_count,
+        shoot_days: days_count,
         overtime_hours: overtime_hours,
-        initial_count: talent_count
+        rehearsal_days: rehearsal_days,
+        down_days: down_days,
+        travel_days: travel_days,
+        night_premium: night_premium
       )
 
       # Clear existing day_on_sets and create new one
@@ -562,30 +692,116 @@ class QuotationsController < ApplicationController
 
   def populate_from_final_quotation(final_quotation_id)
     final_quotation = FinalQuotation.find(final_quotation_id)
+    Rails.logger.info "🔄 Loading form data for editing quotation #{@quotation.id} from cached data"
 
-    # Since we're editing the original quotation, it already has all the data
-    # We just need to load the stored combinations data for the form
-    Rails.logger.info "🔄 Loading combinations data for editing quotation #{@quotation.id} from final quotation #{final_quotation_id}"
-
-    if final_quotation.original_combinations_data.present?
+    # Try to load from dual cache first (fast path)
+    if @quotation.quotation_detail&.combinations_data.present?
       begin
-        @stored_combinations_data = JSON.parse(final_quotation.original_combinations_data)
-        Rails.logger.info "✅ Loaded stored combinations data for editing: #{@stored_combinations_data.keys.count} combinations"
+        cached_data = JSON.parse(@quotation.quotation_detail.combinations_data)
 
-        # Update talent categories with counts from stored combinations data
-        update_talent_categories_from_combinations(@stored_combinations_data)
-
+        # Check if this is the new dual cache format
+        if cached_data.key?("talent") && cached_data.key?("combinations")
+          Rails.logger.info "✅ Using dual cache format with separated talent and combinations"
+          @stored_talent_data = cached_data["talent"]
+          @stored_combinations_data = cached_data["combinations"]
+        else
+          Rails.logger.info "⚠️ Old cache format detected, using combinations only"
+          @stored_combinations_data = cached_data
+          @stored_talent_data = nil
+        end
       rescue JSON::ParserError => e
-        Rails.logger.error "❌ Failed to parse stored combinations data: #{e.message}"
+        Rails.logger.error "❌ Failed to parse cached data: #{e.message}"
         @stored_combinations_data = nil
+        @stored_talent_data = nil
       end
-    else
-      Rails.logger.warn "⚠️ No stored combinations data found in final quotation #{final_quotation.id}"
-      @stored_combinations_data = nil
     end
+
+    # Fallback: rebuild from database if no cache available (slow path)
+    if @stored_combinations_data.blank?
+      Rails.logger.warn "⚠️ No cached data found, rebuilding from final quotation"
+      @stored_combinations_data = build_combinations_data_from_final_quotation(final_quotation)
+    end
+
+    # Build talent data from final quotation if not already cached
+    if @stored_talent_data.blank?
+      Rails.logger.info "🏗️ Building talent data from final quotation for accuracy"
+      @stored_talent_data = build_talent_data_from_final_quotation(final_quotation)
+    end
+
+    Rails.logger.info "🏆 Edit data loaded: #{@stored_talent_data&.keys&.count || 0} talent categories + #{@stored_combinations_data&.keys&.count || 0} combinations"
 
   rescue ActiveRecord::RecordNotFound
     flash[:alert] = "Final quotation not found"
+  end
+
+  def build_combinations_data_from_final_quotation(final_quotation)
+    combinations_data = {}
+
+    final_quotation.final_quotation_groups.each do |group|
+      # Build combination data structure from FinalQuotationTalentLine records
+      calculated_values = {}
+      talent_data = {}
+
+      group.final_quotation_talent_lines.each do |talent_line|
+        category_id = map_category_type_to_id(talent_line.category_type)
+        next unless category_id
+
+        # Initialize category if not exists
+        calculated_values[category_id.to_s] ||= {}
+
+        # Find next available line index for this category
+        line_index = calculated_values[category_id.to_s].keys.length
+
+        # Create line data matching the expected format
+        calculated_values[category_id.to_s][line_index.to_s] = {
+          "day_fee" => talent_line.adjusted_rate.to_s,
+          "unit_count" => talent_line.talent_count.to_s,
+          "calculated_buyout_percentage" => talent_line.buyout_percentage.to_s,
+          "per_talent_amount" => talent_line.per_talent_amount.to_s,
+          "total_line_cost" => talent_line.total_line_cost.to_s,
+          "description" => talent_line.description,
+          "exclusivity_type" => talent_line.exclusivity_type || "",
+          "commercial_count" => talent_line.commercial_count.to_s
+        }
+
+        # Also build talent data format for JavaScript compatibility
+        # Find matching talent category for this combo
+        talent_category = @quotation.talent_categories.find_by(category_type: category_id)
+        if talent_category
+          talent_data[talent_category.id.to_s] = {
+            "unit_count" => talent_line.talent_count.to_s,
+            "day_fee" => talent_line.adjusted_rate.to_s
+          }
+        end
+      end
+
+      combinations_data["combo_#{group.group_number}"] = {
+        "duration" => group.duration,
+        "territories" => group.selected_territories.map { |t| t["id"] },
+        "media_types" => group.selected_media_types,
+        "calculated_values" => calculated_values,
+        "talent" => talent_data,
+        "num_commercials" => 1,
+        "exclusivities" => [],
+        "is_guaranteed" => group.is_guaranteed
+      }
+    end
+
+    combinations_data
+  end
+
+  def map_category_type_to_id(category_type)
+    # Map category type names to IDs based on standard categories
+    case category_type.downcase
+    when 'lead' then 1
+    when 'second lead' then 2
+    when 'featured extra' then 3
+    when 'teenagers' then 4
+    when 'kids' then 5
+    when 'walk-on' then 6
+    when 'extras' then 7
+    else nil
+    end
   end
 
   def update_talent_categories_from_combinations(combinations_data)
@@ -599,10 +815,114 @@ class QuotationsController < ApplicationController
         next unless talent_category
 
         talent_count = talent_info["unit_count"].to_i
-        talent_category.update(talent_count: talent_count) if talent_count > 0
+        talent_category.update(initial_count: talent_count) if talent_count > 0
 
-        Rails.logger.info "Updated talent category #{talent_category_id} with count: #{talent_count}"
+        Rails.logger.info "Updated talent category #{talent_category_id} with initial_count: #{talent_count}"
       end
     end
+  end
+
+  # Build complete form data cache with separated talent and combinations data
+  def build_form_data_cache
+    # Parse combinations data if it's a JSON string
+    combinations_data = params[:combinations] || {}
+    if combinations_data.is_a?(String)
+      begin
+        combinations_data = JSON.parse(combinations_data)
+      rescue JSON::ParserError
+        Rails.logger.error "Failed to parse combinations data as JSON"
+        combinations_data = {}
+      end
+    end
+
+    cache_data = {
+      talent: build_talent_data_from_database,
+      combinations: combinations_data
+    }
+
+    Rails.logger.info "Built form data cache with #{cache_data[:talent].keys.count} talent categories and #{cache_data[:combinations].keys.count} combinations"
+    cache_data
+  end
+
+  # Build talent data from database talent_categories (for fallback or cache building)
+  def build_talent_data_from_database
+    talent_data = {}
+
+    # Group talent categories by category_type to support multiple lines per category
+    @quotation.talent_categories.group_by(&:category_type).each do |category_type, categories|
+      # For each category, get all talent lines from day_on_sets (which contains the actual talent lines)
+      all_lines = []
+
+      categories.each do |talent_category|
+        if talent_category.day_on_sets.any?
+          # Use day_on_sets data (contains individual talent lines)
+          talent_category.day_on_sets.each do |day_on_set|
+            all_lines << {
+              description: day_on_set.description,
+              talent_count: day_on_set.talent_count,
+              adjusted_rate: day_on_set.adjusted_rate.to_s,
+              days_count: day_on_set.days_count,
+              rehearsal_days: day_on_set.rehearsal_days,
+              down_days: day_on_set.down_days,
+              travel_days: day_on_set.travel_days,
+              overtime_hours: day_on_set.overtime_hours,
+              night_premium: day_on_set.night_premium
+            }
+          end
+        else
+          # Fallback to talent_category data if no day_on_sets
+          all_lines << {
+            description: talent_category.description,
+            talent_count: talent_category.initial_count,
+            adjusted_rate: talent_category.adjusted_rate.to_s,
+            days_count: talent_category.shoot_days,
+            rehearsal_days: talent_category.rehearsal_days,
+            down_days: talent_category.down_days,
+            travel_days: talent_category.travel_days,
+            overtime_hours: talent_category.overtime_hours,
+            night_premium: talent_category.night_premium
+          }
+        end
+      end
+
+      talent_data[category_type.to_s] = {
+        lines: all_lines
+      }
+    end
+
+    talent_data
+  end
+
+  # Build talent data from final quotation (preserves exact values used in final quotation)
+  def build_talent_data_from_final_quotation(final_quotation)
+    talent_data = {}
+
+    # Group final quotation talent lines by category
+    final_quotation.final_quotation_groups.each do |group|
+      group.final_quotation_talent_lines.group_by(&:category_type).each do |category_type, talent_lines|
+        category_id = map_category_type_to_id(category_type)
+        next unless category_id
+
+        lines = talent_lines.map do |talent_line|
+          {
+            description: talent_line.description,
+            talent_count: talent_line.talent_count,
+            adjusted_rate: talent_line.adjusted_rate.to_s,
+            days_count: talent_line.days_count || 1,
+            rehearsal_days: talent_line.rehearsal_days || 0,
+            down_days: talent_line.down_days || 0,
+            travel_days: talent_line.travel_days || 0,
+            overtime_hours: talent_line.overtime_hours || 0,
+            night_premium: talent_line.night_premium || false
+          }
+        end
+
+        talent_data[category_id.to_s] = {
+          lines: lines
+        }
+      end
+    end
+
+    talent_data
   end
 end

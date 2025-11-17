@@ -148,13 +148,13 @@ class QuotationCalculator
     @talent_categories.each do |category|
       daily_rate = category.adjusted_rate || category.daily_rate
       
-      # Use category-specific standby_days if available, otherwise use global
-      standby_days = category.standby_days || 
-                    ((@detail&.rehearsal_days || 0) + 
-                     (@detail&.travel_days || 0) + 
+      # Use category-specific down_days if available, otherwise use global
+      down_days = category.down_days ||
+                    ((@detail&.rehearsal_days || 0) +
+                     (@detail&.travel_days || 0) +
                      (@detail&.down_days || 0))
-      
-      total += category.initial_count * daily_rate * standby_days * 0.5
+
+      total += category.initial_count * daily_rate * down_days * 0.5
     end
     total
   end
@@ -370,7 +370,7 @@ class QuotationCalculator
 
   def calculate_kids_talent_fee(kids_category)
     daily_rate = kids_category.adjusted_rate || kids_category.daily_rate || 0
-    standby_days = (@detail&.rehearsal_days || 0) + (@detail&.travel_days || 0) + (@detail&.down_days || 0)
+    down_days = (@detail&.rehearsal_days || 0) + (@detail&.travel_days || 0) + (@detail&.down_days || 0)
     overtime_hours = kids_category.overtime_hours || (@detail&.overtime_hours || 0)
     
     # Base talent fee
@@ -382,7 +382,7 @@ class QuotationCalculator
     end
     
     # Standby fee
-    standby_fee = kids_category.initial_count * daily_rate * standby_days * 0.5
+    standby_fee = kids_category.initial_count * daily_rate * down_days * 0.5
     
     # Overtime fee
     overtime_fee = kids_category.initial_count * (daily_rate * 0.1) * overtime_hours

@@ -63,7 +63,7 @@ class FinalQuotationGenerator
     end
   end
 
-  def create_talent_line_from_day_on_set(group, category, day_on_set, combo_id = nil, combo_exclusivities = [], calculated_values = {})
+  def create_individual_talent_line(category, day_on_set, line_index, group, combo_id = nil, combo_exclusivities = [], calculated_values = {})
     # Use day_on_set data for individual line details
     daily_rate = category.daily_rate || 0
     adjusted_rate = day_on_set.adjusted_rate || category.adjusted_rate || daily_rate
@@ -461,7 +461,15 @@ class FinalQuotationGenerator
     calculated_values = combo_data["calculated_values"] || {}
 
     # Create talent lines for this group
-    create_talent_lines_for_group(group, combo_id, combo_exclusivities, calculated_values)
+    # For Group 1: Include ALL categories 1-7 (so Walk-on/Extras appear in Talent Summary)
+    # For Groups 2+: Only include selected categories from cast selection
+    if group_number == 1
+      # Group 1: Special handling to include ALL categories + selected usage
+      create_talent_lines_for_group_1(group, combo_id, combo_exclusivities, calculated_values)
+    else
+      # Groups 2+: Only selected categories from cast selection
+      create_talent_lines_for_group(group, combo_id, combo_exclusivities, calculated_values)
+    end
   end
 
   def create_single_group(final_quotation)
@@ -555,35 +563,113 @@ class FinalQuotationGenerator
   end
 
   def create_talent_lines_for_group(group, combo_id = nil, combo_exclusivities = [], calculated_values = {})
-    # Create talent lines for ALL talent with count > 0
-    # Usage fee calculation will determine which appear in Usage Summary vs Talent Summary
+    # Different logic for Talent Summary vs Group sections:
+    # - Talent Summary: ALL categories 1-7 with talent_count > 0
+    # - Groups: ONLY selected categories 1-5 from cast selection (no Walk-on/Extras in groups)
+
+    if combo_id.nil?
+      # This is for Talent Summary (no combo_id) - include ALL categories 1-7 that were originally defined
+      Rails.logger.info "📋 Creating Talent Summary - including ALL categories 1-7 that were originally defined"
+      @quotation.talent_categories.includes(:day_on_sets).each do |category|
+        category.day_on_sets.each_with_index do |day_on_set, line_index|
+          # For Talent Summary: Include all talent that was originally defined, even if talent_count = 0
+          # This ensures Walk-ons (6) and Extras (7) appear in summary even if not used in any groups
+
+          # Skip only if truly empty (no talent_count AND no configuration)
+          is_configured = day_on_set.adjusted_rate.present? || day_on_set.description.present? || day_on_set.talent_count > 0
+          next unless is_configured
+
+          # Create talent line using empty calculated values (no usage fees in talent summary)
+          create_individual_talent_line(category, day_on_set, line_index, group, combo_id, combo_exclusivities, {})
+        end
+      end
+    elsif calculated_values.present?
+      # This is for Group sections with cast selection - ONLY selected categories 1-5
+      Rails.logger.info "🎭 Creating Group #{combo_id} - using cast selection (categories 1-5 only)"
+      calculated_values.each do |category_id, lines_data|
+        lines_data.each do |line_index, line_calculated|
+          # Find the matching database records
+          category = @quotation.talent_categories.find_by(category_type: category_id.to_i)
+          next unless category
+
+          # Find the correct day_on_set by matching description (more reliable than line_index)
+          calc_description = line_calculated["description"].to_s
+          # Extract the actual description part (after the prefix like "KD - ")
+          actual_description = calc_description.split(" - ").last.to_s.strip
+
+          # Find the day_on_set that matches this description
+          day_on_set = category.day_on_sets.find do |dos|
+            dos.description.to_s.strip == actual_description
+          end
+
+          if day_on_set.nil?
+            Rails.logger.warn "❌ Could not find day_on_set for description: '#{actual_description}' in category #{category_id}"
+            next
+          end
+
+          # Get the actual line index for this day_on_set
+          actual_line_index = category.day_on_sets.index(day_on_set)
+
+          Rails.logger.info "✅ Matched calculated line '#{actual_description}' to day_on_set at index #{actual_line_index}"
+
+          # Create talent line using the calculated values
+          create_individual_talent_line(category, day_on_set, actual_line_index, group, combo_id, combo_exclusivities, line_calculated)
+        end
+      end
+    else
+      # This is for Group sections without cast selection - legacy mode (all categories)
+      Rails.logger.info "📝 Creating Group #{combo_id} - legacy mode (all categories with talent_count > 0)"
+      @quotation.talent_categories.includes(:day_on_sets).each do |category|
+        category.day_on_sets.each_with_index do |day_on_set, line_index|
+          # Skip if no talent count
+          next if day_on_set.talent_count <= 0
+
+          # Create talent line using empty calculated values (legacy mode)
+          create_individual_talent_line(category, day_on_set, line_index, group, combo_id, combo_exclusivities, {})
+        end
+      end
+    end
+  end
+
+  def create_talent_lines_for_group_1(group, combo_id, combo_exclusivities = [], calculated_values = {})
+    # Special handling for Group 1: Include ALL categories 1-7 (for Talent Summary)
+    # Selected talent (categories 1-5) get usage fees from calculated_values
+    # Non-selected talent (categories 6-7) get zero usage fees
+
+    Rails.logger.info "🏗️ Creating Group 1 with ALL categories 1-7 for Talent Summary"
+
     @quotation.talent_categories.includes(:day_on_sets).each do |category|
       category.day_on_sets.each_with_index do |day_on_set, line_index|
         # Skip if no talent count
         next if day_on_set.talent_count <= 0
 
-        # Get calculated values for this specific category and line
+        # Check if this talent line was selected in cast selection
         category_calculated = calculated_values[category.category_type.to_s] || {}
-        line_calculated = category_calculated[line_index.to_s] || {}
 
-        # Fallback: Try to match by description if line index doesn't work
-        if line_calculated.blank? && category_calculated.present?
+        # Find matching calculated line by description
+        line_calculated = nil
+        if category_calculated.present?
           category_calculated.each do |calc_line_index, calc_data|
-            if calc_data["description"].present? && day_on_set.description.present?
-              # Extract the actual description part (after the prefix like "LD - ")
-              calc_desc = calc_data["description"].split(" - ").last.to_s.strip
-              db_desc = day_on_set.description.strip
-              if calc_desc == db_desc
-                line_calculated = calc_data
-                Rails.logger.info "🔄 Matched by description: '#{db_desc}' (line #{line_index} -> calc line #{calc_line_index})"
-                break
-              end
+            calc_description = calc_data["description"].to_s
+            actual_description = calc_description.split(" - ").last.to_s.strip
+
+            if day_on_set.description.to_s.strip == actual_description
+              line_calculated = calc_data
+              break
             end
           end
         end
 
-        # Create talent line - usage_fee will be set based on calculated_values presence
-        create_talent_line_from_day_on_set(group, category, day_on_set, combo_id, combo_exclusivities, line_calculated)
+        # Create talent line - with usage fees if selected, without if not selected
+        if line_calculated.present?
+          # This talent was selected - use calculated values (includes usage fees)
+          Rails.logger.info "✅ Group 1: Using calculated values for #{day_on_set.description}"
+          create_individual_talent_line(category, day_on_set, line_index, group, combo_id, combo_exclusivities, line_calculated)
+        else
+          # This talent was not selected - include for Talent Summary only (no usage fees)
+          Rails.logger.info "📋 Group 1: Including #{day_on_set.description} for Talent Summary (no usage)"
+          create_individual_talent_line(category, day_on_set, line_index, group, combo_id, combo_exclusivities, {})
+        end
       end
     end
   end

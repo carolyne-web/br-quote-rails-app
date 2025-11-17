@@ -112,7 +112,7 @@
                 <span class="text-sm font-medium">Kids Product</span>
               </label>
               <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <%= f.radio_button :product_type, 'family', class: "text-blue-600 focus:ring-blue-500", checked: true %>
+                <%= f.radio_button :product_type, 'family', class: "text-blue-600 focus:ring-blue-500" %>
                 <span class="text-sm font-medium">Family Product</span>
               </label>
             </div>
@@ -133,7 +133,7 @@
               <span class="text-sm font-medium">Brand Commercial</span>
             </label>
             <label class="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-              <%= f.radio_button :commercial_type, 'non_brand', class: "text-blue-600 focus:ring-blue-500", id: "commercial_type_non_brand", checked: true %>
+              <%= f.radio_button :commercial_type, 'non_brand', class: "text-blue-600 focus:ring-blue-500", id: "commercial_type_non_brand" %>
               <span class="text-sm font-medium">Non-Brand Commercial</span>
             </label>
           </div>
@@ -395,11 +395,11 @@
                   <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Group 1</label>
                   
                   <!-- Selected Territory Tags -->
-                  <%# <div>
+                  <div>
                     <div class="selected-territory-tags flex flex-wrap gap-2" data-combo="1">
                       <!-- Selected territory tags will appear here -->
                     </div>
-                  </div> %>
+                  </div>
                   
                   <!-- <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 hidden">
                     <div class="text-sm text-blue-800">
@@ -573,8 +573,8 @@
         <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3 sm:justify-end">
           <%= link_to "Cancel", quotations_path, 
               class: "px-6 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition text-center" %>
-          <%= f.submit "Generate Quote",
-              id: "generate-quote-btn",
+          <%= f.submit "Preview Quote",
+              id: "preview-quote-btn",
               class: "px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition" %>
         </div>
       </div>
@@ -647,10 +647,6 @@ function handleAddGroupClick(button) {
   setTimeout(() => {
     attachTabClickHandlers();
 
-    // Re-setup commercial listeners through the quotation form controller
-    if (typeof window.quotationFormController !== 'undefined') {
-      window.quotationFormController.setupComboCommercialListeners();
-    }
 
     // Setup unlimited options event listeners for the new group
     const unlimitedStillsInput = document.querySelector(`input[name="combinations[${newComboId}][unlimited_stills]"]`);
@@ -743,11 +739,6 @@ window.exclusivitySettings = <%= @exclusivity_settings.to_json.html_safe %>;
 window.territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
   [group_name || 'Individual Territories', territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
 }.to_h.to_json.html_safe %>;
-
-// Territory media exceptions for JavaScript calculations
-window.territoryExceptions = <%= @territory_exceptions.map { |ex|
-  { territory_name: ex.territory_name, media_type: ex.media_type, percentage: ex.percentage }
-}.to_json.html_safe %>;
 
 // Function to initialize the page functionality
 function initializeQuotationForm() {
@@ -1116,8 +1107,8 @@ function removeUsageCombination(comboId) {
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-600" for="combination_${comboId}_duration">Contract Duration</label>
-            <select name="combinations[${comboId}][duration]" id="combination_${comboId}_duration" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-duration" data-combo="${comboId}">
+            <label class="block text-sm font-medium text-gray-600 mb-3" for="combination_${comboId}_duration">Contract Duration</label>
+            <select name="combinations[${comboId}][duration]" id="combination_${comboId}_duration" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 combination-duration" data-combo="${comboId}">
               <option value="">Select Contract Duration</option>
               <option value="3_months">Up to 3 Months</option>
               <option value="6_months">Up to 6 Months</option>
@@ -1546,16 +1537,36 @@ function removeUsageCombination(comboId) {
     const avgExclusivityMultiplier = activeCombinations.length > 0 ? 
       activeCombinations.reduce((sum, combo) => sum + combo.exclusivityMultiplier, 0) / activeCombinations.length : 1.0;
     
-    document.getElementById('talent-total').textContent = `R ${talentFees.toLocaleString()}`;
-    document.getElementById('territory-multiplier').textContent = `${avgTerritoryMultiplier.toFixed(2)}x (avg)`;
-    document.getElementById('media-display-multiplier').textContent = `${avgMediaMultiplier.toFixed(2)}x (avg)`;
-    document.getElementById('duration-multiplier').textContent = `${avgDurationMultiplier.toFixed(2)}x (avg)`;
-    document.getElementById('exclusivity-multiplier').textContent = avgExclusivityMultiplier > 1 ? `+${Math.round((avgExclusivityMultiplier - 1) * 100)}% (avg)` : '+0%';
-    document.getElementById('usage-buyout-total').textContent = `R ${Math.round(usageBuyoutTotal).toLocaleString()}.00`;
-    document.getElementById('usage-buyout-breakdown').innerHTML = usageBreakdownHtml.join('');
-    document.getElementById('additional-fees').textContent = `R ${totalAdditionalFees.toLocaleString()}`;
-    document.getElementById('total-quote').textContent = `R ${Math.round(totalQuote).toLocaleString()}`;
-    document.getElementById('current-total').textContent = `R ${Math.round(totalQuote).toLocaleString()}`;
+    // Add null checks for all elements
+    const talentTotalEl = document.getElementById('talent-total');
+    if (talentTotalEl) talentTotalEl.textContent = `R ${talentFees.toLocaleString()}`;
+
+    const territoryMultiplierEl = document.getElementById('territory-multiplier');
+    if (territoryMultiplierEl) territoryMultiplierEl.textContent = `${avgTerritoryMultiplier.toFixed(2)}x (avg)`;
+
+    const mediaDisplayMultiplierEl = document.getElementById('media-display-multiplier');
+    if (mediaDisplayMultiplierEl) mediaDisplayMultiplierEl.textContent = `${avgMediaMultiplier.toFixed(2)}x (avg)`;
+
+    const durationMultiplierEl = document.getElementById('duration-multiplier');
+    if (durationMultiplierEl) durationMultiplierEl.textContent = `${avgDurationMultiplier.toFixed(2)}x (avg)`;
+
+    const exclusivityMultiplierEl = document.getElementById('exclusivity-multiplier');
+    if (exclusivityMultiplierEl) exclusivityMultiplierEl.textContent = avgExclusivityMultiplier > 1 ? `+${Math.round((avgExclusivityMultiplier - 1) * 100)}% (avg)` : '+0%';
+
+    const usageBuyoutTotalEl = document.getElementById('usage-buyout-total');
+    if (usageBuyoutTotalEl) usageBuyoutTotalEl.textContent = `R ${Math.round(usageBuyoutTotal).toLocaleString()}.00`;
+
+    const usageBuyoutBreakdownEl = document.getElementById('usage-buyout-breakdown');
+    if (usageBuyoutBreakdownEl) usageBuyoutBreakdownEl.innerHTML = usageBreakdownHtml.join('');
+
+    const additionalFeesEl = document.getElementById('additional-fees');
+    if (additionalFeesEl) additionalFeesEl.textContent = `R ${totalAdditionalFees.toLocaleString()}`;
+
+    const totalQuoteEl = document.getElementById('total-quote');
+    if (totalQuoteEl) totalQuoteEl.textContent = `R ${Math.round(totalQuote).toLocaleString()}`;
+
+    const currentTotalEl = document.getElementById('current-total');
+    if (currentTotalEl) currentTotalEl.textContent = `R ${Math.round(totalQuote).toLocaleString()}`;
   
   
   // Add CSS for combination content visibility
@@ -1818,6 +1829,8 @@ function removeUsageCombination(comboId) {
   // Scroll spy to update sidebar
   window.addEventListener('scroll', function() {
     let current = '';
+    const sections = document.querySelectorAll('section[id]'); // Re-define for this scope
+    const sidebarItems = document.querySelectorAll('[data-section]'); // Re-define for this scope
     sections.forEach(section => {
       const sectionTop = section.offsetTop;
       const sectionHeight = section.clientHeight;
@@ -2010,8 +2023,8 @@ function removeUsageCombination(comboId) {
       1: 'Lead',
       2: 'Second Lead',
       3: 'Featured Extra',
-      4: 'Teenager',
-      5: 'Kid',
+      4: 'Teenagers',
+      5: 'Kids',
       6: 'Walk-on',
       7: 'Extras'
     };
@@ -2020,7 +2033,7 @@ function removeUsageCombination(comboId) {
     let grandTotal = 0;
     let hasActiveCategories = false;
 
-    // Loop through all talent categories
+    // Always use DOM-based calculation to capture all fee components including night fees, rehearsal fees, etc.
     Object.keys(categories).forEach(categoryId => {
       const section = document.getElementById(`talent-category-${categoryId}`);
       if (section && !section.classList.contains('hidden')) {
@@ -2034,9 +2047,102 @@ function removeUsageCombination(comboId) {
             hasActiveCategories = true;
             grandTotal += categoryTotal;
 
+            // Get talent count and format display with description like "LD - Donald Trump"
+            const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0;
+            const description = section.querySelector(`[data-description-input="${categoryId}"]`)?.value || '';
+            const categoryAbbrevs = { 1: 'LD', 2: '2L', 3: 'FE', 4: 'KD', 5: 'KD', 6: 'WO', 7: 'EX' };
+            const abbrev = categoryAbbrevs[categoryId] || '';
+
+            let displayText = categories[categoryId];
+            if (talentCount > 0) {
+              if (description && description.trim()) {
+                displayText = `${abbrev} - ${description}`;
+              } else {
+                displayText = `${talentCount} ${abbrev} ${categories[categoryId]}`;
+              }
+            }
+
             summaryHTML += `
               <div class="flex justify-between items-center py-1 border-b border-blue-100 last:border-b-0">
-                <span class="text-sm font-medium text-gray-700">${categories[categoryId]}</span>
+                <span class="text-sm font-medium text-gray-700">${displayText}</span>
+                <span class="text-sm font-semibold text-blue-600">R${categoryTotal.toLocaleString()}</span>
+              </div>
+            `;
+          }
+        }
+      }
+    });
+
+    if (!hasActiveCategories) {
+      summaryHTML = '<div class="text-gray-500 italic text-sm">No talent categories selected</div>';
+      grandTotal = 0;
+    }
+
+    categoryTotalsList.innerHTML = summaryHTML;
+
+    // Update grand total to show "Talent Summary Total" to match final quotation
+    const grandTotalElement = document.getElementById('talent-grand-total');
+    if (grandTotalElement) {
+      grandTotalElement.textContent = `R${grandTotal.toLocaleString()}`;
+      // Update the label to match final quotation
+      const grandTotalLabel = grandTotalElement.previousElementSibling;
+      if (grandTotalLabel && hasActiveCategories) {
+        grandTotalLabel.textContent = 'Talent Summary Total:';
+      }
+    }
+  }
+
+  // Fallback function for DOM-based talent summary (original logic for new quotations)
+  function updateTalentSummaryFromDOM() {
+    const categoryTotalsList = document.getElementById('category-totals-list');
+    if (!categoryTotalsList) return;
+
+    const categories = {
+      1: 'Lead',
+      2: 'Second Lead',
+      3: 'Featured Extra',
+      4: 'Teenagers',
+      5: 'Kids',
+      6: 'Walk-on',
+      7: 'Extras'
+    };
+
+    let summaryHTML = '';
+    let grandTotal = 0;
+    let hasActiveCategories = false;
+
+    // Loop through all talent categories in DOM
+    Object.keys(categories).forEach(categoryId => {
+      const section = document.getElementById(`talent-category-${categoryId}`);
+      if (section && !section.classList.contains('hidden')) {
+        const categoryTotalElement = section.querySelector(`#category-total-${categoryId}`);
+
+        if (categoryTotalElement) {
+          const totalText = categoryTotalElement.textContent.replace(/[R,\s]/g, '');
+          const categoryTotal = parseInt(totalText) || 0;
+
+          if (categoryTotal > 0) {
+            hasActiveCategories = true;
+            grandTotal += categoryTotal;
+
+            // Get talent count and format display with description like "LD - Donald Trump"
+            const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0;
+            const description = section.querySelector(`[data-description-input="${categoryId}"]`)?.value || '';
+            const categoryAbbrevs = { 1: 'LD', 2: '2L', 3: 'FE', 4: 'KD', 5: 'KD', 6: 'WO', 7: 'EX' };
+            const abbrev = categoryAbbrevs[categoryId] || '';
+
+            let displayText = categories[categoryId];
+            if (talentCount > 0) {
+              if (description && description.trim()) {
+                displayText = `${abbrev} - ${description}`;
+              } else {
+                displayText = `${talentCount} ${abbrev} ${categories[categoryId]}`;
+              }
+            }
+
+            summaryHTML += `
+              <div class="flex justify-between items-center py-1 border-b border-blue-100 last:border-b-0">
+                <span class="text-sm font-medium text-gray-700">${displayText}</span>
                 <span class="text-sm font-semibold text-blue-600">R${categoryTotal.toLocaleString()}</span>
               </div>
             `;
@@ -2075,8 +2181,8 @@ function removeUsageCombination(comboId) {
       1: 'Lead',
       2: 'Second Lead',
       3: 'Featured Extra',
-      4: 'Teenager',
-      5: 'Kid',
+      4: 'Teenagers',
+      5: 'Kids',
       6: 'Walk-on',
       7: 'Extras'
     };
@@ -2453,6 +2559,17 @@ function populateFormFromStoredData() {
         if (guaranteeCheckbox) {
           guaranteeCheckbox.checked = comboData.is_guaranteed;
         }
+
+        // Handle cast selection
+        if (comboData.talent) {
+          Object.keys(comboData.talent).forEach(talentCategoryId => {
+            const castCheckbox = document.querySelector(`input[name="combinations[${comboId}][cast_selection][]"][value="${talentCategoryId}"]`);
+            if (castCheckbox) {
+              castCheckbox.checked = true;
+              console.log(`✅ Checked cast selection for talent category ${talentCategoryId} in combo ${comboId}`);
+            }
+          });
+        }
       });
 
       console.log('✅ Form auto-population completed');
@@ -2461,6 +2578,19 @@ function populateFormFromStoredData() {
       if (typeof updateCombinationDisplay === 'function') {
         updateCombinationDisplay();
       }
+
+      // Trigger cast selection updates for all combinations
+      setTimeout(() => {
+        if (window.quotationFormController && typeof window.quotationFormController.updateCastSelection === 'function') {
+          console.log('🎭 Triggering cast selection update after auto-population');
+          window.quotationFormController.updateCastSelection();
+        }
+
+        if (window.quotationFormController && typeof window.quotationFormController.populateAllTables === 'function') {
+          console.log('🔄 Triggering table population after auto-population');
+          window.quotationFormController.populateAllTables();
+        }
+      }, 500);
 
     } catch (error) {
       console.error('❌ Error auto-populating form:', error);
@@ -2472,10 +2602,23 @@ function populateFormFromStoredData() {
 document.addEventListener('DOMContentLoaded', setupQuotePreview);
 document.addEventListener('turbo:load', setupQuotePreview);
 
-// Auto-populate form when page loads
-document.addEventListener('DOMContentLoaded', populateFormFromStoredData);
-document.addEventListener('turbo:load', populateFormFromStoredData);
-
 } // End of script loading check
+
+// Auto-populate form when page loads with controller retry mechanism
+function waitForControllerAndPopulate(retries = 0) {
+  if (window.quotationFormController && typeof window.quotationFormController.parseStoredCombinationsData === 'function') {
+    console.log('🎭 Controller available, populating form data');
+    populateFormFromStoredData();
+  } else if (retries < 10) {
+    console.log(`⏳ Controller not ready yet, retrying in 100ms... (attempt ${retries + 1}/10)`);
+    setTimeout(() => waitForControllerAndPopulate(retries + 1), 100);
+  } else {
+    console.log('⚠️ Controller not available after 1 second, using fallback');
+    populateFormFromStoredData();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', waitForControllerAndPopulate);
+document.addEventListener('turbo:load', waitForControllerAndPopulate);
 
 </script>
