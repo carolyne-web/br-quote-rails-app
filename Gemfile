@@ -28,6 +28,7 @@ gem "redis", "~> 4.0"
 # PDF Generation
 gem 'prawn'
 gem 'prawn-table'
+gem 'grover'
 
 # Pagination
 gem 'kaminari'

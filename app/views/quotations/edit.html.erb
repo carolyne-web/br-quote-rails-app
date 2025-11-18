@@ -1966,41 +1966,45 @@ function removeUsageCombination(comboId) {
   function updateCategoryTotal(categoryId) {
     const section = document.getElementById(`talent-category-${categoryId}`);
     if (!section || section.classList.contains('hidden')) return;
-    
-    const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0;
-    const adjustedRate = parseInt(section.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)?.value) || 0;
-    const days = parseInt(section.querySelector(`[data-days-input="${categoryId}"]`)?.value) || 0;
-    const rehearsal = parseInt(section.querySelector(`[data-rehearsal-input="${categoryId}"]`)?.value) || 0;
-    const downDays = parseInt(section.querySelector(`[data-down-input="${categoryId}"]`)?.value) || 0;
-    const travelDays = parseInt(section.querySelector(`[data-travel-input="${categoryId}"]`)?.value) || 0;
-    const overtime = parseFloat(section.querySelector(`[data-overtime-input="${categoryId}"]`)?.value) || 0;
-    
-    // Check night premium from hidden field
-    const nightField = section.querySelector(`[data-night-field="${categoryId}"]`);
-    const nightPremium = nightField && nightField.value === 'true';
-    console.log(`HTML Template - Night field found: ${!!nightField}, field value: ${nightField?.value}, nightPremium: ${nightPremium}`);
-    
+
     let total = 0;
-    
-    // Base calculation
-    total += talentCount * adjustedRate * days;
-    
-    // Rehearsal at 50%
-    total += talentCount * adjustedRate * 0.5 * rehearsal;
-    
-    // Down days at 50%
-    total += talentCount * adjustedRate * 0.5 * downDays;
-    
-    // Travel days at 50%
-    total += talentCount * adjustedRate * 0.5 * travelDays;
-    
-    // Overtime at 10% per hour
-    total += talentCount * adjustedRate * 0.1 * overtime;
-    
-    // Night premium at 50% of base rate (applies to first shoot day only)
-    if (nightPremium) {
-      total += talentCount * adjustedRate * 0.5;
-    }
+
+    // Get all talent input rows for this category (main row + additional lines)
+    const talentRows = section.querySelectorAll('.talent-input-row');
+
+    talentRows.forEach(row => {
+      const talentCount = parseInt(row.querySelector('[name*="talent_count"], .talent-count')?.value) || 0;
+      const adjustedRate = parseInt(row.querySelector('[name*="adjusted_rate"], .rate-adjustment')?.value) || 0;
+      const days = parseInt(row.querySelector('[name*="days_count"], .days-input')?.value) || 0;
+      const rehearsal = parseInt(row.querySelector('[name*="rehearsal_days"], .rehearsal-input')?.value) || 0;
+      const downDays = parseInt(row.querySelector('[name*="down_days"], .down-input')?.value) || 0;
+      const travelDays = parseInt(row.querySelector('[name*="travel_days"], .travel-input')?.value) || 0;
+      const overtime = parseFloat(row.querySelector('[name*="overtime_hours"], .overtime-input')?.value) || 0;
+
+      // Check night premium from hidden field
+      const nightField = row.querySelector('[name*="night_premium"]');
+      const nightPremium = nightField && nightField.value === 'true';
+
+      // Base calculation
+      total += talentCount * adjustedRate * days;
+
+      // Rehearsal at 50%
+      total += talentCount * adjustedRate * 0.5 * rehearsal;
+
+      // Down days at 50%
+      total += talentCount * adjustedRate * 0.5 * downDays;
+
+      // Travel days at 50%
+      total += talentCount * adjustedRate * 0.5 * travelDays;
+
+      // Overtime at 10% per hour
+      total += talentCount * adjustedRate * 0.1 * overtime;
+
+      // Night premium at 50% of base rate (applies to first shoot day only)
+      if (nightPremium) {
+        total += talentCount * adjustedRate * 0.5;
+      }
+    });
     
     // Update display
     const totalElement = section.querySelector(`#category-total-${categoryId}`);
@@ -2041,7 +2045,7 @@ function removeUsageCombination(comboId) {
     // Always use DOM-based calculation to capture all fee components including night fees, rehearsal fees, etc.
     Object.keys(categories).forEach(categoryId => {
       const section = document.getElementById(`talent-category-${categoryId}`);
-      if (section && !section.classList.contains('hidden')) {
+      if (section) {
         const categoryTotalElement = section.querySelector(`#category-total-${categoryId}`);
 
         if (categoryTotalElement) {
@@ -2052,25 +2056,34 @@ function removeUsageCombination(comboId) {
             hasActiveCategories = true;
             grandTotal += categoryTotal;
 
-            // Get talent count and format display with description like "LD - Donald Trump"
-            const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0;
-            const description = section.querySelector(`[data-description-input="${categoryId}"]`)?.value || '';
-            const categoryAbbrevs = { 1: 'LD', 2: '2L', 3: 'FE', 4: 'KD', 5: 'KD', 6: 'WO', 7: 'EX' };
+            // Get talent count from all rows (main + additional lines)
+            let talentCount = 0;
+
+            // Count talent from first row
+            const firstRow = section.querySelector('.talent-input-row');
+            if (firstRow) {
+              talentCount += parseInt(firstRow.querySelector('[name*="talent_count"], .talent-count')?.value) || 0;
+            }
+
+            // Count talent from additional lines
+            const additionalLines = section.querySelectorAll('[data-line-index] .talent-count');
+            additionalLines.forEach(input => {
+              talentCount += parseInt(input.value) || 0;
+            });
+
+            const categoryAbbrevs = { 1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD', 6: 'WO', 7: 'EX' };
             const abbrev = categoryAbbrevs[categoryId] || '';
 
+            // Always show format: "4 LD Lead"
             let displayText = categories[categoryId];
             if (talentCount > 0) {
-              if (description && description.trim()) {
-                displayText = `${abbrev} - ${description}`;
-              } else {
-                displayText = `${talentCount} ${abbrev} ${categories[categoryId]}`;
-              }
+              displayText = `${talentCount} ${abbrev} ${categories[categoryId]}`;
             }
 
             summaryHTML += `
-              <div class="flex justify-between items-center py-1 border-b border-blue-100 last:border-b-0">
-                <span class="text-sm font-medium text-gray-700">${displayText}</span>
-                <span class="text-sm font-semibold text-blue-600">R${categoryTotal.toLocaleString()}</span>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-700">${displayText}</span>
+                <span class="font-semibold text-gray-800">R${categoryTotal.toLocaleString()}</span>
               </div>
             `;
           }
@@ -2094,79 +2107,6 @@ function removeUsageCombination(comboId) {
       if (grandTotalLabel && hasActiveCategories) {
         grandTotalLabel.textContent = 'Talent Summary Total:';
       }
-    }
-  }
-
-  // Fallback function for DOM-based talent summary (original logic for new quotations)
-  function updateTalentSummaryFromDOM() {
-    const categoryTotalsList = document.getElementById('category-totals-list');
-    if (!categoryTotalsList) return;
-
-    const categories = {
-      1: 'Lead',
-      2: 'Second Lead',
-      3: 'Featured Extra',
-      4: 'Teenagers',
-      5: 'Kids',
-      6: 'Walk-on',
-      7: 'Extras'
-    };
-
-    let summaryHTML = '';
-    let grandTotal = 0;
-    let hasActiveCategories = false;
-
-    // Loop through all talent categories in DOM
-    Object.keys(categories).forEach(categoryId => {
-      const section = document.getElementById(`talent-category-${categoryId}`);
-      if (section && !section.classList.contains('hidden')) {
-        const categoryTotalElement = section.querySelector(`#category-total-${categoryId}`);
-
-        if (categoryTotalElement) {
-          const totalText = categoryTotalElement.textContent.replace(/[R,\s]/g, '');
-          const categoryTotal = parseInt(totalText) || 0;
-
-          if (categoryTotal > 0) {
-            hasActiveCategories = true;
-            grandTotal += categoryTotal;
-
-            // Get talent count and format display with description like "LD - Donald Trump"
-            const talentCount = parseInt(section.querySelector(`[data-talent-input="${categoryId}"]`)?.value) || 0;
-            const description = section.querySelector(`[data-description-input="${categoryId}"]`)?.value || '';
-            const categoryAbbrevs = { 1: 'LD', 2: '2L', 3: 'FE', 4: 'KD', 5: 'KD', 6: 'WO', 7: 'EX' };
-            const abbrev = categoryAbbrevs[categoryId] || '';
-
-            let displayText = categories[categoryId];
-            if (talentCount > 0) {
-              if (description && description.trim()) {
-                displayText = `${abbrev} - ${description}`;
-              } else {
-                displayText = `${talentCount} ${abbrev} ${categories[categoryId]}`;
-              }
-            }
-
-            summaryHTML += `
-              <div class="flex justify-between items-center py-1 border-b border-blue-100 last:border-b-0">
-                <span class="text-sm font-medium text-gray-700">${displayText}</span>
-                <span class="text-sm font-semibold text-blue-600">R${categoryTotal.toLocaleString()}</span>
-              </div>
-            `;
-          }
-        }
-      }
-    });
-
-    if (!hasActiveCategories) {
-      summaryHTML = '<div class="text-gray-500 italic text-sm">No talent categories selected</div>';
-      grandTotal = 0;
-    }
-
-    categoryTotalsList.innerHTML = summaryHTML;
-
-    // Update grand total
-    const grandTotalElement = document.getElementById('talent-grand-total');
-    if (grandTotalElement) {
-      grandTotalElement.textContent = `R${grandTotal.toLocaleString()}`;
     }
   }
 

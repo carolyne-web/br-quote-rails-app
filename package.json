@@ -1,0 +1,28 @@
+{
+  "name": "br-quote-rails-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carolyne-web/br-quote-rails-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/carolyne-web/br-quote-rails-app/issues"
+  },
+  "homepage": "https://github.com/carolyne-web/br-quote-rails-app#readme",
+  "dependencies": {
+    "puppeteer": "^24.30.0"
+  }
+}

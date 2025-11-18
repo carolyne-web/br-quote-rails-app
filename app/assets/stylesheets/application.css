@@ -107,3 +107,76 @@
 .quote-preview-table tfoot tr {
   border-top: 2px solid #9ca3af;
 }
+
+/* Print-specific CSS for PDF generation */
+@media print {
+  /* Hide navigation */
+  nav {
+    display: none !important;
+  }
+
+  /* Hide flash messages */
+  div[role="alert"] {
+    display: none !important;
+  }
+
+  /* Hide buttons (Edit Quote, Download PDF, Back to Quotations) */
+  .flex.gap-3 a,
+  .flex.gap-3 button,
+  .flex.gap-4 a,
+  .flex.gap-4 button,
+  a.btn,
+  button.btn {
+    display: none !important;
+  }
+
+  /* Hide action buttons container at top and bottom */
+  div.flex.justify-between.items-center.p-6,
+  div.flex.justify-center.gap-4 {
+    display: none !important;
+  }
+
+  /* Show PDF header only on first page */
+  .pdf-header {
+    display: flex !important;
+  }
+
+  /* Ensure content starts at top on first page */
+  body {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  main {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  /* Remove max-width constraint for PDF */
+  .max-w-7xl {
+    max-width: 100% !important;
+  }
+
+  /* Adjust page margins */
+  @page {
+    margin: 1cm 1.5cm;
+  }
+
+  /* Ensure tables don't break awkwardly */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+}

@@ -6,12 +6,13 @@ class FinalQuotationsController < ApplicationController
   end
 
   def pdf
-    # Generate PDF for final quotation using Prawn
+    # Generate PDF using Prawn
     pdf = FinalQuotationPdf.new(@final_quotation)
+
     send_data pdf.render,
               filename: "quotation_#{@final_quotation.project_number}.pdf",
               type: 'application/pdf',
-              disposition: 'attachment'
+              disposition: 'inline'
   end
 
   def duplicate

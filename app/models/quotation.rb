@@ -22,6 +22,14 @@ class Quotation < ApplicationRecord
   STATUS_OPTIONS = [ "draft", "pending", "under_review", "approved", "rejected", "completed" ].freeze
   validates :status, inclusion: { in: STATUS_OPTIONS }
 
+  PRODUCT_TYPES = [ "adult", "kids", "family" ].freeze
+  validates :product_type, presence: true, inclusion: { in: PRODUCT_TYPES }
+
+  COMMERCIAL_TYPES = [ "brand", "non_brand" ].freeze
+  validates :commercial_type, presence: true, inclusion: { in: COMMERCIAL_TYPES }
+
+  validates :total_amount, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
+
   scope :recent, -> { order(created_at: :desc) }
   scope :needs_attention, -> { where(status: ['pending', 'under_review']) }
   scope :draft, -> { where(status: 'draft') }

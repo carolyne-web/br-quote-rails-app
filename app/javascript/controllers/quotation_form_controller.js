@@ -2480,22 +2480,17 @@ export default class extends Controller {
           const isSelectedInCast = !hasCastSelectionFeature || selectedCastFilter.has(lineKey)
 
           if (isSelectedInCast) {
-            // Format description with category abbreviation if description exists
-            // Check if description already has the prefix to avoid duplication
+            // Use description as-is without adding abbreviation prefix
             const trimmedDescription = description.trim()
-            const formattedDescription = trimmedDescription
-              ? (trimmedDescription.startsWith(`${categoryAbbr} - `)
-                 ? trimmedDescription
-                 : `${categoryAbbr} - ${trimmedDescription}`)
-              : categoryName
+            const finalDescription = trimmedDescription || categoryName
 
             lines.push({
-              description: formattedDescription,
+              description: finalDescription,
               adjustedRate: parseFloat(rate) || 0,
               dailyRate: parseFloat(rate) || 0,
               initialCount: parseInt(count) || 0
             })
-            console.log(`✅ Including talent: ${formattedDescription} (${lineKey}) for combo ${comboId}`)
+            console.log(`✅ Including talent: ${finalDescription} (${lineKey}) for combo ${comboId}`)
           } else {
             console.log(`🚫 Skipping talent: ${description || categoryName} (${lineKey}) - not selected in cast for combo ${comboId}`)
           }
@@ -6520,11 +6515,12 @@ export default class extends Controller {
               console.log(`✅ Set commercial count for category ${categoryId}, line ${lineIndex}: ${lineData.commercial_count}`)
             }
 
-            // Populate description
+            // Populate description (strip category prefix like "LD - ")
             const descriptionField = document.querySelector(`input[name="talent[${categoryId}][description]"]`)
             if (descriptionField && lineData.description) {
-              descriptionField.value = lineData.description
-              console.log(`✅ Set description for category ${categoryId}: ${lineData.description}`)
+              const cleanDescription = lineData.description.replace(/^[A-Z0-9]+ - /, '')
+              descriptionField.value = cleanDescription
+              console.log(`✅ Set description for category ${categoryId}: ${cleanDescription}`)
             }
           })
         })
@@ -7281,6 +7277,21 @@ export default class extends Controller {
 
     console.log('✅ Talent parameters populated from stored data')
 
+    // Hide all talent categories - they should only show when user clicks a button
+    const visibleCategories = document.querySelectorAll('.talent-category-section:not(.hidden)')
+    if (visibleCategories.length > 0) {
+      console.log(`👁️ Found ${visibleCategories.length} visible categories, hiding all until user clicks`)
+      visibleCategories.forEach((section) => {
+        section.classList.add('hidden')
+      })
+
+      // Ensure all talent buttons are in inactive state
+      document.querySelectorAll('.talent-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500')
+        btn.classList.add('border-gray-300', 'hover:bg-blue-50')
+      })
+    }
+
     // Also trigger talent summary update to include the newly calculated totals
     setTimeout(() => {
       if (typeof window.updateTalentSummary === 'function') {
@@ -7303,7 +7314,10 @@ export default class extends Controller {
     }
 
     Object.entries(fields).forEach(([fieldName, value]) => {
-      const fieldSelector = `input[name="talent[${categoryId}][${fieldName}]"], [data-${fieldName.replace('_', '-')}-input="${categoryId}"]`
+      // Map shoot_days to days_count for the HTML field name
+      const htmlFieldName = fieldName === 'shoot_days' ? 'days_count' : fieldName
+      const dataAttr = fieldName === 'shoot_days' ? 'days' : fieldName.replace('_', '-')
+      const fieldSelector = `input[name="talent[${categoryId}][${htmlFieldName}]"], [data-${dataAttr}-input="${categoryId}"]`
       const field = document.querySelector(fieldSelector)
 
       if (field) {
@@ -7353,8 +7367,10 @@ export default class extends Controller {
 
       const descriptionField = document.querySelector(`[data-description-input="${categoryId}"]`)
       if (descriptionField && talentInfo.description) {
-        descriptionField.value = talentInfo.description
-        console.log(`✅ Set description for category ${categoryId}: ${talentInfo.description}`)
+        // Strip category prefix like "LD - " from description
+        const cleanDescription = talentInfo.description.replace(/^[A-Z0-9]+ - /, '')
+        descriptionField.value = cleanDescription
+        console.log(`✅ Set description for category ${categoryId}: ${cleanDescription}`)
       }
     }
   }

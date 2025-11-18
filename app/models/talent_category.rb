@@ -11,13 +11,25 @@ class TalentCategory < ApplicationRecord
   # Define category types as constants
   TYPES = {
     1 => "Lead",
-    2 => "Second Lead", 
+    2 => "Second Lead",
     3 => "Featured Extra",
     4 => "Teenager",
     5 => "Kid",
     6 => "Walk-on",
     7 => "Extras"
   }.freeze
+
+  # Validations
+  validates :category_type, presence: true,
+            inclusion: { in: TYPES.keys, message: "must be a valid talent category type (1-7)" }
+  validates :initial_count, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
+  validates :adjusted_rate, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
+  validates :daily_rate, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
+  validates :shoot_days, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
+  validates :overtime_hours, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
+  validates :rehearsal_days, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
+  validates :down_days, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
+  validates :travel_days, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
 
   def display_name
     TYPES[category_type] || "Unknown"

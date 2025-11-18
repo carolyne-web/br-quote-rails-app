@@ -137,8 +137,19 @@ class QuotationsController < ApplicationController
   def update
     if @quotation.update(quotation_params)
       # Process talent categories, territories, etc. (reuse existing logic from create)
-      process_talent_categories
-      process_territories
+      begin
+        process_talent_categories
+        process_territories
+      rescue ActiveRecord::RecordInvalid => e
+        # If talent categories or territories fail validation, log the error
+        Rails.logger.error "❌ Failed to process talent categories or territories: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+
+        load_form_data
+        flash.now[:alert] = "Failed to update quotation: #{e.record.errors.full_messages.join(', ')}"
+        render :edit, status: :unprocessable_entity
+        return
+      end
 
       # Extract guarantee, exclusivity, and commercials data (same logic as create)
       if params[:combinations].present?
@@ -237,8 +248,20 @@ class QuotationsController < ApplicationController
         @quotation.quotation_detail.update(selected_media_types: media_types)
       end
 
-      process_talent_categories
-      process_territories
+      begin
+        process_talent_categories
+        process_territories
+      rescue ActiveRecord::RecordInvalid => e
+        # If talent categories or territories fail validation, rollback the quotation
+        @quotation.destroy
+        Rails.logger.error "❌ Failed to process talent categories or territories: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+
+        load_form_data
+        flash.now[:alert] = "Failed to save quotation: #{e.record.errors.full_messages.join(', ')}"
+        render :new, status: :unprocessable_entity
+        return
+      end
 
       # Check if any combination has guarantee enabled and extract exclusivity/comms data
       if params[:combinations].present?
@@ -494,6 +517,9 @@ class QuotationsController < ApplicationController
   def process_talent_categories
     return unless params[:talent]
 
+    # Clear existing talent categories to avoid duplicates and ensure clean slate
+    @quotation.talent_categories.destroy_all
+
     params[:talent].each do |category_id, category_data|
       # Handle the current form structure: talent[category_id][field_name]
       description = category_data[:description]
@@ -528,13 +554,9 @@ class QuotationsController < ApplicationController
       next if talent_count == 0 && adjusted_rate == 0 && description.blank?
 
 
-      # Create or find talent category
-      talent_category = @quotation.talent_categories.find_or_create_by(
-        category_type: category_id
-      )
-
-      # Update talent category fields including all talent parameters
-      talent_category.update!(
+      # Create talent category (we've already cleared existing ones above)
+      talent_category = @quotation.talent_categories.create!(
+        category_type: category_id,
         description: description,
         adjusted_rate: adjusted_rate,
         initial_count: talent_count,
@@ -545,9 +567,6 @@ class QuotationsController < ApplicationController
         travel_days: travel_days,
         night_premium: night_premium
       )
-
-      # Clear existing day_on_sets and create new one
-      talent_category.day_on_sets.destroy_all
 
       # Create day_on_sets entry if we have talent count
       if talent_count > 0
