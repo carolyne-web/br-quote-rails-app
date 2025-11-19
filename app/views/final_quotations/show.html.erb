@@ -12,7 +12,7 @@
   }
 </style>
 
-<div class="max-w-7xl mx-auto p-6" data-final-quotation-id="<%= @final_quotation.id %>">
+<div class="max-w-7xl mx-auto p-6" data-final-quotation-id="<%= @final_quotation.id %>" data-controller="currency-toggle">
   <!-- PDF-only Header (hidden on web, shown only in PDF) -->
   <div class="pdf-header hidden print:flex justify-between items-center mb-8 pb-4 border-b border-gray-200">
     <div class="flex items-center">
@@ -31,16 +31,35 @@
       <p class="text-2xl text-gray-900 font-semibold">Quote #<%= @final_quotation.project_number %></p>
     </div>
 
-    <div class="flex flex-wrap gap-3">
+    <div class="flex flex-wrap gap-3 items-center">
+      <!-- Currency Selector -->
+      <div class="flex items-center gap-2">
+        <label for="currency-select" class="text-sm font-medium text-gray-700">Currency:</label>
+        <select id="currency-select"
+                data-currency-toggle-target="selector"
+                data-action="change->currency-toggle#change"
+                class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
+          <option value="ZAR" selected>ZAR (R)</option>
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="GBP">GBP (£)</option>
+        </select>
+      </div>
+
       <%= link_to edit_quotation_path(@final_quotation.quotation, edit_from: @final_quotation.id), class: "flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2 px-4 text-white text-sm font-medium leading-normal hover:opacity-90 transition-opacity", style: "background-color: #1173D4;" do %>
         <span class="material-symbols-outlined mr-2">edit</span>
         <span class="truncate">Edit Quote</span>
       <% end %>
 
-      <%= link_to pdf_final_quotation_path(@final_quotation), class: "flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2.5 px-4 bg-gray-200 text-gray-900 text-sm font-medium leading-normal hover:bg-gray-300 transition-colors", target: "_blank" do %>
+      <a href="<%= pdf_final_quotation_path(@final_quotation) %>"
+         id="pdf-download-link"
+         data-currency-toggle-target="pdfLink"
+         data-base-url="<%= pdf_final_quotation_path(@final_quotation) %>"
+         class="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg py-2.5 px-4 bg-gray-200 text-gray-900 text-sm font-medium leading-normal hover:bg-gray-300 transition-colors"
+         target="_blank">
         <span class="material-symbols-outlined mr-2">download</span>
         <span class="truncate">Download PDF</span>
-      <% end %>
+      </a>
     </div>
   </div>
 
@@ -106,7 +125,7 @@
                         <%= talent_line.talent_count %>
                       </td>
                       <td class="px-4 py-3 text-sm text-right text-gray-700 border-b">
-                        R<%= number_with_delimiter(talent_line.adjusted_rate.to_i) %>
+                        <span data-currency-toggle-target="amount" data-base-amount="<%= talent_line.adjusted_rate.to_i %>">R<%= number_with_delimiter(talent_line.adjusted_rate.to_i) %></span>
                       </td>
                       <td class="px-4 py-3 text-sm text-center text-gray-700 border-b">
                         <%= talent_line.shoot_days %>
@@ -133,7 +152,7 @@
                         <% end %>
                       </td>
                       <td class="px-4 py-3 text-sm text-right font-semibold text-green-600 border-b">
-                        R<%= number_with_delimiter(talent_line.total_talent_fee) %>
+                        <span data-currency-toggle-target="amount" data-base-amount="<%= talent_line.total_talent_fee %>">R<%= number_with_delimiter(talent_line.total_talent_fee) %></span>
                       </td>
                     </tr>
                 <% end %>
@@ -146,7 +165,7 @@
                   <td class="px-4 py-3 text-sm font-bold text-green-600 text-right border-t">
                     <% # Sum from all unique talent lines displayed in summary %>
                     <% talent_summary_total = unique_talent_lines.sum(&:total_talent_fee) %>
-                    R<%= number_with_delimiter(talent_summary_total) %>
+                    <span data-currency-toggle-target="amount" data-base-amount="<%= talent_summary_total %>">R<%= number_with_delimiter(talent_summary_total) %></span>
                   </td>
                 </tr>
               </tfoot>
@@ -230,7 +249,7 @@
                   <% group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.each do |line| %>
                     <tr class="border-b">
                       <td class="px-3 py-2 border"><%= line.description %></td>
-                      <td class="px-3 py-2 text-right border">R<%= number_with_delimiter(line.adjusted_rate.to_i) %></td>
+                      <td class="px-3 py-2 text-right border"><span data-currency-toggle-target="amount" data-base-amount="<%= line.adjusted_rate.to_i %>">R<%= number_with_delimiter(line.adjusted_rate.to_i) %></span></td>
                       <td class="px-3 py-2 text-right border"><%= line.talent_count %></td>
                       <td class="px-3 py-2 text-center border">
                         <% if line.exclusivity_type.present? %>
@@ -257,8 +276,8 @@
                         %>
                         <%= number_with_precision(display_percentage, precision: 1) %>%
                       </td>
-                      <td class="px-3 py-2 text-right border">R<%= number_with_delimiter(line.per_talent_amount || (line.total_line_cost / line.talent_count)) %></td>
-                      <td class="px-3 py-2 text-right border font-medium">R<%= number_with_delimiter(line.total_line_cost) %></td>
+                      <td class="px-3 py-2 text-right border"><span data-currency-toggle-target="amount" data-base-amount="<%= line.per_talent_amount || (line.total_line_cost / line.talent_count) %>">R<%= number_with_delimiter(line.per_talent_amount || (line.total_line_cost / line.talent_count)) %></span></td>
+                      <td class="px-3 py-2 text-right border font-medium"><span data-currency-toggle-target="amount" data-base-amount="<%= line.total_line_cost %>">R<%= number_with_delimiter(line.total_line_cost) %></span></td>
                     </tr>
                   <% end %>
                 </tbody>
@@ -278,7 +297,7 @@
                         -
                       </td>
                       <td class="px-3 py-2 text-sm font-bold text-red-700 text-right border-t">
-                        -R<%= number_with_delimiter(savings.round(2)) %>
+                        -<span data-currency-toggle-target="amount" data-base-amount="<%= savings.round(2) %>">R<%= number_with_delimiter(savings.round(2)) %></span>
                       </td>
                     </tr>
                   <% end %>
@@ -290,7 +309,7 @@
                       -
                     </td>
                     <td class="px-3 py-2 text-sm font-bold text-blue-600 text-right border-t">
-                      R<%= number_with_delimiter(group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost)) %>
+                      <span data-currency-toggle-target="amount" data-base-amount="<%= group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost) %>">R<%= number_with_delimiter(group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost)) %></span>
                     </td>
                   </tr>
                 </tfoot>
@@ -355,13 +374,13 @@
             grand_total = talent_summary_total_for_grand + all_group_totals
           %>
           <div class="text-sm text-gray-600 mb-2">
-            Talent Summary Total: <span class="font-medium">R<%= number_with_delimiter(talent_summary_total_for_grand) %></span>
+            Talent Summary Total: <span class="font-medium" data-currency-toggle-target="amount" data-base-amount="<%= talent_summary_total_for_grand %>">R<%= number_with_delimiter(talent_summary_total_for_grand) %></span>
           </div>
           <div class="text-sm text-gray-600 mb-2">
-            All Group Totals: <span class="font-medium">R<%= number_with_delimiter(all_group_totals) %></span>
+            All Group Totals: <span class="font-medium" data-currency-toggle-target="amount" data-base-amount="<%= all_group_totals %>">R<%= number_with_delimiter(all_group_totals) %></span>
           </div>
           <div class="text-2xl font-bold text-green-600 border-t pt-2">
-            R<%= number_with_delimiter(grand_total) %>
+            <span data-currency-toggle-target="amount" data-base-amount="<%= grand_total %>">R<%= number_with_delimiter(grand_total) %></span>
           </div>
         </div>
       </div>

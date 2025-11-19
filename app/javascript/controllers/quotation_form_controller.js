@@ -2160,7 +2160,7 @@ export default class extends Controller {
         const unit = parseInt(line.initialCount || 0)
 
         // Get exclusivities that apply to this talent category
-        const categoryId = this.getCategoryIdFromDescription(line.description || category.name)
+        const categoryId = category.id
         console.log(`🔍 Processing line ${categoryId}_${lineIndex}: ${line.description || category.name}`)
         const categoryExclusivities = this.getExclusivitiesForCategory(comboId, categoryId)
 
@@ -2234,7 +2234,7 @@ export default class extends Controller {
         }).join('')
 
         rows.push(`
-          <tr class="border-b border-gray-200">
+          <tr class="border-b border-gray-200" data-category-id="${categoryId}" data-line-index="${lineIndex}">
             <td class="py-2 px-3 text-sm text-gray-900 border-r border-gray-300">${line.description || category.name}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(dayFee)}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">${unit}</td>
@@ -2499,6 +2499,7 @@ export default class extends Controller {
       
       if (lines.length > 0) {
         categories.push({
+          id: categoryIdNum,
           name: categoryName,
           lines: lines
         })
@@ -2828,17 +2829,31 @@ export default class extends Controller {
     // IMPORTANT: Only get exclusivities that were specifically added to THIS combo
     const exclusivities = (window.exclusivityData && window.exclusivityData[comboId]) || []
 
-    return exclusivities.filter(ex => {
+    console.log(`🔍 getExclusivitiesForCategory - Combo: ${comboId}, Category: ${categoryId} (type: ${typeof categoryId})`)
+    console.log(`🔍 Total exclusivities for combo ${comboId}:`, exclusivities.length, exclusivities)
+
+    const filtered = exclusivities.filter(ex => {
       // Skip line-specific exclusivities (they are handled separately)
-      if (ex.isLineSpecific) return false
+      if (ex.isLineSpecific) {
+        console.log(`  ⏭️ Skipping line-specific exclusivity: ${ex.name}`)
+        return false
+      }
 
       // Only apply if this category is explicitly included in the exclusivity's target categories
       // If no categories specified, do NOT apply to all (changed from previous behavior)
-      if (!ex.categories || ex.categories.length === 0) return false
+      if (!ex.categories || ex.categories.length === 0) {
+        console.log(`  ⏭️ Skipping exclusivity with no categories: ${ex.name}`)
+        return false
+      }
 
       // Check if this category is in the exclusivity's target categories
-      return ex.categories.includes(categoryId)
+      const includes = ex.categories.includes(categoryId)
+      console.log(`  ${includes ? '✅' : '❌'} Exclusivity "${ex.name}" categories:`, ex.categories, `includes ${categoryId}? ${includes}`)
+      return includes
     })
+
+    console.log(`🔍 Returning ${filtered.length} exclusivities for category ${categoryId}:`, filtered)
+    return filtered
   }
 
   getExclusivitiesForSpecificLine(comboId, categoryId, lineIndex) {
@@ -4214,7 +4229,10 @@ export default class extends Controller {
     // Store the updated exclusivities (this replaces the list with what's in the modal)
     if (!window.exclusivityData) window.exclusivityData = {}
     window.exclusivityData[comboId] = newExclusivities
-    
+
+    console.log(`💾 SAVED ${newExclusivities.length} exclusivities to window.exclusivityData[${comboId}]:`, newExclusivities)
+    console.log(`💾 Full window.exclusivityData:`, window.exclusivityData)
+
     // Update the exclusivity tags in the quote preview
     this.updateExclusivityTags(comboId, newExclusivities)
     
@@ -4733,8 +4751,9 @@ export default class extends Controller {
         const perTalentText = cells[6]?.textContent?.replace(/[R,\s]/g, '')
         const totalText = cells[7]?.textContent?.replace(/[R,\s]/g, '')
 
-        // Find category and line info from the row structure
-        const categoryId = this.getCategoryIdFromDescription(talentDescription || '')
+        // Get category and line info from row dataset attributes
+        const categoryId = row.dataset.categoryId
+        const lineIndex = parseInt(row.dataset.lineIndex) || 0
 
         if (!categoryId || !dayFeeText || !unitCount) {
           console.log(`⚠️  Skipping row for ${talentDescription}: categoryId=${categoryId}, dayFee=${dayFeeText}, unit=${unitCount}`)
@@ -4746,11 +4765,6 @@ export default class extends Controller {
         const buyoutPercentage = parseFloat(buyoutPercentageText) || 0
         const perTalent = parseFloat(perTalentText) || 0
         const total = parseFloat(totalText) || 0
-
-        // Check for line index (for additional talent lines)
-        const isAdditionalLine = row.querySelector('.commercial-count-input')
-        const lineIndex = isAdditionalLine ?
-          parseInt(isAdditionalLine.dataset.line) || 0 : 0
 
         console.log(`📊 Combo ${comboId}, Category ${categoryId}, Line ${lineIndex}: ${talentDescription}`)
         console.log(`   Day Fee: R${dayFee}, Unit: ${unit}, Buyout: ${buyoutPercentage}%, Per Talent: R${perTalent}, Total: R${total}`)
@@ -4944,7 +4958,9 @@ export default class extends Controller {
         calculated_values: calculatedValues,
         num_commercials: parseInt(numCommercials),
         exclusivities: [],
-        is_guaranteed: false
+        is_guaranteed: false,
+        unlimited_stills: "0",
+        unlimited_versions: "0"
       }
 
       console.log(`📊 After assignment, combinationsData[${comboId}]:`, combinationsData[comboId])
@@ -4953,6 +4969,20 @@ export default class extends Controller {
       const guaranteeCheckbox = table.querySelector(`.guarantee-checkbox[data-combo="${comboId}"]`)
       if (guaranteeCheckbox && guaranteeCheckbox.checked) {
         combinationsData[comboId].is_guaranteed = true
+      }
+
+      // Get unlimited stills state
+      const unlimitedStillsCheckbox = document.querySelector(`input[name="combinations[${comboId}][unlimited_stills]"]:checked`)
+      if (unlimitedStillsCheckbox) {
+        combinationsData[comboId].unlimited_stills = "1"
+        console.log(`✅ Collected unlimited_stills for combo ${comboId}: 1`)
+      }
+
+      // Get unlimited versions state
+      const unlimitedVersionsCheckbox = document.querySelector(`input[name="combinations[${comboId}][unlimited_versions]"]:checked`)
+      if (unlimitedVersionsCheckbox) {
+        combinationsData[comboId].unlimited_versions = "1"
+        console.log(`✅ Collected unlimited_versions for combo ${comboId}: 1`)
       }
 
       console.log(`📊 Collected data for combo ${comboId}:`, combinationsData[comboId])
@@ -5142,6 +5172,60 @@ export default class extends Controller {
       }
     })
 
+    // Add event listeners for cast selection bulk action buttons
+    document.addEventListener('click', (e) => {
+      // Select All button
+      if (e.target.classList.contains('cast-select-all-btn')) {
+        e.preventDefault()
+        e.stopPropagation()
+        const comboId = e.target.dataset.combo
+        console.log('🔵 Select All clicked for combo:', comboId)
+        const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
+        if (container) {
+          const checkboxes = container.querySelectorAll('.cast-selection-checkbox')
+          console.log('🔍 Selecting', checkboxes.length, 'checkboxes')
+          checkboxes.forEach(checkbox => {
+            checkbox.checked = true
+          })
+          this.updateQuotePreview()
+        }
+      }
+
+      // Deselect All button
+      if (e.target.classList.contains('cast-deselect-all-btn')) {
+        e.preventDefault()
+        e.stopPropagation()
+        const comboId = e.target.dataset.combo
+        console.log('⚪ Deselect All clicked for combo:', comboId)
+        const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
+        if (container) {
+          const checkboxes = container.querySelectorAll('.cast-selection-checkbox')
+          console.log('🔍 Deselecting', checkboxes.length, 'checkboxes')
+          checkboxes.forEach(checkbox => {
+            checkbox.checked = false
+          })
+          this.updateQuotePreview()
+        }
+      }
+
+      // Invert Selection button
+      if (e.target.classList.contains('cast-invert-selection-btn')) {
+        e.preventDefault()
+        e.stopPropagation()
+        const comboId = e.target.dataset.combo
+        console.log('🔄 Invert Selection clicked for combo:', comboId)
+        const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
+        if (container) {
+          const checkboxes = container.querySelectorAll('.cast-selection-checkbox')
+          console.log('🔍 Inverting', checkboxes.length, 'checkboxes')
+          checkboxes.forEach(checkbox => {
+            checkbox.checked = !checkbox.checked
+          })
+          this.updateQuotePreview()
+        }
+      }
+    })
+
     // Initial population
     setTimeout(() => this.updateCastSelection(), 500)
   }
@@ -5279,7 +5363,8 @@ export default class extends Controller {
 
           castList.innerHTML = castHTML
 
-          // Restore previous selections
+          // Restore previously selected checkboxes for all groups
+          // Users must manually select which talent to include in each group
           existingSelections.forEach(value => {
             const checkbox = castList.querySelector(`input[value="${value}"]`)
             if (checkbox) {
@@ -5419,8 +5504,8 @@ export default class extends Controller {
 
   submitFormViaAjax(form) {
     console.log('🚀 submitFormViaAjax called')
-    const previewBtn = document.getElementById('preview-quote-btn')
-    console.log('🔍 Preview button found:', previewBtn)
+    const previewBtn = document.getElementById('preview-quote-btn') || document.getElementById('generate-quote-btn')
+    console.log('🔍 Preview/Generate button found:', previewBtn)
 
     // Prevent double submission
     if (previewBtn && (previewBtn.disabled || previewBtn.dataset.processing === 'true')) {
@@ -5430,20 +5515,26 @@ export default class extends Controller {
 
     // Show loading state with enhanced visual feedback
     if (previewBtn) {
-      console.log('🔄 Setting loading state on preview button')
+      console.log('🔄 Setting loading state on button')
       previewBtn.disabled = true
       previewBtn.dataset.processing = 'true'
 
-      // Add visual loading indicator with spinner
-      previewBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generating Preview...'
+      // Handle different button types (submit input vs button)
+      if (previewBtn.tagName === 'INPUT') {
+        // For submit input, change the value
+        previewBtn.value = 'Generating...'
+      } else {
+        // For button element, change innerHTML with spinner
+        previewBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generating Preview...'
+      }
 
       // Also change button background to indicate processing
       previewBtn.classList.add('opacity-75', 'cursor-wait')
       previewBtn.classList.remove('hover:bg-blue-700')
 
-      console.log('✅ Enhanced loading state set - disabled:', previewBtn.disabled, 'innerHTML contains spinner:', previewBtn.innerHTML.includes('animate-spin'))
+      console.log('✅ Enhanced loading state set - disabled:', previewBtn.disabled)
     } else {
-      console.error('❌ Preview button not found with ID: preview-quote-btn')
+      console.error('❌ Button not found with ID: preview-quote-btn or generate-quote-btn')
     }
 
     // Prepare form data
@@ -5512,20 +5603,26 @@ export default class extends Controller {
     .finally(() => {
       console.log('🔄 Form submission completed, resetting button state')
       // Reset button state (only if button still exists after page replacement)
-      const currentBtn = document.getElementById('preview-quote-btn')
+      const currentBtn = document.getElementById('preview-quote-btn') || document.getElementById('generate-quote-btn')
       if (currentBtn) {
-        console.log('🔄 Resetting preview button state')
+        console.log('🔄 Resetting button state')
         currentBtn.disabled = false
         currentBtn.dataset.processing = 'false'
-        currentBtn.innerHTML = 'Preview Quote'
+
+        // Reset button text based on which button it is
+        if (currentBtn.id === 'generate-quote-btn') {
+          currentBtn.value = 'Generate Quote'
+        } else {
+          currentBtn.innerHTML = 'Preview Quote'
+        }
 
         // Restore original button styling
         currentBtn.classList.remove('opacity-75', 'cursor-wait')
         currentBtn.classList.add('hover:bg-blue-700')
 
-        console.log('✅ Button state reset - disabled:', currentBtn.disabled, 'innerHTML:', currentBtn.innerHTML)
+        console.log('✅ Button state reset - disabled:', currentBtn.disabled)
       } else {
-        console.log('ℹ️ Preview button not found after submission (likely page replaced)')
+        console.log('ℹ️ Button not found after submission (likely page replaced)')
       }
     })
   }
@@ -6760,6 +6857,30 @@ export default class extends Controller {
         console.log(`⚠️ Guarantee checkbox not found for Group ${groupNumber}`)
         // Try to find it by searching within the group content
         this.searchAndSetGuaranteeCheckbox(groupNumber)
+      }
+    }
+
+    // Set unlimited stills
+    if (comboData.unlimited_stills) {
+      const unlimitedStillsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_stills]"]`)
+      if (unlimitedStillsCheckbox) {
+        unlimitedStillsCheckbox.checked = true
+        unlimitedStillsCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log(`✅ Set unlimited stills for Group ${groupNumber}`)
+      } else {
+        console.log(`⚠️ Unlimited stills checkbox not found for Group ${groupNumber}`)
+      }
+    }
+
+    // Set unlimited versions
+    if (comboData.unlimited_versions) {
+      const unlimitedVersionsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_versions]"]`)
+      if (unlimitedVersionsCheckbox) {
+        unlimitedVersionsCheckbox.checked = true
+        unlimitedVersionsCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log(`✅ Set unlimited versions for Group ${groupNumber}`)
+      } else {
+        console.log(`⚠️ Unlimited versions checkbox not found for Group ${groupNumber}`)
       }
     }
   }

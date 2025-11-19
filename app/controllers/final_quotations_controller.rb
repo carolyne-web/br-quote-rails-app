@@ -6,11 +6,14 @@ class FinalQuotationsController < ApplicationController
   end
 
   def pdf
-    # Generate PDF using Prawn
-    pdf = FinalQuotationPdf.new(@final_quotation)
+    # Get currency from params, default to ZAR
+    currency = params[:currency] || 'ZAR'
+
+    # Generate PDF using Prawn with selected currency
+    pdf = FinalQuotationPdf.new(@final_quotation, currency)
 
     send_data pdf.render,
-              filename: "quotation_#{@final_quotation.project_number}.pdf",
+              filename: "quotation_#{@final_quotation.project_number}_#{currency}.pdf",
               type: 'application/pdf',
               disposition: 'inline'
   end

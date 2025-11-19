@@ -602,9 +602,20 @@ class FinalQuotationGenerator
             dos.description.to_s.strip == actual_description
           end
 
+          # Fallback: if no match by description, try matching by line_index
           if day_on_set.nil?
-            Rails.logger.warn "❌ Could not find day_on_set for description: '#{actual_description}' in category #{category_id}"
-            next
+            if category.day_on_sets.count == 1 && lines_data.count == 1
+              # Auto-match if only 1 line exists
+              day_on_set = category.day_on_sets.first
+              Rails.logger.info "✅ Auto-matched single line for category #{category_id} (empty description)"
+            elsif category.day_on_sets[line_index.to_i].present?
+              # Match by line_index
+              day_on_set = category.day_on_sets[line_index.to_i]
+              Rails.logger.info "✅ Matched by line_index #{line_index} for category #{category_id}"
+            else
+              Rails.logger.error "❌ Could not find day_on_set for description: '#{actual_description}' or line_index #{line_index} in category #{category_id}"
+              next
+            end
           end
 
           # Get the actual line index for this day_on_set
@@ -657,6 +668,16 @@ class FinalQuotationGenerator
               line_calculated = calc_data
               break
             end
+          end
+
+          # Fallback: if no match by description and only 1 line exists, match by line_index
+          if line_calculated.nil? && category.day_on_sets.count == 1 && category_calculated.count == 1
+            line_calculated = category_calculated.values.first
+            Rails.logger.info "✅ Group 1: Auto-matched single line for category #{category.category_type} (empty description)"
+          elsif line_calculated.nil? && category_calculated[line_index.to_s].present?
+            # Fallback: match by line_index
+            line_calculated = category_calculated[line_index.to_s]
+            Rails.logger.info "✅ Group 1: Matched by line_index #{line_index} for category #{category.category_type}"
           end
         end
 

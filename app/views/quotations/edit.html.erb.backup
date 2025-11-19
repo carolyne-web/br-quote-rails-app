@@ -367,7 +367,7 @@
                   <label class="block text-sm font-medium text-gray-600 mb-3">Cast Selection</label>
                   <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <div class="cast-selection-container" data-combo="1">
-                      <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this pricing group:</p>
+                      <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this group:</p>
                       <div class="cast-selection-list space-y-2">
                         <!-- Cast options will be populated here by JavaScript -->
                       </div>
@@ -1097,7 +1097,7 @@ function removeUsageCombination(comboId) {
           <label class="block text-sm font-medium text-gray-600 mb-3">Cast Selection</label>
           <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <div class="cast-selection-container" data-combo="${comboId}">
-              <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this pricing group:</p>
+              <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this group:</p>
               <div class="cast-selection-list space-y-2">
                 <!-- Cast options will be populated here by JavaScript -->
               </div>

@@ -62,7 +62,7 @@
           <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Campaign Information</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Quote Preview</li>
+          <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Usage Summary</li>
         </ul>
       </div>
       <div class="border-t pt-4 flex-shrink-0 hidden">
@@ -367,7 +367,14 @@
                   <label class="block text-sm font-medium text-gray-600 mb-3">Cast Selection</label>
                   <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <div class="cast-selection-container" data-combo="1">
-                      <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this pricing group:</p>
+                      <div class="flex items-center justify-between mb-3">
+                        <p class="text-sm text-gray-500">Select which talent should be included in this group:</p>
+                        <div class="flex gap-2">
+                          <button type="button" class="cast-select-all-btn px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors" data-combo="1">Select All</button>
+                          <button type="button" class="cast-deselect-all-btn px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors" data-combo="1">Deselect All</button>
+                          <button type="button" class="cast-invert-selection-btn px-2 py-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 rounded transition-colors" data-combo="1">Invert</button>
+                        </div>
+                      </div>
                       <div class="cast-selection-list space-y-2">
                         <!-- Cast options will be populated here by JavaScript -->
                       </div>
@@ -520,10 +527,10 @@
         </div>
       </section>
 
-      <!-- Quote Preview -->
+      <!-- Usage Summary -->
       <section id="guarantee" class="bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold mb-4">Quote Preview</h3>
+          <h3 class="text-lg font-semibold mb-4">Usage Summary</h3>
         <span class="text-sm text-gray-400">Step 4 of 4</span>
         </div>
         
@@ -583,6 +590,19 @@
 
 </div>
 
+<!-- Loading Overlay -->
+<div id="quote-loading-overlay" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg p-8 max-w-md mx-4 text-center shadow-xl">
+    <div class="mb-4">
+      <svg class="animate-spin h-16 w-16 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </div>
+    <h3 class="text-xl font-semibold text-gray-900 mb-2">Generating Quote...</h3>
+    <p class="text-gray-600">Please wait while we process your quotation.</p>
+  </div>
+</div>
 
 <script>
 // Prevent script conflicts during Turbo navigation
@@ -1106,7 +1126,14 @@ function removeUsageCombination(comboId) {
           <label class="block text-sm font-medium text-gray-600 mb-3">Cast Selection</label>
           <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <div class="cast-selection-container" data-combo="${comboId}">
-              <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this pricing group:</p>
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm text-gray-500">Select which talent should be included in this group:</p>
+                <div class="flex gap-2">
+                  <button type="button" class="cast-select-all-btn px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors" data-combo="${comboId}">Select All</button>
+                  <button type="button" class="cast-deselect-all-btn px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors" data-combo="${comboId}">Deselect All</button>
+                  <button type="button" class="cast-invert-selection-btn px-2 py-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 rounded transition-colors" data-combo="${comboId}">Invert</button>
+                </div>
+              </div>
               <div class="cast-selection-list space-y-2">
                 <!-- Cast options will be populated here by JavaScript -->
               </div>
@@ -2262,15 +2289,6 @@ function removeUsageCombination(comboId) {
     }
   });
 
-  // Add event delegation for cast selection checkboxes
-  document.addEventListener('change', function(e) {
-    if (e.target.classList.contains('cast-selection-checkbox')) {
-      console.log('🎭 Cast selection changed:', e.target.checked, e.target.value);
-      if (typeof updateQuotePreview === 'function') {
-        updateQuotePreview();
-      }
-    }
-  });
 
   // More aggressive talent input detection - catch ALL inputs
   document.addEventListener('input', function(e) {
@@ -2503,6 +2521,55 @@ document.addEventListener('turbo:load', setupQuotePreview);
 // Auto-populate form when page loads
 document.addEventListener('DOMContentLoaded', populateFormFromStoredData);
 document.addEventListener('turbo:load', populateFormFromStoredData);
+
+// Add generating indicator to Generate Quote button with overlay
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('form[action*="/quotations"]');
+  const generateBtn = document.getElementById('generate-quote-btn');
+  const loadingOverlay = document.getElementById('quote-loading-overlay');
+
+  if (form && generateBtn) {
+    form.addEventListener('submit', function(e) {
+      // Only show generating if this is a quote generation (not draft save)
+      if (e.submitter && e.submitter.id === 'generate-quote-btn') {
+        // Show loading overlay
+        if (loadingOverlay) {
+          loadingOverlay.classList.remove('hidden');
+        }
+
+        // Update button state
+        generateBtn.disabled = true;
+        generateBtn.value = 'Generating...';
+        generateBtn.classList.add('opacity-75', 'cursor-not-allowed');
+        console.log('🔄 Generating quote...');
+      }
+    });
+  }
+});
+
+document.addEventListener('turbo:load', function() {
+  const form = document.querySelector('form[action*="/quotations"]');
+  const generateBtn = document.getElementById('generate-quote-btn');
+  const loadingOverlay = document.getElementById('quote-loading-overlay');
+
+  if (form && generateBtn) {
+    form.addEventListener('submit', function(e) {
+      // Only show generating if this is a quote generation (not draft save)
+      if (e.submitter && e.submitter.id === 'generate-quote-btn') {
+        // Show loading overlay
+        if (loadingOverlay) {
+          loadingOverlay.classList.remove('hidden');
+        }
+
+        // Update button state
+        generateBtn.disabled = true;
+        generateBtn.value = 'Generating...';
+        generateBtn.classList.add('opacity-75', 'cursor-not-allowed');
+        console.log('🔄 Generating quote...');
+      }
+    });
+  }
+});
 
 } // End of script loading check
 

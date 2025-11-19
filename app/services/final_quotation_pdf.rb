@@ -1,9 +1,14 @@
 # app/services/final_quotation_pdf.rb
 class FinalQuotationPdf
   include Prawn::View
+  require 'net/http'
+  require 'json'
 
-  def initialize(final_quotation)
+  def initialize(final_quotation, currency = 'ZAR')
     @final_quotation = final_quotation
+    @currency = currency
+    @exchange_rate = fetch_exchange_rate(currency)
+    @currency_symbol = get_currency_symbol(currency)
     generate_pdf
   end
 
@@ -13,6 +18,45 @@ class FinalQuotationPdf
       page_layout: :portrait,
       margin: [20, 20, 20, 20]
     )
+  end
+
+  def fetch_exchange_rate(currency)
+    return 1.0 if currency == 'ZAR' # Base currency
+
+    begin
+      uri = URI("https://api.exchangerate-api.com/v4/latest/ZAR")
+      response = Net::HTTP.get(uri)
+      data = JSON.parse(response)
+
+      if data['rates'] && data['rates'][currency]
+        data['rates'][currency]
+      else
+        Rails.logger.warn "Exchange rate not found for #{currency}, using 1.0"
+        1.0
+      end
+    rescue => e
+      Rails.logger.error "Failed to fetch exchange rate: #{e.message}"
+      1.0 # Fallback to 1.0 on error
+    end
+  end
+
+  def get_currency_symbol(currency)
+    case currency
+    when 'ZAR' then 'R'
+    when 'USD' then '$'
+    when 'EUR' then '€'
+    when 'GBP' then '£'
+    else currency
+    end
+  end
+
+  def convert_amount(amount)
+    (amount.to_f * @exchange_rate).round(2)
+  end
+
+  def format_amount(amount)
+    converted = convert_amount(amount)
+    "#{@currency_symbol}#{number_with_delimiter(converted)}"
   end
 
   private
@@ -144,14 +188,14 @@ class FinalQuotationPdf
           talent_line.category_type,
           talent_line.description.present? ? talent_line.description : '-',
           talent_line.talent_count.to_s,
-          "R#{number_with_delimiter(talent_line.adjusted_rate.to_i)}",
+          format_amount(talent_line.adjusted_rate.to_i),
           talent_line.shoot_days.to_s,
           talent_line.rehearsal_days.to_s,
           talent_line.down_days.to_s,
           talent_line.travel_days.to_s,
           "#{talent_line.overtime_hours} hrs",
           talent_line.has_night_premium ? "Yes" : "No",
-          "R#{number_with_delimiter(talent_line.total_talent_fee)}"
+          format_amount(talent_line.total_talent_fee)
         ]
       end
 
@@ -203,7 +247,7 @@ class FinalQuotationPdf
       # Create footer row for total (bg-gray-50, font-semibold, border-t)
       total_row = [[
         { content: "Talent Summary Total:", colspan: 10, align: :right, font_style: :bold, size: 8, text_color: GRAY_900, background_color: GRAY_50, padding: [5, 5] },
-        { content: "R#{number_with_delimiter(talent_summary_total)}", align: :right, font_style: :bold, size: 8, text_color: GREEN_600, background_color: GRAY_50, padding: [5, 5] }
+        { content: format_amount(talent_summary_total), align: :right, font_style: :bold, size: 8, text_color: GREEN_600, background_color: GRAY_50, padding: [5, 5] }
       ]]
 
       table(total_row, width: bounds.width, cell_style: { borders: [ :top ], border_color: GRAY_200, border_width: 1 })
@@ -290,13 +334,13 @@ class FinalQuotationPdf
 
               usage_data << [
                 line.description,
-                "R#{number_with_delimiter(line.adjusted_rate.to_i)}",
+                format_amount(line.adjusted_rate.to_i),
                 line.talent_count.to_s,
                 line.exclusivity_type.present? ? line.exclusivity_type : '-',
                 (line.commercial_count || 1).to_s,
                 "#{number_with_precision(display_percentage, precision: 1)}%",
-                "R#{number_with_delimiter(line.per_talent_amount || (line.total_line_cost / line.talent_count))}",
-                "R#{number_with_delimiter(line.total_line_cost)}"
+                format_amount(line.per_talent_amount || (line.total_line_cost / line.talent_count)),
+                format_amount(line.total_line_cost)
               ]
             end
 
@@ -353,7 +397,7 @@ class FinalQuotationPdf
               guarantee_row = [[
                 { content: "Guaranteed (25% Discount):", colspan: 6, align: :right, font_style: :bold, size: 9, text_color: RED_700, background_color: GRAY_50, padding: [6, 9] },
                 { content: "-", align: :right, size: 9, text_color: RED_700, background_color: GRAY_50, padding: [6, 9] },
-                { content: "-R#{number_with_delimiter(savings.round(2))}", align: :right, font_style: :bold, size: 9, text_color: RED_700, background_color: GRAY_50, padding: [6, 9] }
+                { content: "-#{format_amount(savings.round(2))}", align: :right, font_style: :bold, size: 9, text_color: RED_700, background_color: GRAY_50, padding: [6, 9] }
               ]]
 
               table(guarantee_row, width: table_width, cell_style: { borders: [ :top ], border_color: GRAY_200, border_width: 1 })
@@ -365,7 +409,7 @@ class FinalQuotationPdf
             total_row = [[
               { content: "Group Total:", colspan: 6, align: :right, font_style: :bold, size: 9, text_color: GRAY_900, background_color: GRAY_50, padding: [6, 9] },
               { content: "-", align: :right, size: 9, text_color: BLUE_600, background_color: GRAY_50, padding: [6, 9] },
-              { content: "R#{number_with_delimiter(group_total)}", align: :right, font_style: :bold, size: 9, text_color: BLUE_600, background_color: GRAY_50, padding: [6, 9] }
+              { content: format_amount(group_total), align: :right, font_style: :bold, size: 9, text_color: BLUE_600, background_color: GRAY_50, padding: [6, 9] }
             ]]
 
             table(total_row, width: table_width, cell_style: { borders: [ :top ], border_color: GRAY_200, border_width: 1 })
@@ -406,11 +450,11 @@ class FinalQuotationPdf
       # Small padding for spacing
       pad(12) do
         # Breakdown of totals
-        text "Talent Summary Total: <b>R#{number_with_delimiter(talent_summary_total)}</b>",
+        text "Talent Summary Total: <b>#{format_amount(talent_summary_total)}</b>",
              size: 9, color: GRAY_600, inline_format: true
         move_down 10
 
-        text "All Group Totals: <b>R#{number_with_delimiter(all_group_totals)}</b>",
+        text "All Group Totals: <b>#{format_amount(all_group_totals)}</b>",
              size: 9, color: GRAY_600, inline_format: true
         move_down 16
 
@@ -420,7 +464,7 @@ class FinalQuotationPdf
         move_down 10
 
         # Grand Total in larger green text
-        text "R#{number_with_delimiter(grand_total)}",
+        text format_amount(grand_total),
              size: 12,  # Slightly larger for emphasis: 12pt
              style: :bold,
              color: GREEN_600,

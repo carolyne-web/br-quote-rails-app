@@ -62,7 +62,7 @@
           <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Campaign Information</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
           <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Quote Preview</li>
+          <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Usage Summary</li>
         </ul>
       </div>
       <div class="border-t pt-4 flex-shrink-0 hidden">
@@ -367,7 +367,14 @@
                   <label class="block text-sm font-medium text-gray-600 mb-3">Cast Selection</label>
                   <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <div class="cast-selection-container" data-combo="1">
-                      <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this pricing group:</p>
+                      <div class="flex items-center justify-between mb-3">
+                        <p class="text-sm text-gray-500">Select which talent should be included in this group:</p>
+                        <div class="flex gap-2">
+                          <button type="button" class="cast-select-all-btn px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors" data-combo="1">Select All</button>
+                          <button type="button" class="cast-deselect-all-btn px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors" data-combo="1">Deselect All</button>
+                          <button type="button" class="cast-invert-selection-btn px-2 py-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 rounded transition-colors" data-combo="1">Invert</button>
+                        </div>
+                      </div>
                       <div class="cast-selection-list space-y-2">
                         <!-- Cast options will be populated here by JavaScript -->
                       </div>
@@ -520,10 +527,10 @@
         </div>
       </section>
 
-      <!-- Quote Preview -->
+      <!-- Usage Summary -->
       <section id="guarantee" class="bg-white shadow rounded-2xl p-4">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold mb-4">Quote Preview</h3>
+          <h3 class="text-lg font-semibold mb-4">Usage Summary</h3>
         <span class="text-sm text-gray-400">Step 4 of 4</span>
         </div>
         
@@ -1102,7 +1109,14 @@ function removeUsageCombination(comboId) {
           <label class="block text-sm font-medium text-gray-600 mb-3">Cast Selection</label>
           <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <div class="cast-selection-container" data-combo="${comboId}">
-              <p class="text-sm text-gray-500 mb-3">Select which talent should be included in this pricing group:</p>
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm text-gray-500">Select which talent should be included in this group:</p>
+                <div class="flex gap-2">
+                  <button type="button" class="cast-select-all-btn px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors" data-combo="${comboId}">Select All</button>
+                  <button type="button" class="cast-deselect-all-btn px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors" data-combo="${comboId}">Deselect All</button>
+                  <button type="button" class="cast-invert-selection-btn px-2 py-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 rounded transition-colors" data-combo="${comboId}">Invert</button>
+                </div>
+              </div>
               <div class="cast-selection-list space-y-2">
                 <!-- Cast options will be populated here by JavaScript -->
               </div>
@@ -2295,6 +2309,54 @@ function removeUsageCombination(comboId) {
     }
   });
 
+  // Add event delegation for cast selection bulk action buttons
+  document.addEventListener('click', function(e) {
+    // Select All
+    if (e.target.classList.contains('cast-select-all-btn')) {
+      const comboId = e.target.dataset.combo;
+      const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`);
+      if (container) {
+        container.querySelectorAll('.cast-selection-checkbox').forEach(checkbox => {
+          checkbox.checked = true;
+        });
+        if (typeof updateQuotePreview === 'function') {
+          updateQuotePreview();
+        }
+        console.log('✅ Selected all cast for combo', comboId);
+      }
+    }
+
+    // Deselect All
+    if (e.target.classList.contains('cast-deselect-all-btn')) {
+      const comboId = e.target.dataset.combo;
+      const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`);
+      if (container) {
+        container.querySelectorAll('.cast-selection-checkbox').forEach(checkbox => {
+          checkbox.checked = false;
+        });
+        if (typeof updateQuotePreview === 'function') {
+          updateQuotePreview();
+        }
+        console.log('❌ Deselected all cast for combo', comboId);
+      }
+    }
+
+    // Invert Selection
+    if (e.target.classList.contains('cast-invert-selection-btn')) {
+      const comboId = e.target.dataset.combo;
+      const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`);
+      if (container) {
+        container.querySelectorAll('.cast-selection-checkbox').forEach(checkbox => {
+          checkbox.checked = !checkbox.checked;
+        });
+        if (typeof updateQuotePreview === 'function') {
+          updateQuotePreview();
+        }
+        console.log('🔄 Inverted cast selection for combo', comboId);
+      }
+    }
+  });
+
   // More aggressive talent input detection - catch ALL inputs
   document.addEventListener('input', function(e) {
     // Check if this is a talent-related input
@@ -2565,5 +2627,40 @@ function waitForControllerAndPopulate(retries = 0) {
 
 document.addEventListener('DOMContentLoaded', waitForControllerAndPopulate);
 document.addEventListener('turbo:load', waitForControllerAndPopulate);
+
+// Add generating indicator to Update Quote button
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('form[action*="/quotations"]');
+  const generateBtn = document.getElementById('generate-quote-btn');
+
+  if (form && generateBtn) {
+    form.addEventListener('submit', function(e) {
+      // Only show generating if this is a quote update (not draft save)
+      if (e.submitter && e.submitter.id === 'generate-quote-btn') {
+        generateBtn.disabled = true;
+        generateBtn.value = 'Generating...';
+        generateBtn.classList.add('opacity-75', 'cursor-not-allowed');
+        console.log('🔄 Generating quote...');
+      }
+    });
+  }
+});
+
+document.addEventListener('turbo:load', function() {
+  const form = document.querySelector('form[action*="/quotations"]');
+  const generateBtn = document.getElementById('generate-quote-btn');
+
+  if (form && generateBtn) {
+    form.addEventListener('submit', function(e) {
+      // Only show generating if this is a quote update (not draft save)
+      if (e.submitter && e.submitter.id === 'generate-quote-btn') {
+        generateBtn.disabled = true;
+        generateBtn.value = 'Generating...';
+        generateBtn.classList.add('opacity-75', 'cursor-not-allowed');
+        console.log('🔄 Generating quote...');
+      }
+    });
+  }
+});
 
 </script>
