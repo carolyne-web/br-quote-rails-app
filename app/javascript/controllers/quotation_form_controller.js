@@ -68,10 +68,8 @@ export default class extends Controller {
     
     this.loadBaseRates()
 
-    // Load stored combinations data for edit mode with a delay to ensure DOM is ready
-    setTimeout(() => {
-      this.loadStoredCombinationsData()
-    }, 1000)
+    // Load stored combinations data for edit mode immediately (no delay needed)
+    this.loadStoredCombinationsData()
 
     console.log('✅ Quotation form controller connection COMPLETED successfully!')
   }
@@ -549,18 +547,22 @@ export default class extends Controller {
   }
 
   setupLineEventListeners(categoryId, lineIndex) {
-    const lineRow = document.querySelector(`[data-line-index="${lineIndex}"]`)
+    // Scope the query to the specific category to avoid conflicts
+    const categorySection = document.getElementById(`talent-category-${categoryId}`)
+    if (!categorySection) return
+
+    const lineRow = categorySection.querySelector(`[data-line-index="${lineIndex}"]`)
     if (!lineRow) return
-    
+
     // Add event listeners to all inputs in this line
     lineRow.querySelectorAll('input').forEach(input => {
       input.addEventListener('input', () => {
         this.calculateCategoryTotal(categoryId)
       })
     })
-    
+
     // Rate adjustment now handled by built-in number input arrows
-    
+
     // Night button handling is done via event delegation in setupTalentButtons()
     // No need for direct listeners here to avoid conflicts
   }
@@ -2314,7 +2316,7 @@ export default class extends Controller {
       
       // Currency row
       rows.push(`
-        <tr class="border-b-2 border-gray-400 bg-gray-100 font-semibold">
+        <tr class="border-b-2 border-gray-400 bg-gray-100 font-semibold hidden">
           <td class="py-3 px-3 text-sm text-gray-900" colspan="7">
             <select class="currency-selector text-xs border border-gray-300 rounded px-auto py-1 bg-gray-50 text-gray-700 focus:border-gray-400 focus:outline-none" data-combo="${comboId}">
               <option value="" selected>Select Currency</option>
@@ -2456,18 +2458,28 @@ export default class extends Controller {
       const categoryName = categoryNames[categoryIdNum]
       const categoryAbbr = categoryAbbreviations[categoryIdNum]
       const lines = []
-      
-      // Get all talent input rows in the additional-lines section of this category
-      const inputRows = section.querySelectorAll('.additional-lines .talent-input-row')
-      
-      inputRows.forEach((row, rowIndex) => {
-        // Use the same selectors as the existing working code
-        const descriptionField = row.querySelector('.talent-description, [name*="description"]')
-        const rateField = row.querySelector('[name*="adjusted_rate"]') ||
-                         row.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)
-        const countField = row.querySelector('[name*="talent_count"]') ||
-                          row.querySelector(`[data-talent-input="${categoryId}"]`)
 
+      // Get ALL talent input rows (all lines including line 0 are now in .additional-lines)
+      const allRows = []
+
+      const talentRows = section.querySelectorAll('.additional-lines .talent-input-row')
+      talentRows.forEach((row) => {
+        const descriptionField = row.querySelector('.talent-description, [name*="description"]')
+        const rateField = row.querySelector('[name*="adjusted_rate"]')
+        const countField = row.querySelector('[name*="talent_count"]')
+
+        // Get line index from data attribute, or use 0 as fallback
+        const lineIndex = parseInt(row.dataset.lineIndex) || 0
+
+        allRows.push({
+          descriptionField,
+          rateField,
+          countField,
+          lineIndex
+        })
+      })
+
+      allRows.forEach(({descriptionField, rateField, countField, lineIndex}) => {
         const description = descriptionField?.value || ''
         const rate = rateField?.value || 0
         const count = countField?.value || 0
@@ -2476,7 +2488,7 @@ export default class extends Controller {
         // This prevents showing fake data with 0 units
         if (parseInt(count) > 0 && (description.trim() || parseFloat(rate) > 0)) {
           // Check if cast selection filter is active and if this specific line is selected
-          const lineKey = `${categoryId}_${rowIndex}` // Use actual row index
+          const lineKey = `${categoryId}_${lineIndex}` // Use correct line index
           const isSelectedInCast = !hasCastSelectionFeature || selectedCastFilter.has(lineKey)
 
           if (isSelectedInCast) {
@@ -2589,12 +2601,29 @@ export default class extends Controller {
       console.log(`🎯 Using territory exception as base: ${territoryExceptionPercentage}%`)
       percentage = territoryExceptionPercentage
 
-      // Still apply unlimited options and custom exclusivities as additional percentages
-      if (unlimitedStills) percentage += 15
-      if (unlimitedVersions) percentage += 15
+      // Still apply unlimited options and custom exclusivities as percentages of the base
+      // Convert base percentage to a factor (e.g., 300% → 3.0)
+      const baseFactor = territoryExceptionPercentage / 100
+
+      if (unlimitedStills) {
+        const stillsAddition = 15 * baseFactor
+        console.log(`📸 Adding unlimited stills: +${stillsAddition.toFixed(1)}% (15% of ${territoryExceptionPercentage}%)`)
+        percentage += stillsAddition
+      }
+      if (unlimitedVersions) {
+        const versionsAddition = 15 * baseFactor
+        console.log(`🎬 Adding unlimited versions: +${versionsAddition.toFixed(1)}% (15% of ${territoryExceptionPercentage}%)`)
+        percentage += versionsAddition
+      }
 
       const rowExclusivityPercentage = applicableExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
-      percentage += rowExclusivityPercentage
+      if (rowExclusivityPercentage > 0) {
+        const exclusivityAddition = rowExclusivityPercentage * baseFactor
+        console.log(`🔒 Adding exclusivity: +${exclusivityAddition.toFixed(1)}% (${rowExclusivityPercentage}% of ${territoryExceptionPercentage}%)`)
+        percentage += exclusivityAddition
+      } else {
+        // No exclusivity addition
+      }
 
     } else {
       // Original calculation when no territory exceptions apply
@@ -6067,7 +6096,9 @@ export default class extends Controller {
 
   // Populate additional line fields with line data
   populateAdditionalLineFields(lineRow, lineData, categoryId) {
-    console.log(`📝 Populating additional line fields:`, lineData)
+    console.log(`🔍📝 populateAdditionalLineFields called for category ${categoryId}`)
+    console.log(`🔍 lineData:`, lineData)
+    console.log(`🔍 lineRow:`, lineRow)
 
     const description = lineData.description ?
       lineData.description.replace(/^[A-Z0-9]+ - /, '') : ''
@@ -6076,44 +6107,102 @@ export default class extends Controller {
     const descriptionInput = lineRow.querySelector('input[name*="[description]"]')
     const countInput = lineRow.querySelector('input[name*="[talent_count]"]')
     const rateInput = lineRow.querySelector('input[name*="[adjusted_rate]"]')
+    const daysInput = lineRow.querySelector('input[name*="[days_count]"]')
     const rehearsalInput = lineRow.querySelector('input[name*="[rehearsal_days]"]')
     const downDaysInput = lineRow.querySelector('input[name*="[down_days]"]')
     const travelDaysInput = lineRow.querySelector('input[name*="[travel_days]"]')
     const overtimeInput = lineRow.querySelector('input[name*="[overtime_hours]"]')
 
+    console.log(`🔍 Found fields - description: ${!!descriptionInput}, count: ${!!countInput}, rate: ${!!rateInput}, days: ${!!daysInput}, rehearsal: ${!!rehearsalInput}, down: ${!!downDaysInput}, travel: ${!!travelDaysInput}, overtime: ${!!overtimeInput}`)
+
     if (descriptionInput) {
+      console.log(`🔍 Setting description from "${descriptionInput.value}" to "${description}"`)
       descriptionInput.value = description
-      console.log(`✅ Set line description: ${description}`)
+      console.log(`✅ Set line description: ${description}, field value is now: "${descriptionInput.value}"`)
+    } else {
+      console.log(`❌ Description input NOT FOUND`)
     }
 
     if (countInput) {
+      console.log(`🔍 Setting talent_count from ${countInput.value} to ${lineData.talent_count || 1}`)
       countInput.value = lineData.talent_count || 1
       countInput.dispatchEvent(new Event('input'))
-      console.log(`✅ Set line count: ${lineData.talent_count}`)
+      console.log(`✅ Set line count: ${lineData.talent_count}, field value is now: ${countInput.value}`)
+    } else {
+      console.log(`❌ Count input NOT FOUND`)
     }
 
     if (rateInput) {
+      console.log(`🔍 Setting adjusted_rate from ${rateInput.value} to ${lineData.adjusted_rate || 0}`)
       rateInput.value = lineData.adjusted_rate || 0
       rateInput.dispatchEvent(new Event('input'))
-      console.log(`✅ Set line rate: ${lineData.adjusted_rate}`)
+      console.log(`✅ Set line rate: ${lineData.adjusted_rate}, field value is now: ${rateInput.value}`)
+    } else {
+      console.log(`❌ Rate input NOT FOUND`)
     }
 
-    // Try to get additional fields from original quotation data
-    this.populateAdditionalFieldsFromOriginalData(lineRow, description, categoryId)
+    if (daysInput) {
+      console.log(`🔍 Setting days_count from ${daysInput.value} to ${lineData.days_count || 1}`)
+      daysInput.value = lineData.days_count || 1
+      daysInput.dispatchEvent(new Event('input'))
+      console.log(`✅ Set line days: ${lineData.days_count}, field value is now: ${daysInput.value}`)
+    } else {
+      console.log(`❌ Days input NOT FOUND`)
+    }
 
-    // Also populate overtime for additional lines
-    const lineOvertimeInput = lineRow.querySelector('input[name*="[overtime_hours]"]')
-    if (lineOvertimeInput) {
-      // Only set overtime from actual stored data, not from description patterns
-      const storedOvertimeHours = lineData.overtime_hours || 0
-      if (storedOvertimeHours > 0) {
-        lineOvertimeInput.value = storedOvertimeHours
-        lineOvertimeInput.dispatchEvent(new Event('input'))
-        console.log(`✅ Set line overtime hours from stored data: ${storedOvertimeHours}`)
+    if (rehearsalInput) {
+      console.log(`🔍 Setting rehearsal_days from ${rehearsalInput.value} to ${lineData.rehearsal_days || 0}`)
+      rehearsalInput.value = lineData.rehearsal_days || 0
+      rehearsalInput.dispatchEvent(new Event('input'))
+      console.log(`✅ Set line rehearsal days: ${lineData.rehearsal_days}, field value is now: ${rehearsalInput.value}`)
+    } else {
+      console.log(`❌ Rehearsal input NOT FOUND`)
+    }
+
+    if (downDaysInput) {
+      console.log(`🔍 Setting down_days from ${downDaysInput.value} to ${lineData.down_days || 0}`)
+      downDaysInput.value = lineData.down_days || 0
+      downDaysInput.dispatchEvent(new Event('input'))
+      console.log(`✅ Set line down days: ${lineData.down_days}, field value is now: ${downDaysInput.value}`)
+    } else {
+      console.log(`❌ Down days input NOT FOUND`)
+    }
+
+    if (travelDaysInput) {
+      console.log(`🔍 Setting travel_days from ${travelDaysInput.value} to ${lineData.travel_days || 0}`)
+      travelDaysInput.value = lineData.travel_days || 0
+      travelDaysInput.dispatchEvent(new Event('input'))
+      console.log(`✅ Set line travel days: ${lineData.travel_days}, field value is now: ${travelDaysInput.value}`)
+    } else {
+      console.log(`❌ Travel days input NOT FOUND`)
+    }
+
+    if (overtimeInput) {
+      console.log(`🔍 Setting overtime_hours from ${overtimeInput.value} to ${lineData.overtime_hours || 0}`)
+      overtimeInput.value = lineData.overtime_hours || 0
+      overtimeInput.dispatchEvent(new Event('input'))
+      console.log(`✅ Set line overtime hours: ${lineData.overtime_hours}, field value is now: ${overtimeInput.value}`)
+    } else {
+      console.log(`❌ Overtime input NOT FOUND`)
+    }
+
+    // Handle night premium
+    if (lineData.night_premium) {
+      const nightButton = lineRow.querySelector('.night-btn')
+      const nightPremiumInput = lineRow.querySelector('input[name*="[night_premium]"]')
+      console.log(`🔍 Setting night premium - button: ${!!nightButton}, input: ${!!nightPremiumInput}`)
+      if (nightButton && nightPremiumInput) {
+        nightButton.dataset.active = 'true'
+        nightButton.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-800')
+        nightButton.classList.remove('border-gray-300')
+        nightPremiumInput.value = 'true'
+        console.log(`✅ Set line night premium: true`)
+      } else {
+        console.log(`❌ Night button or input NOT FOUND`)
       }
     }
 
-    console.log(`✅ Populated additional line: ${description} (${lineData.unit_count} @ R${lineData.day_fee})`)
+    console.log(`✅ Populated additional line: ${description} (${lineData.talent_count} @ R${lineData.adjusted_rate})`)
   }
 
   // Populate additional fields like rehearsal from original quotation data
@@ -7349,6 +7438,17 @@ export default class extends Controller {
               console.log(`🔄 Creating additional line ${i} for category ${categoryId}:`, lineData)
               this.addTalentLineToCategory(categoryId, lineData)
             }
+
+            // Re-populate the main line's description after adding additional lines
+            // to prevent it from being overwritten
+            setTimeout(() => {
+              const descriptionField = document.querySelector(`[data-description-input="${categoryId}"]`)
+              if (descriptionField && firstLine.description) {
+                const cleanDescription = firstLine.description.replace(/^[A-Z0-9]+ - /, '')
+                descriptionField.value = cleanDescription
+                console.log(`🔒 Re-secured main line description for category ${categoryId}: ${cleanDescription}`)
+              }
+            }, 50)
           }
         }
 
@@ -7424,6 +7524,9 @@ export default class extends Controller {
 
   // Helper function to populate fields from a single talent line
   populateFieldsFromTalentLine(categoryId, talentInfo, isMainLine = false) {
+    console.log(`🔍 populateFieldsFromTalentLine called - Category: ${categoryId}, isMainLine: ${isMainLine}`)
+    console.log(`🔍 talentInfo:`, talentInfo)
+
     // Populate all talent parameter fields for this category
     const fields = {
       shoot_days: talentInfo.days_count || talentInfo.shoot_days || 1,
@@ -7434,14 +7537,27 @@ export default class extends Controller {
       night_premium: talentInfo.night_premium || false
     }
 
+    console.log(`🔍 Fields to populate:`, fields)
+
     Object.entries(fields).forEach(([fieldName, value]) => {
       // Map shoot_days to days_count for the HTML field name
       const htmlFieldName = fieldName === 'shoot_days' ? 'days_count' : fieldName
-      const dataAttr = fieldName === 'shoot_days' ? 'days' : fieldName.replace('_', '-')
-      const fieldSelector = `input[name="talent[${categoryId}][${htmlFieldName}]"], [data-${dataAttr}-input="${categoryId}"]`
+      // Map to the correct data attribute name (without -days suffix for most fields)
+      const dataAttr = fieldName === 'shoot_days' ? 'days' :
+                       fieldName === 'rehearsal_days' ? 'rehearsal' :
+                       fieldName === 'down_days' ? 'down' :
+                       fieldName === 'travel_days' ? 'travel' :
+                       fieldName === 'overtime_hours' ? 'overtime' :
+                       fieldName.replace('_', '-')
+
+      // Try new structure first (lines[0]), then fall back to old structure, then try data attributes
+      const fieldSelector = `input[name="talent[${categoryId}][lines][0][${htmlFieldName}]"], input[name="talent[${categoryId}][${htmlFieldName}]"], [data-${dataAttr}-input="${categoryId}"]`
+      console.log(`🔍 Looking for ${fieldName} with selector: ${fieldSelector}`)
       const field = document.querySelector(fieldSelector)
 
       if (field) {
+        console.log(`🔍 Found field:`, field)
+        console.log(`🔍 Field current value: ${field.value}, setting to: ${value}`)
         if (field.type === 'checkbox' || fieldName === 'night_premium') {
           field.checked = Boolean(value)
           // Also update the hidden field for night premium
@@ -7466,32 +7582,49 @@ export default class extends Controller {
         } else {
           field.value = value
         }
-        console.log(`✅ Set ${fieldName} for category ${categoryId}: ${value}`)
+        console.log(`✅ Set ${fieldName} for category ${categoryId}: ${value}, field value is now: ${field.value}`)
       } else {
-        console.log(`⚠️ Field not found for ${fieldName} in category ${categoryId}`)
+        console.log(`❌⚠️ Field not found for ${fieldName} in category ${categoryId} with selector: ${fieldSelector}`)
       }
     })
 
     // Only populate main fields if this is the main line
     if (isMainLine) {
+      console.log(`🔍 Populating main line fields - talent_count: ${talentInfo.talent_count}, adjusted_rate: ${talentInfo.adjusted_rate}, description: ${talentInfo.description}`)
+
       const talentCountField = document.querySelector(`[data-talent-input="${categoryId}"]`)
+      console.log(`🔍 Looking for talent count field with selector: [data-talent-input="${categoryId}"]`)
+      console.log(`🔍 Found talent count field:`, talentCountField)
       if (talentCountField && talentInfo.talent_count) {
+        console.log(`🔍 Setting talent_count from ${talentCountField.value} to ${talentInfo.talent_count}`)
         talentCountField.value = talentInfo.talent_count
-        console.log(`✅ Set talent count for category ${categoryId}: ${talentInfo.talent_count}`)
+        console.log(`✅ Set talent count for category ${categoryId}: ${talentInfo.talent_count}, field value is now: ${talentCountField.value}`)
+      } else if (!talentCountField) {
+        console.log(`❌ Talent count field NOT FOUND for category ${categoryId}`)
       }
 
       const adjustedRateField = document.querySelector(`[data-adjusted-rate-input="${categoryId}"]`)
+      console.log(`🔍 Looking for adjusted rate field with selector: [data-adjusted-rate-input="${categoryId}"]`)
+      console.log(`🔍 Found adjusted rate field:`, adjustedRateField)
       if (adjustedRateField && talentInfo.adjusted_rate) {
+        console.log(`🔍 Setting adjusted_rate from ${adjustedRateField.value} to ${talentInfo.adjusted_rate}`)
         adjustedRateField.value = talentInfo.adjusted_rate
-        console.log(`✅ Set adjusted rate for category ${categoryId}: ${talentInfo.adjusted_rate}`)
+        console.log(`✅ Set adjusted rate for category ${categoryId}: ${talentInfo.adjusted_rate}, field value is now: ${adjustedRateField.value}`)
+      } else if (!adjustedRateField) {
+        console.log(`❌ Adjusted rate field NOT FOUND for category ${categoryId}`)
       }
 
       const descriptionField = document.querySelector(`[data-description-input="${categoryId}"]`)
+      console.log(`🔍 Looking for description field with selector: [data-description-input="${categoryId}"]`)
+      console.log(`🔍 Found description field:`, descriptionField)
       if (descriptionField && talentInfo.description) {
         // Strip category prefix like "LD - " from description
         const cleanDescription = talentInfo.description.replace(/^[A-Z0-9]+ - /, '')
+        console.log(`🔍 Setting description from "${descriptionField.value}" to "${cleanDescription}"`)
         descriptionField.value = cleanDescription
-        console.log(`✅ Set description for category ${categoryId}: ${cleanDescription}`)
+        console.log(`✅ Set description for category ${categoryId}: ${cleanDescription}, field value is now: "${descriptionField.value}"`)
+      } else if (!descriptionField) {
+        console.log(`❌ Description field NOT FOUND for category ${categoryId}`)
       }
     }
   }

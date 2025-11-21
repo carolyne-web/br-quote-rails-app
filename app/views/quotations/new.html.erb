@@ -196,95 +196,99 @@
             </thead>
             <tbody class="additional-lines" data-category="<%= type_id %>">
               <!-- First Input Row -->
-              <tr class="talent-input-row">
+              <tr class="talent-input-row" data-line-index="0">
                 <!-- Description -->
                 <td class="p-1">
-                  <%= text_field_tag "talent[#{type_id}][description]", "", 
+                  <%= text_field_tag "talent[#{type_id}][lines][0][description]", "",
                       class: "talent-description w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-left bg-gray-50",
                       placeholder: "Description",
-                      data: { description_input: type_id } %>
+                      data: { description_input: type_id, category: type_id, line: "0" } %>
                 </td>
-                
+
                 <!-- Talent Count -->
                 <td class="p-1">
-                  <%= number_field_tag "talent[#{type_id}][talent_count]", 0, 
+                  <%= number_field_tag "talent[#{type_id}][lines][0][talent_count]", 0,
                       min: 0, max: 99,
-                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center",
-                      data: { talent_input: type_id } %>
+                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center talent-count",
+                      data: { talent_input: type_id, category: type_id, line: "0" } %>
                 </td>
 
                   <!-- Rate Adjustment -->
                 <td class="p-1">
-                  <%= number_field_tag "talent[#{type_id}][adjusted_rate]",
+                  <%= number_field_tag "talent[#{type_id}][lines][0][adjusted_rate]",
                           TalentCategory.new(category_type: type_id).default_daily_rate.to_i,
                       min: 0,
                       step: 100,
-                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center",
-                      data: { adjusted_rate_input: type_id },
+                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center rate-adjustment",
+                      data: { adjusted_rate_input: type_id, category: type_id, line: "0" },
                       title: "Full adjusted rate" %>
                 </td>
 
                 <!-- Days Count -->
                 <td class="p-1">
-                  <%= number_field_tag "talent[#{type_id}][days_count]", 1, 
+                  <%= number_field_tag "talent[#{type_id}][lines][0][days_count]", 1,
                       min: 1,
-                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center",
-                      data: { days_input: type_id } %>
+                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center days-input",
+                      data: { days_input: type_id, category: type_id, line: "0" } %>
                 </td>
-                
+
                 <!-- Rehearsal Days (50% rate) -->
                 <td class="p-1">
-                  <%= number_field_tag "talent[#{type_id}][rehearsal_days]", 0, 
+                  <%= number_field_tag "talent[#{type_id}][lines][0][rehearsal_days]", 0,
                       min: 0,
-                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center",
-                      data: { rehearsal_input: type_id },
+                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center rehearsal-days",
+                      data: { rehearsal_input: type_id, category: type_id, line: "0" },
                       title: "50% of day rate" %>
                 </td>
-                
+
                 <!-- Down Days (50% rate) -->
                 <td class="p-1">
-                  <%= number_field_tag "talent[#{type_id}][down_days]", 0, 
+                  <%= number_field_tag "talent[#{type_id}][lines][0][down_days]", 0,
                       min: 0,
-                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center",
-                      data: { down_input: type_id },
+                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center down-days",
+                      data: { down_input: type_id, category: type_id, line: "0" },
                       title: "50% of day rate" %>
                 </td>
-                
+
                 <!-- Travel Days (50% rate) -->
                 <td class="p-1">
-                  <%= number_field_tag "talent[#{type_id}][travel_days]", 0, 
+                  <%= number_field_tag "talent[#{type_id}][lines][0][travel_days]", 0,
                       min: 0,
-                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center",
-                      data: { travel_input: type_id },
+                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center travel-days",
+                      data: { travel_input: type_id, category: type_id, line: "0" },
                       title: "50% of day rate" %>
                 </td>
-                
+
                 <!-- Overtime Hours (10% per hour) -->
                 <td class="p-1">
-                  <%= number_field_tag "talent[#{type_id}][overtime_hours]", 0, 
+                  <%= number_field_tag "talent[#{type_id}][lines][0][overtime_hours]", 0,
                       min: 0, step: 0.5,
-                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center",
-                      data: { overtime_input: type_id },
+                      class: "w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-300 focus:border-blue-300 text-center overtime-hours",
+                      data: { overtime_input: type_id, category: type_id, line: "0" },
                       title: "10% of day rate per hour" %>
                 </td>
-                
+
                 <!-- Night Button -->
                 <td class="p-1 text-center">
-                  <button type="button" 
+                  <button type="button"
                           class="night-btn w-full px-2 py-1 text-xs border-2 border-gray-300 rounded hover:bg-yellow-50 hover:border-yellow-300 transition-colors font-medium"
                           data-category="<%= type_id %>"
+                          data-line="0"
                           data-active="false"
                           title="A night surcharge applies at half the day rate">
                     + Night Fee
                   </button>
-                  <input type="number" 
-                        name="talent[<%= type_id %>][night_count]" 
-                        min="1" 
-                        value="1" 
+                  <input type="number"
+                        name="talent[<%= type_id %>][lines][0][night_count]"
+                        min="1"
+                        value="1"
                         class="nights-input w-full px-1 py-1 text-xs border border-gray-300 rounded text-center hidden"
                         data-category="<%= type_id %>"
+                        data-line="0"
                         placeholder="Nights">
-                  <%= hidden_field_tag "talent[#{type_id}][night_premium]", "false", data: { night_field: type_id } %>
+                  <%= hidden_field_tag "talent[#{type_id}][lines][0][night_premium]", "false",
+                      class: "night-premium",
+                      data: { night_field: type_id, category: type_id, line: "0" } %>
                 </td>
                 
                 <!-- Action Button - Add Line -->
@@ -402,11 +406,7 @@
                   <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Group 1</label>
                   
                   <!-- Selected Territory Tags -->
-                  <%# <div>
-                    <div class="selected-territory-tags flex flex-wrap gap-2" data-combo="1">
-                      <!-- Selected territory tags will appear here -->
-                    </div>
-                  </div> %>
+                  
                   
                   <!-- <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 hidden">
                     <div class="text-sm text-blue-800">
@@ -1161,11 +1161,7 @@ function removeUsageCombination(comboId) {
           <label class="block text-sm font-medium text-gray-600 mb-3">Select Territories for Group ${comboId}</label>
           
           <!-- Selected Territory Tags -->
-          <div>
-            <div class="selected-territory-tags flex flex-wrap gap-2" data-combo="${comboId}">
-              <!-- Selected territory tags will appear here -->
-            </div>
-          </div>
+          
           
           <!-- <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
             <div class="text-sm text-blue-800">

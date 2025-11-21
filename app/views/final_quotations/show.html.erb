@@ -38,7 +38,7 @@
         <select id="currency-select"
                 data-currency-toggle-target="selector"
                 data-action="change->currency-toggle#change"
-                class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
+                class="rounded-lg border border-gray-300 px-10 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500">
           <option value="ZAR" selected>ZAR (R)</option>
           <option value="USD">USD ($)</option>
           <option value="EUR">EUR (€)</option>
@@ -338,7 +338,7 @@
 
       <!-- Screenshot Test -->
       <% if @final_quotation.quotation.quotation_detail&.preview_screenshots.present? %>
-        <div class="bg-white border rounded-lg p-6">
+        <div class="bg-white border rounded-lg p-6 hidden">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Screcenshot Test</h2>
           <p class="text-sm text-gray-600 mb-4">Preview screenshots captured from the quotation form:</p>
 

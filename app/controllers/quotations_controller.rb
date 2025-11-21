@@ -521,16 +521,36 @@ class QuotationsController < ApplicationController
     @quotation.talent_categories.destroy_all
 
     params[:talent].each do |category_id, category_data|
-      # Handle the current form structure: talent[category_id][field_name]
-      description = category_data[:description]
-      talent_count = category_data[:talent_count].to_i
-      adjusted_rate = category_data[:adjusted_rate].to_f
-      days_count = category_data[:days_count].to_i
-      rehearsal_days = category_data[:rehearsal_days].to_i
-      travel_days = category_data[:travel_days].to_i
-      down_days = category_data[:down_days].to_i
-      overtime_hours = category_data[:overtime_hours].to_f
-      night_premium = category_data[:night_premium] == "true" || category_data[:night_premium] == "1"
+      # Handle both old and new form structures
+      # New structure: talent[category_id][lines][0][field_name]
+      # Old structure: talent[category_id][field_name] (for backward compatibility)
+
+      # Check if new structure with lines[0] exists
+      if category_data[:lines].present? && category_data[:lines]["0"].present?
+        # New structure - first line is in lines[0]
+        first_line = category_data[:lines]["0"]
+        description = first_line[:description]
+        talent_count = first_line[:talent_count].to_i
+        adjusted_rate = first_line[:adjusted_rate].to_f
+        days_count = first_line[:days_count].to_i
+        rehearsal_days = first_line[:rehearsal_days].to_i
+        travel_days = first_line[:travel_days].to_i
+        down_days = first_line[:down_days].to_i
+        overtime_hours = first_line[:overtime_hours].to_f
+        night_premium = first_line[:night_premium] == "true" || first_line[:night_premium] == "1"
+      else
+        # Old structure - data is directly in category_data (backward compatibility)
+        description = category_data[:description]
+        talent_count = category_data[:talent_count].to_i
+        adjusted_rate = category_data[:adjusted_rate].to_f
+        days_count = category_data[:days_count].to_i
+        rehearsal_days = category_data[:rehearsal_days].to_i
+        travel_days = category_data[:travel_days].to_i
+        down_days = category_data[:down_days].to_i
+        overtime_hours = category_data[:overtime_hours].to_f
+        night_premium = category_data[:night_premium] == "true" || category_data[:night_premium] == "1"
+      end
+
       # Collect all exclusivities for this category
       exclusivities = []
 
@@ -570,8 +590,12 @@ class QuotationsController < ApplicationController
 
       # Create day_on_sets entry if we have talent count
       if talent_count > 0
-        # Get buyout percentage for main category (if submitted)
-        main_buyout_percentage = category_data[:buyout_percentage].to_f
+        # Get buyout percentage (try new structure first, then old)
+        main_buyout_percentage = if category_data[:lines].present? && category_data[:lines]["0"].present?
+          category_data[:lines]["0"][:buyout_percentage].to_f
+        else
+          category_data[:buyout_percentage].to_f
+        end
 
         day_on_set = talent_category.day_on_sets.create!(
           talent_count: talent_count,
@@ -582,15 +606,18 @@ class QuotationsController < ApplicationController
           down_days: down_days,
           travel_days: travel_days,
           overtime_hours: overtime_hours,
-          night_premium: category_data[:night_premium] == "true" || category_data[:night_premium] == "1",
+          night_premium: night_premium,
           exclusivity_type: exclusivity_type,
           buyout_percentage: main_buyout_percentage
         )
       end
 
-      # Process additional talent lines if present
+      # Process additional talent lines if present (skip line 0 as it's already processed)
       if category_data[:lines].present?
         category_data[:lines].each do |line_index, line_data|
+          # Skip line 0 as it's already been processed as the main line
+          next if line_index == "0"
+
           line_description = line_data[:description]
           line_talent_count = line_data[:talent_count].to_i
           line_adjusted_rate = line_data[:adjusted_rate].to_f
