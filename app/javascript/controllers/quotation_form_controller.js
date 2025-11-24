@@ -8,12 +8,29 @@ export default class extends Controller {
   constructor(...args) {
     super(...args)
     this.boundDocumentClickHandler = this.handleDocumentClick.bind(this)
+    this.boundCastInputHandler = this.handleCastInput.bind(this)
+    this.boundCastChangeHandler = this.handleCastChange.bind(this)
+    this.boundCastClickHandler = this.handleCastClick.bind(this)
+    this.boundExclusivityClickHandler = this.handleExclusivityClick.bind(this)
+    this.boundMediaTypeChangeHandler = this.handleMediaTypeChangeEvent.bind(this)
+    this.boundRateValidationInputHandler = this.handleRateValidationInput.bind(this)
+    this.boundComboSummaryChangeHandler = this.handleComboSummaryChange.bind(this)
     this.documentListenerAttached = false
   }
 
   connect() {
     console.log('🔌 Quotation form controller CONNECTING...')
     console.log('🔌 Element:', this.element)
+    console.log('🔌 Current listener states:', {
+      documentClick: window.quotationDocumentListenerAttached,
+      castInput: window.quotationCastInputListenerAttached,
+      castChange: window.quotationCastChangeListenerAttached,
+      castClick: window.quotationCastClickListenerAttached,
+      exclusivity: window.quotationExclusivityClickListenerAttached,
+      mediaType: window.quotationMediaTypeChangeListenerAttached,
+      rateValidation: window.quotationRateValidationInputListenerAttached,
+      comboSummary: window.quotationComboSummaryChangeListenerAttached
+    })
 
     try {
       // Make controller available globally for HTML callback functions
@@ -75,14 +92,72 @@ export default class extends Controller {
   }
 
   disconnect() {
-    console.log('Quotation form controller disconnecting - cleaning up event listeners')
-    // Only remove if this instance owns the global listener
-    if (window.quotationDocumentClickHandler === this.boundDocumentClickHandler) {
-      document.removeEventListener('click', this.boundDocumentClickHandler)
-      window.quotationDocumentListenerAttached = false
-      window.quotationDocumentClickHandler = null
-      console.log('Global document click listener removed')
+    console.log('🔌 Quotation form controller DISCONNECTING - cleaning up event listeners')
+
+    // Always remove listeners and reset flags to prevent stale references
+    // Remove document click listener
+    if (window.quotationDocumentClickHandler) {
+      document.removeEventListener('click', window.quotationDocumentClickHandler)
+      console.log('✓ Global document click listener removed')
     }
+    window.quotationDocumentListenerAttached = false
+    window.quotationDocumentClickHandler = null
+
+    // Remove cast selection listeners
+    if (window.quotationCastInputHandler) {
+      document.removeEventListener('input', window.quotationCastInputHandler)
+      console.log('✓ Cast input listener removed')
+    }
+    window.quotationCastInputListenerAttached = false
+    window.quotationCastInputHandler = null
+
+    if (window.quotationCastChangeHandler) {
+      document.removeEventListener('change', window.quotationCastChangeHandler)
+      console.log('✓ Cast change listener removed')
+    }
+    window.quotationCastChangeListenerAttached = false
+    window.quotationCastChangeHandler = null
+
+    if (window.quotationCastClickHandler) {
+      document.removeEventListener('click', window.quotationCastClickHandler)
+      console.log('✓ Cast click listener removed')
+    }
+    window.quotationCastClickListenerAttached = false
+    window.quotationCastClickHandler = null
+
+    // Remove exclusivity listener
+    if (window.quotationExclusivityClickHandler) {
+      document.removeEventListener('click', window.quotationExclusivityClickHandler)
+      console.log('✓ Exclusivity click listener removed')
+    }
+    window.quotationExclusivityClickListenerAttached = false
+    window.quotationExclusivityClickHandler = null
+
+    // Remove media type listener
+    if (window.quotationMediaTypeChangeHandler) {
+      document.removeEventListener('change', window.quotationMediaTypeChangeHandler)
+      console.log('✓ Media type change listener removed')
+    }
+    window.quotationMediaTypeChangeListenerAttached = false
+    window.quotationMediaTypeChangeHandler = null
+
+    // Remove rate validation listener
+    if (window.quotationRateValidationInputHandler) {
+      document.removeEventListener('input', window.quotationRateValidationInputHandler)
+      console.log('✓ Rate validation input listener removed')
+    }
+    window.quotationRateValidationInputListenerAttached = false
+    window.quotationRateValidationInputHandler = null
+
+    // Remove combo summary listener
+    if (window.quotationComboSummaryChangeHandler) {
+      document.removeEventListener('change', window.quotationComboSummaryChangeHandler)
+      console.log('✓ Combo summary change listener removed')
+    }
+    window.quotationComboSummaryChangeListenerAttached = false
+    window.quotationComboSummaryChangeHandler = null
+
+    console.log('✅ All event listeners cleaned up successfully')
   }
 
   // Method to clear all exclusivity data to prevent persistence between quotes
@@ -786,12 +861,26 @@ export default class extends Controller {
 
   setupCombinationMediaLogic() {
     // Use event delegation for dynamically created combinations
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('combination-media')) {
-        const comboId = e.target.getAttribute('data-combo')
-        this.handleMediaTypeChange(e.target, comboId)
-      }
-    })
+    // Attach with protection against duplicates
+    if (!window.quotationMediaTypeChangeListenerAttached) {
+      console.log('Attaching media type change listener')
+      document.addEventListener('change', this.boundMediaTypeChangeHandler)
+      window.quotationMediaTypeChangeListenerAttached = true
+      window.quotationMediaTypeChangeHandler = this.boundMediaTypeChangeHandler
+    } else {
+      console.log('Media type change listener already attached, replacing handler')
+      document.removeEventListener('change', window.quotationMediaTypeChangeHandler)
+      document.addEventListener('change', this.boundMediaTypeChangeHandler)
+      window.quotationMediaTypeChangeHandler = this.boundMediaTypeChangeHandler
+    }
+  }
+
+  // Handler for media type change events
+  handleMediaTypeChangeEvent(e) {
+    if (e.target.classList.contains('combination-media')) {
+      const comboId = e.target.getAttribute('data-combo')
+      this.handleMediaTypeChange(e.target, comboId)
+    }
   }
 
   handleMediaTypeChange(checkbox, comboId) {
@@ -1671,54 +1760,80 @@ export default class extends Controller {
 
   setupRateValidation() {
     // Add validation to all rate input fields to prevent negative values
-    document.addEventListener('input', (e) => {
-      // Check if the input is a rate field
-      if (e.target.matches('[data-adjusted-rate-input], .rate-input, .rate-adjustment') ||
-          e.target.name?.includes('adjusted_rate') || 
-          e.target.name?.includes('rate')) {
-        
-        const value = parseFloat(e.target.value)
-        if (value < 0) {
-          e.target.value = 0
-          console.log('Rate value corrected to 0 (was negative)')
-        }
+    // Attach with protection against duplicates
+    if (!window.quotationRateValidationInputListenerAttached) {
+      console.log('Attaching rate validation input listener')
+      document.addEventListener('input', this.boundRateValidationInputHandler)
+      window.quotationRateValidationInputListenerAttached = true
+      window.quotationRateValidationInputHandler = this.boundRateValidationInputHandler
+    } else {
+      console.log('Rate validation input listener already attached, replacing handler')
+      document.removeEventListener('input', window.quotationRateValidationInputHandler)
+      document.addEventListener('input', this.boundRateValidationInputHandler)
+      window.quotationRateValidationInputHandler = this.boundRateValidationInputHandler
+    }
+  }
+
+  // Handler for rate validation input events
+  handleRateValidationInput(e) {
+    // Check if the input is a rate field
+    if (e.target.matches('[data-adjusted-rate-input], .rate-input, .rate-adjustment') ||
+        e.target.name?.includes('adjusted_rate') ||
+        e.target.name?.includes('rate')) {
+
+      const value = parseFloat(e.target.value)
+      if (value < 0) {
+        e.target.value = 0
+        console.log('Rate value corrected to 0 (was negative)')
       }
-    })
+    }
   }
 
   setupComboSummaryUpdate() {
     // Set up event listeners to update the combo summary heading
     this.updateAllComboSummaries()
 
-    // Listen for duration changes
-    document.addEventListener('change', (e) => {
-      if (e.target.matches('select[name*="duration"]')) {
-        this.updateAllComboSummaries()
-      }
-    })
+    // Attach combo summary change listener with protection against duplicates
+    if (!window.quotationComboSummaryChangeListenerAttached) {
+      console.log('Attaching combo summary change listener')
+      document.addEventListener('change', this.boundComboSummaryChangeHandler)
+      window.quotationComboSummaryChangeListenerAttached = true
+      window.quotationComboSummaryChangeHandler = this.boundComboSummaryChangeHandler
+    } else {
+      console.log('Combo summary change listener already attached, replacing handler')
+      document.removeEventListener('change', window.quotationComboSummaryChangeHandler)
+      document.addEventListener('change', this.boundComboSummaryChangeHandler)
+      window.quotationComboSummaryChangeHandler = this.boundComboSummaryChangeHandler
+    }
+  }
 
-    // Listen for territory changes
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('territory-checkbox') ||
-          e.target.classList.contains('combination-territory-checkbox')) {
-        this.updateAllComboSummaries()
-      }
-    })
+  // Handler for combo summary change events (consolidated from multiple listeners)
+  handleComboSummaryChange(e) {
+    // Check for duration changes
+    if (e.target.matches('select[name*="duration"]')) {
+      this.updateAllComboSummaries()
+      return
+    }
 
-    // Listen for media type changes
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('combination-media')) {
-        this.updateAllComboSummaries()
-      }
-    })
+    // Check for territory changes
+    if (e.target.classList.contains('territory-checkbox') ||
+        e.target.classList.contains('combination-territory-checkbox')) {
+      this.updateAllComboSummaries()
+      return
+    }
 
-    // Listen for unlimited options changes
-    document.addEventListener('change', (e) => {
-      if (e.target.matches('[name*="unlimited_stills"]') ||
-          e.target.matches('[name*="unlimited_versions"]')) {
-        this.updateAllComboSummaries()
-      }
-    })
+    // Check for media type changes
+    if (e.target.classList.contains('combination-media')) {
+      this.updateAllComboSummaries()
+      return
+    }
+
+    // Check for unlimited options changes
+    if (e.target.matches('[name*="unlimited_stills"]') ||
+        e.target.matches('[name*="unlimited_versions"]')) {
+      this.updateAllComboSummaries()
+      return
+    }
   }
 
   updateAllComboSummaries() {
@@ -3073,54 +3188,67 @@ export default class extends Controller {
       console.log(`🔍 Found ${exclusivityButtons.length} exclusivity plus buttons:`, exclusivityButtons)
     }, 1000)
 
-    // Event delegation for the plus buttons since they are dynamically created
-    document.addEventListener('click', (e) => {
-      // Only log clicks on exclusivity-related elements to reduce noise
-      if (e.target.classList.contains('exclusivity-plus-btn') ||
-          e.target.closest('.exclusivity-plus-btn') ||
-          e.target.textContent?.includes('Exclusivity') ||
-          e.target.textContent?.includes('+')) {
-        console.log('🖱️ Exclusivity-related click detected:', e.target)
+    // Attach exclusivity click listener with protection against duplicates
+    if (!window.quotationExclusivityClickListenerAttached) {
+      console.log('Attaching exclusivity click listener')
+      document.addEventListener('click', this.boundExclusivityClickHandler)
+      window.quotationExclusivityClickListenerAttached = true
+      window.quotationExclusivityClickHandler = this.boundExclusivityClickHandler
+    } else {
+      console.log('Exclusivity click listener already attached, replacing handler')
+      document.removeEventListener('click', window.quotationExclusivityClickHandler)
+      document.addEventListener('click', this.boundExclusivityClickHandler)
+      window.quotationExclusivityClickHandler = this.boundExclusivityClickHandler
+    }
+  }
+
+  // Handler for exclusivity click events
+  handleExclusivityClick(e) {
+    // Only log clicks on exclusivity-related elements to reduce noise
+    if (e.target.classList.contains('exclusivity-plus-btn') ||
+        e.target.closest('.exclusivity-plus-btn') ||
+        e.target.textContent?.includes('Exclusivity') ||
+        e.target.textContent?.includes('+')) {
+      console.log('🖱️ Exclusivity-related click detected:', e.target)
+    }
+
+    if (e.target.classList.contains('exclusivity-plus-btn') || e.target.closest('.exclusivity-plus-btn')) {
+      console.log('🎯 Exclusivity plus button clicked!')
+      const btn = e.target.closest('.exclusivity-plus-btn')
+      const comboId = btn.getAttribute('data-combo')
+      const categoryId = btn.getAttribute('data-category')
+      const lineIndex = btn.getAttribute('data-line-index')
+      const talentDescription = btn.getAttribute('data-talent-description')
+
+      console.log(`🔢 Exclusivity button data: combo=${comboId}, category=${categoryId}, line=${lineIndex}, desc="${talentDescription}"`)
+
+      // Show choice dialog for exclusivity scope
+      this.showExclusivityScopeDialog(comboId, categoryId, lineIndex, talentDescription)
+    }
+
+    // Handle remove exclusivity pill buttons
+    if (e.target.classList.contains('remove-exclusivity-pill')) {
+      const comboId = e.target.getAttribute('data-combo')
+      const index = parseInt(e.target.getAttribute('data-index'))
+      const categoryId = parseInt(e.target.getAttribute('data-category'))
+      const lineIndex = e.target.getAttribute('data-line-index')
+
+      // Determine if this is a line-specific exclusivity
+      // Check the original exclusivity data to see if it was added as line-specific
+      const lineKey = `${comboId}_${categoryId}_${lineIndex}`
+      const hasLineSpecificData = window.lineExclusivityData && window.lineExclusivityData[lineKey]
+
+      // Also check if the exclusivity pill is green (emerald) which indicates line-specific
+      const isEmperaldPill = e.target.closest('span').classList.contains('bg-emerald-100')
+
+      const isLineSpecific = hasLineSpecificData && isEmperaldPill
+
+      if (isLineSpecific) {
+        this.removeLineSpecificExclusivity(comboId, categoryId, parseInt(lineIndex), index)
+      } else {
+        this.removeExclusivityPill(comboId, index, categoryId)
       }
-
-      if (e.target.classList.contains('exclusivity-plus-btn') || e.target.closest('.exclusivity-plus-btn')) {
-        console.log('🎯 Exclusivity plus button clicked!')
-        const btn = e.target.closest('.exclusivity-plus-btn')
-        const comboId = btn.getAttribute('data-combo')
-        const categoryId = btn.getAttribute('data-category')
-        const lineIndex = btn.getAttribute('data-line-index')
-        const talentDescription = btn.getAttribute('data-talent-description')
-
-        console.log(`🔢 Exclusivity button data: combo=${comboId}, category=${categoryId}, line=${lineIndex}, desc="${talentDescription}"`)
-
-        // Show choice dialog for exclusivity scope
-        this.showExclusivityScopeDialog(comboId, categoryId, lineIndex, talentDescription)
-      }
-
-      // Handle remove exclusivity pill buttons
-      if (e.target.classList.contains('remove-exclusivity-pill')) {
-        const comboId = e.target.getAttribute('data-combo')
-        const index = parseInt(e.target.getAttribute('data-index'))
-        const categoryId = parseInt(e.target.getAttribute('data-category'))
-        const lineIndex = e.target.getAttribute('data-line-index')
-
-        // Determine if this is a line-specific exclusivity
-        // Check the original exclusivity data to see if it was added as line-specific
-        const lineKey = `${comboId}_${categoryId}_${lineIndex}`
-        const hasLineSpecificData = window.lineExclusivityData && window.lineExclusivityData[lineKey]
-
-        // Also check if the exclusivity pill is green (emerald) which indicates line-specific
-        const isEmperaldPill = e.target.closest('span').classList.contains('bg-emerald-100')
-
-        const isLineSpecific = hasLineSpecificData && isEmperaldPill
-
-        if (isLineSpecific) {
-          this.removeLineSpecificExclusivity(comboId, categoryId, parseInt(lineIndex), index)
-        } else {
-          this.removeExclusivityPill(comboId, index, categoryId)
-        }
-      }
-    })
+    }
   }
 
   showExclusivityScopeDialog(comboId, categoryId, lineIndex, talentDescription) {
@@ -5226,85 +5354,124 @@ export default class extends Controller {
   setupCastSelection() {
     console.log('🎭 Setting up Cast Selection feature')
 
-    // Add event listeners for talent inputs
-    document.addEventListener('input', (e) => {
-      if (e.target.name && e.target.name.includes('talent_count')) {
-        console.log('🎯 CONTROLLER: Talent count input detected:', e.target.name, e.target.value)
-        setTimeout(() => this.updateCastSelection(), 50)
-      }
-      if (e.target.name && e.target.name.includes('description')) {
-        console.log('🎯 CONTROLLER: Talent description input detected:', e.target.name, e.target.value)
-        setTimeout(() => this.updateCastSelection(), 50)
-      }
-    })
+    // Attach input listener with protection against duplicates
+    if (!window.quotationCastInputListenerAttached) {
+      console.log('Attaching cast input listener')
+      document.addEventListener('input', this.boundCastInputHandler)
+      window.quotationCastInputListenerAttached = true
+      window.quotationCastInputHandler = this.boundCastInputHandler
+    } else {
+      console.log('Cast input listener already attached, replacing handler')
+      document.removeEventListener('input', window.quotationCastInputHandler)
+      document.addEventListener('input', this.boundCastInputHandler)
+      window.quotationCastInputHandler = this.boundCastInputHandler
+    }
 
-    // Add event listeners for cast selection checkboxes
-    document.addEventListener('change', (e) => {
-      console.log('📋 Change event detected on:', e.target, 'classes:', e.target.classList.toString())
-      if (e.target.classList.contains('cast-selection-checkbox')) {
-        console.log('🎭 Cast selection changed:', e.target.checked, e.target.value)
-        console.log('🎭 About to call updateQuotePreview')
-        this.updateQuotePreview()
-        console.log('🎭 updateQuotePreview call completed')
-      }
-    })
+    // Attach change listener with protection against duplicates
+    if (!window.quotationCastChangeListenerAttached) {
+      console.log('Attaching cast change listener')
+      document.addEventListener('change', this.boundCastChangeHandler)
+      window.quotationCastChangeListenerAttached = true
+      window.quotationCastChangeHandler = this.boundCastChangeHandler
+    } else {
+      console.log('Cast change listener already attached, replacing handler')
+      document.removeEventListener('change', window.quotationCastChangeHandler)
+      document.addEventListener('change', this.boundCastChangeHandler)
+      window.quotationCastChangeHandler = this.boundCastChangeHandler
+    }
 
-    // Add event listeners for cast selection bulk action buttons
-    document.addEventListener('click', (e) => {
-      // Select All button
-      if (e.target.classList.contains('cast-select-all-btn')) {
-        e.preventDefault()
-        e.stopPropagation()
-        const comboId = e.target.dataset.combo
-        console.log('🔵 Select All clicked for combo:', comboId)
-        const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
-        if (container) {
-          const checkboxes = container.querySelectorAll('.cast-selection-checkbox')
-          console.log('🔍 Selecting', checkboxes.length, 'checkboxes')
-          checkboxes.forEach(checkbox => {
-            checkbox.checked = true
-          })
-          this.updateQuotePreview()
-        }
-      }
-
-      // Deselect All button
-      if (e.target.classList.contains('cast-deselect-all-btn')) {
-        e.preventDefault()
-        e.stopPropagation()
-        const comboId = e.target.dataset.combo
-        console.log('⚪ Deselect All clicked for combo:', comboId)
-        const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
-        if (container) {
-          const checkboxes = container.querySelectorAll('.cast-selection-checkbox')
-          console.log('🔍 Deselecting', checkboxes.length, 'checkboxes')
-          checkboxes.forEach(checkbox => {
-            checkbox.checked = false
-          })
-          this.updateQuotePreview()
-        }
-      }
-
-      // Invert Selection button
-      if (e.target.classList.contains('cast-invert-selection-btn')) {
-        e.preventDefault()
-        e.stopPropagation()
-        const comboId = e.target.dataset.combo
-        console.log('🔄 Invert Selection clicked for combo:', comboId)
-        const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
-        if (container) {
-          const checkboxes = container.querySelectorAll('.cast-selection-checkbox')
-          console.log('🔍 Inverting', checkboxes.length, 'checkboxes')
-          checkboxes.forEach(checkbox => {
-            checkbox.checked = !checkbox.checked
-          })
-          this.updateQuotePreview()
-        }
-      }
-    })
+    // Attach click listener with protection against duplicates
+    if (!window.quotationCastClickListenerAttached) {
+      console.log('Attaching cast click listener')
+      document.addEventListener('click', this.boundCastClickHandler)
+      window.quotationCastClickListenerAttached = true
+      window.quotationCastClickHandler = this.boundCastClickHandler
+    } else {
+      console.log('Cast click listener already attached, replacing handler')
+      document.removeEventListener('click', window.quotationCastClickHandler)
+      document.addEventListener('click', this.boundCastClickHandler)
+      window.quotationCastClickHandler = this.boundCastClickHandler
+    }
 
     // Initial population
     setTimeout(() => this.updateCastSelection(), 500)
+  }
+
+  // Handler for cast input events
+  handleCastInput(e) {
+    if (e.target.name && e.target.name.includes('talent_count')) {
+      console.log('🎯 CONTROLLER: Talent count input detected:', e.target.name, e.target.value)
+      setTimeout(() => this.updateCastSelection(), 50)
+    }
+    if (e.target.name && e.target.name.includes('description')) {
+      console.log('🎯 CONTROLLER: Talent description input detected:', e.target.name, e.target.value)
+      setTimeout(() => this.updateCastSelection(), 50)
+    }
+  }
+
+  // Handler for cast change events (checkboxes)
+  handleCastChange(e) {
+    console.log('📋 Change event detected on:', e.target, 'classes:', e.target.classList.toString())
+    if (e.target.classList.contains('cast-selection-checkbox')) {
+      console.log('🎭 Cast selection changed:', e.target.checked, e.target.value)
+      console.log('🎭 About to call updateQuotePreview')
+      this.updateQuotePreview()
+      console.log('🎭 updateQuotePreview call completed')
+    }
+  }
+
+  // Handler for cast click events (bulk action buttons)
+  handleCastClick(e) {
+    // Select All button
+    if (e.target.classList.contains('cast-select-all-btn')) {
+      e.preventDefault()
+      e.stopPropagation()
+      const comboId = e.target.dataset.combo
+      console.log('🔵 Select All clicked for combo:', comboId)
+      const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
+      if (container) {
+        const checkboxes = container.querySelectorAll('.cast-selection-checkbox')
+        console.log('🔍 Selecting', checkboxes.length, 'checkboxes')
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = true
+        })
+        this.updateQuotePreview()
+      }
+    }
+
+    // Deselect All button
+    if (e.target.classList.contains('cast-deselect-all-btn')) {
+      e.preventDefault()
+      e.stopPropagation()
+      const comboId = e.target.dataset.combo
+      console.log('⚪ Deselect All clicked for combo:', comboId)
+      const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
+      if (container) {
+        const checkboxes = container.querySelectorAll('.cast-selection-checkbox')
+        console.log('🔍 Deselecting', checkboxes.length, 'checkboxes')
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = false
+        })
+        this.updateQuotePreview()
+      }
+    }
+
+    // Invert Selection button
+    if (e.target.classList.contains('cast-invert-selection-btn')) {
+      e.preventDefault()
+      e.stopPropagation()
+      const comboId = e.target.dataset.combo
+      console.log('🔄 Invert Selection clicked for combo:', comboId)
+      const container = document.querySelector(`.cast-selection-container[data-combo="${comboId}"]`)
+      if (container) {
+        const checkboxes = container.querySelectorAll('.cast-selection-checkbox')
+        console.log('🔍 Inverting', checkboxes.length, 'checkboxes')
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = !checkbox.checked
+        })
+        this.updateQuotePreview()
+      }
+    }
   }
 
   updateCastSelection() {
@@ -6886,8 +7053,9 @@ export default class extends Controller {
   populateExclusivityFromStoredData(storedData) {
     console.log('🔐 Populating exclusivity data from stored data...')
 
-    // Clear and reinitialize exclusivity data structure to avoid duplicates
+    // Clear and reinitialize exclusivity data structures to avoid duplicates
     window.exclusivityData = {}
+    window.lineExclusivityData = {}
 
     Object.entries(storedData).forEach(([, comboData], index) => {
       const groupNumber = index + 1
@@ -6899,27 +7067,52 @@ export default class extends Controller {
             if (lineData.exclusivity_type && lineData.exclusivity_type !== '-') {
               const key = `${groupNumber}_${categoryId}_${lineIndex}`
 
-              // Create exclusivity entry
-              window.exclusivityData[key] = {
-                scope: 'line', // Assuming line-level exclusivity
-                type: lineData.exclusivity_type,
-                comboId: groupNumber,
-                categoryId: categoryId,
-                lineIndex: lineIndex,
-                description: lineData.description || `Category ${categoryId}`
+              // Initialize array if it doesn't exist
+              if (!window.lineExclusivityData[key]) {
+                window.lineExclusivityData[key] = []
               }
 
-              // Actually update the DOM element to show the exclusivity value
-              this.updateExclusivityInTable(groupNumber, categoryId, lineIndex, lineData.exclusivity_type)
+              // Parse the exclusivity_type string which may contain multiple exclusivities
+              // e.g., "Horse 50%" or "Horse 50%, Dog 25%, Cat 30%"
+              const exclusivityStrings = lineData.exclusivity_type.split(',').map(s => s.trim())
 
-              console.log(`✅ Set exclusivity for ${key}: ${lineData.exclusivity_type}`)
+              exclusivityStrings.forEach(exclusivityString => {
+                const exclusivityMatch = exclusivityString.match(/^(.+?)\s+(\d+)%$/)
+                if (exclusivityMatch) {
+                  const exclusivityName = exclusivityMatch[1].trim()
+                  const exclusivityPercentage = parseInt(exclusivityMatch[2])
+
+                  // Check if this exclusivity already exists in the array (prevent duplicates)
+                  const alreadyExists = window.lineExclusivityData[key].some(ex =>
+                    ex.name === exclusivityName && ex.percentage === exclusivityPercentage
+                  )
+
+                  if (!alreadyExists) {
+                    // Add to lineExclusivityData (this is what getExclusivitiesForSpecificLine reads)
+                    window.lineExclusivityData[key].push({
+                      name: exclusivityName,
+                      percentage: exclusivityPercentage,
+                      categoryId: parseInt(categoryId),
+                      lineIndex: parseInt(lineIndex),
+                      talentDescription: lineData.description || `Category ${categoryId}`,
+                      isLineSpecific: true
+                    })
+
+                    console.log(`✅ Set exclusivity for ${key}: ${exclusivityString}`)
+                  } else {
+                    console.log(`⏭️ Skipping duplicate exclusivity for ${key}: ${exclusivityString}`)
+                  }
+                } else {
+                  console.warn(`⚠️ Could not parse exclusivity string: ${exclusivityString}`)
+                }
+              })
             }
           })
         })
       }
     })
 
-    console.log('✅ Exclusivity data populated:', window.exclusivityData)
+    console.log('✅ Exclusivity data populated:', window.lineExclusivityData)
   }
 
   // Update exclusivity display in the table DOM
