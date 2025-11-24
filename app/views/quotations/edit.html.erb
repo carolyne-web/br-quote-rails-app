@@ -582,9 +582,9 @@
       <!-- Form Actions -->
       <div class="bg-white rounded-2xl p-4 shadow">
         <div class="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3 sm:justify-end">
-          <%= link_to "Cancel", quotations_path, 
+          <%= link_to "Cancel", quotations_path,
               class: "px-6 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition text-center" %>
-          <%= f.submit "Preview Quote",
+          <%= f.submit @quotation.persisted? ? "Update Quote" : "Preview Quote",
               id: "preview-quote-btn",
               class: "px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition" %>
         </div>
@@ -758,8 +758,7 @@ window.territoryExceptions = <%= @territory_exceptions.map { |ex|
 
 // Function to initialize the page functionality
 function initializeQuotationForm() {
-  console.log('Initializing quotation form...');
-  console.log('add-combination button:', document.getElementById('add-combination'));
+  // console.log('Initializing quotation form...');
   // Sidebar navigation
   const sidebarItems = document.querySelectorAll('[data-section]');
   const sections = document.querySelectorAll('section[id]');
@@ -790,21 +789,8 @@ function initializeQuotationForm() {
   
   // Add new combination functionality
   const addCombinationBtn = document.getElementById('add-combination');
-  console.log('Looking for add-combination button:', addCombinationBtn);
-
-  // Additional debugging - check if button exists
-  setTimeout(() => {
-    const btn = document.getElementById('add-combination');
-    console.log('Button check after timeout:', btn);
-    if (btn) {
-      console.log('Button classes:', btn.className);
-      console.log('Button disabled:', btn.disabled);
-      console.log('Button onclick:', btn.onclick);
-      console.log('JavaScript successfully found and can access the button');
-    } else {
-      console.error('CRITICAL: Button not found even after 1 second delay!');
-    }
-  }, 1000);
+  // Debug logging commented out to reduce console noise
+  // console.log('Looking for add-combination button:', addCombinationBtn);
 
   // Use event delegation instead of direct event listener to ensure it always works
   document.addEventListener('click', function(e) {

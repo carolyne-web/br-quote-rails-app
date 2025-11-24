@@ -2136,6 +2136,37 @@ export default class extends Controller {
       console.log(`💾 Preserving commercial count for ${key}: ${input.value}`)
     })
 
+    // If no existing values (initial load), try to get from stored data
+    if (Object.keys(existingCommercialValues).length === 0) {
+      console.log(`🔍 No existing commercial values, checking stored data for combo ${comboId}`)
+      try {
+        const combinationsInput = document.querySelector('input[name="combinations"]')
+        if (combinationsInput && combinationsInput.value) {
+          const storedData = JSON.parse(combinationsInput.value)
+          const comboData = storedData[comboId] || storedData[`combo_${comboId}`]
+          if (comboData) {
+            // Check for num_commercials at combo level
+            const defaultCommercialCount = comboData.num_commercials || 1
+            console.log(`💾 Using default commercial count from stored data: ${defaultCommercialCount}`)
+
+            // Check for line-specific commercial counts in calculated_values
+            if (comboData.calculated_values) {
+              Object.entries(comboData.calculated_values).forEach(([categoryId, lines]) => {
+                Object.entries(lines).forEach(([lineIndex, lineData]) => {
+                  const key = `${categoryId}_${lineIndex}`
+                  const commercialCount = lineData.commercial_count || defaultCommercialCount
+                  existingCommercialValues[key] = commercialCount
+                  console.log(`💾 Set commercial count from stored data for ${key}: ${commercialCount}`)
+                })
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.error('❌ Error loading commercial counts from stored data:', e)
+      }
+    }
+
     // Determine guarantee state for this combo
     let isGuaranteedForCombo = false
     if (guaranteeState !== null) {
@@ -5743,6 +5774,9 @@ export default class extends Controller {
     // Step 3: Create licensing combinations (groups)
     this.recreateLicensingCombinationsFromStoredData(storedCombinationsData)
 
+    // Step 3.5: Restore exclusivity data from combinations
+    this.restoreExclusivityDataFromCombinations(storedCombinationsData)
+
     // Step 4: Rebuild preview tables
     setTimeout(() => {
       this.rebuildPreviewTablesFromStoredData(storedCombinationsData)
@@ -5834,6 +5868,63 @@ export default class extends Controller {
 
     console.log('📊 Found categories in combinations data:', Array.from(talentCategories))
     console.log('✅ Combinations structure recreation completed (no talent lines created)')
+  }
+
+  // Restore exclusivity data from stored combinations
+  restoreExclusivityDataFromCombinations(storedData) {
+    console.log('🏷️ Restoring exclusivity data from stored combinations...')
+
+    // Initialize window.lineExclusivityData if not exists
+    if (!window.lineExclusivityData) {
+      window.lineExclusivityData = {}
+    }
+
+    // Iterate through each combination
+    Object.entries(storedData).forEach(([comboKey, comboData]) => {
+      const comboNumber = comboKey.replace('combo_', '')
+      console.log(`🔍 Processing exclusivities for ${comboKey}`)
+
+      if (comboData.calculated_values) {
+        // Iterate through each category's talent lines
+        Object.entries(comboData.calculated_values).forEach(([categoryId, talentLines]) => {
+          Object.entries(talentLines).forEach(([lineIndex, lineData]) => {
+            // Check if this line has exclusivity data
+            if (lineData.exclusivity_type && lineData.exclusivity_type !== '') {
+              const lineKey = `${comboNumber}_${categoryId}_${lineIndex}`
+
+              // Parse exclusivity string (format: "car 50%" or "exclusive 100%")
+              const exclusivityMatch = lineData.exclusivity_type.match(/^(.+?)\s+(\d+(?:\.\d+)?)%?$/)
+
+              if (exclusivityMatch) {
+                const exclusivityName = exclusivityMatch[1].trim()
+                const exclusivityPercentage = parseFloat(exclusivityMatch[2])
+
+                // Initialize array for this line if not exists
+                if (!window.lineExclusivityData[lineKey]) {
+                  window.lineExclusivityData[lineKey] = []
+                }
+
+                // Add exclusivity data
+                window.lineExclusivityData[lineKey].push({
+                  name: exclusivityName,
+                  percentage: exclusivityPercentage,
+                  categoryId: categoryId,
+                  lineIndex: parseInt(lineIndex),
+                  comboId: comboNumber
+                })
+
+                console.log(`✅ Restored exclusivity for ${lineKey}: ${exclusivityName} ${exclusivityPercentage}%`)
+              } else {
+                console.warn(`⚠️ Could not parse exclusivity: "${lineData.exclusivity_type}"`)
+              }
+            }
+          })
+        })
+      }
+    })
+
+    console.log('🏷️ Final exclusivity data:', window.lineExclusivityData)
+    console.log('✅ Exclusivity data restoration completed')
   }
 
   // Recreate talent combinations from calculated_values data
@@ -6580,30 +6671,34 @@ export default class extends Controller {
 
   // Populate unlimited stills/versions for a group
   populateGroupUnlimitedOptions(groupNumber, comboData) {
+    // Helper to convert string/boolean/number to boolean
+    const toBool = (value) => {
+      if (typeof value === 'boolean') return value
+      if (typeof value === 'string') return value === '1' || value === 'true'
+      if (typeof value === 'number') return value === 1
+      return false
+    }
+
     // Unlimited stills
-    if (comboData.unlimited_stills) {
-      let stillsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_stills]"]`) ||
-                          document.querySelector(`input[name="combinations[combination_${groupNumber}][unlimited_stills]"]`)
-      if (stillsCheckbox) {
-        stillsCheckbox.checked = true
-        stillsCheckbox.dispatchEvent(new Event('change'))
-        console.log(`✅ Set unlimited stills for Group ${groupNumber}`)
-      } else {
-        console.warn(`❌ Unlimited stills checkbox not found for Group ${groupNumber}`)
-      }
+    let stillsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_stills]"]`) ||
+                        document.querySelector(`input[name="combinations[combination_${groupNumber}][unlimited_stills]"]`)
+    if (stillsCheckbox) {
+      stillsCheckbox.checked = toBool(comboData.unlimited_stills)
+      stillsCheckbox.dispatchEvent(new Event('change'))
+      console.log(`✅ Set unlimited stills for Group ${groupNumber}: ${stillsCheckbox.checked} (from ${comboData.unlimited_stills})`)
+    } else {
+      console.warn(`❌ Unlimited stills checkbox not found for Group ${groupNumber}`)
     }
 
     // Unlimited versions
-    if (comboData.unlimited_versions) {
-      let versionsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_versions]"]`) ||
-                            document.querySelector(`input[name="combinations[combination_${groupNumber}][unlimited_versions]"]`)
-      if (versionsCheckbox) {
-        versionsCheckbox.checked = true
-        versionsCheckbox.dispatchEvent(new Event('change'))
-        console.log(`✅ Set unlimited versions for Group ${groupNumber}`)
-      } else {
-        console.warn(`❌ Unlimited versions checkbox not found for Group ${groupNumber}`)
-      }
+    let versionsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_versions]"]`) ||
+                          document.querySelector(`input[name="combinations[combination_${groupNumber}][unlimited_versions]"]`)
+    if (versionsCheckbox) {
+      versionsCheckbox.checked = toBool(comboData.unlimited_versions)
+      versionsCheckbox.dispatchEvent(new Event('change'))
+      console.log(`✅ Set unlimited versions for Group ${groupNumber}: ${versionsCheckbox.checked} (from ${comboData.unlimited_versions})`)
+    } else {
+      console.warn(`❌ Unlimited versions checkbox not found for Group ${groupNumber}`)
     }
   }
 
@@ -6667,9 +6762,10 @@ export default class extends Controller {
       }
 
       // STEP 6: Debug and fix selectors after everything is rendered
-      setTimeout(() => {
-        this.debugAndFixSelectors(storedData)
-      }, 200)
+      // Commented out to reduce console noise - uncomment if debugging selector issues
+      // setTimeout(() => {
+      //   this.debugAndFixSelectors(storedData)
+      // }, 200)
 
     }, 500)
   }
@@ -6950,27 +7046,27 @@ export default class extends Controller {
     }
 
     // Set unlimited stills
-    if (comboData.unlimited_stills) {
-      const unlimitedStillsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_stills]"]`)
-      if (unlimitedStillsCheckbox) {
-        unlimitedStillsCheckbox.checked = true
-        unlimitedStillsCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
-        console.log(`✅ Set unlimited stills for Group ${groupNumber}`)
-      } else {
-        console.log(`⚠️ Unlimited stills checkbox not found for Group ${groupNumber}`)
-      }
+    // Use proper boolean conversion - "0" string should NOT check the box
+    const shouldCheckUnlimitedStills = comboData.unlimited_stills === true || comboData.unlimited_stills === 1 || comboData.unlimited_stills === "1"
+    const unlimitedStillsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_stills]"]`)
+    if (unlimitedStillsCheckbox) {
+      unlimitedStillsCheckbox.checked = shouldCheckUnlimitedStills
+      unlimitedStillsCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+      console.log(`✅ Set unlimited stills for Group ${groupNumber}: ${shouldCheckUnlimitedStills} (from ${comboData.unlimited_stills})`)
+    } else {
+      console.log(`⚠️ Unlimited stills checkbox not found for Group ${groupNumber}`)
     }
 
     // Set unlimited versions
-    if (comboData.unlimited_versions) {
-      const unlimitedVersionsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_versions]"]`)
-      if (unlimitedVersionsCheckbox) {
-        unlimitedVersionsCheckbox.checked = true
-        unlimitedVersionsCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
-        console.log(`✅ Set unlimited versions for Group ${groupNumber}`)
-      } else {
-        console.log(`⚠️ Unlimited versions checkbox not found for Group ${groupNumber}`)
-      }
+    // Use proper boolean conversion - "0" string should NOT check the box
+    const shouldCheckUnlimitedVersions = comboData.unlimited_versions === true || comboData.unlimited_versions === 1 || comboData.unlimited_versions === "1"
+    const unlimitedVersionsCheckbox = document.querySelector(`input[name="combinations[${groupNumber}][unlimited_versions]"]`)
+    if (unlimitedVersionsCheckbox) {
+      unlimitedVersionsCheckbox.checked = shouldCheckUnlimitedVersions
+      unlimitedVersionsCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+      console.log(`✅ Set unlimited versions for Group ${groupNumber}: ${shouldCheckUnlimitedVersions} (from ${comboData.unlimited_versions})`)
+    } else {
+      console.log(`⚠️ Unlimited versions checkbox not found for Group ${groupNumber}`)
     }
   }
 

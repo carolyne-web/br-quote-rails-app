@@ -1,0 +1,83 @@
+# Render Blueprint for BR Quote Rails App
+# This file defines all services needed for deployment on Render
+
+databases:
+  - name: br-quote-db
+    databaseName: br_quote_rails_app_production
+    user: br_quote_rails_app
+    plan: starter  # Use 'free' for free tier, 'starter' for paid ($7/month)
+
+  - name: br-quote-cache-db
+    databaseName: br_quote_rails_app_production_cache
+    user: br_quote_rails_app
+    plan: starter
+
+  - name: br-quote-queue-db
+    databaseName: br_quote_rails_app_production_queue
+    user: br_quote_rails_app
+    plan: starter
+
+  - name: br-quote-cable-db
+    databaseName: br_quote_rails_app_production_cable
+    user: br_quote_rails_app
+    plan: starter
+
+services:
+  - type: web
+    name: br-quote-app
+    runtime: ruby
+    plan: starter  # Use 'free' for free tier, 'starter' for paid ($7/month)
+    buildCommand: "./bin/render-build.sh"
+    startCommand: "bundle exec puma -C config/puma.rb"
+    healthCheckPath: /up
+    envVars:
+      - key: RAILS_ENV
+        value: production
+
+      - key: RAILS_MASTER_KEY
+        sync: false  # Set this manually in Render dashboard using your master.key
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: br-quote-db
+          property: connectionString
+
+      - key: CACHE_DATABASE_URL
+        fromDatabase:
+          name: br-quote-cache-db
+          property: connectionString
+
+      - key: QUEUE_DATABASE_URL
+        fromDatabase:
+          name: br-quote-queue-db
+          property: connectionString
+
+      - key: CABLE_DATABASE_URL
+        fromDatabase:
+          name: br-quote-cable-db
+          property: connectionString
+
+      - key: RAILS_LOG_TO_STDOUT
+        value: "true"
+
+      - key: RAILS_SERVE_STATIC_FILES
+        value: "true"
+
+      - key: WEB_CONCURRENCY
+        value: "2"
+
+      - key: RAILS_MAX_THREADS
+        value: "5"
+
+      - key: ADMIN_PASSWORD
+        sync: false  # Set this manually in Render dashboard
+
+      - key: SOLID_QUEUE_IN_PUMA
+        value: "true"
+
+      # Puppeteer/Grover configuration for PDF generation
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "false"
+
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: "/usr/bin/chromium-browser"

@@ -787,10 +787,16 @@ class QuotationsController < ApplicationController
       # Build combination data structure from FinalQuotationTalentLine records
       calculated_values = {}
       talent_data = {}
+      num_commercials = 1  # Default to 1
 
       group.final_quotation_talent_lines.each do |talent_line|
         category_id = map_category_type_to_id(talent_line.category_type)
         next unless category_id
+
+        # Extract number of commercials from the first talent line
+        if num_commercials == 1 && talent_line.commercial_count.present?
+          num_commercials = talent_line.commercial_count.to_i
+        end
 
         # Initialize category if not exists
         calculated_values[category_id.to_s] ||= {}
@@ -827,9 +833,11 @@ class QuotationsController < ApplicationController
         "media_types" => group.selected_media_types,
         "calculated_values" => calculated_values,
         "talent" => talent_data,
-        "num_commercials" => 1,
+        "num_commercials" => num_commercials,
         "exclusivities" => [],
-        "is_guaranteed" => group.is_guaranteed
+        "is_guaranteed" => group.is_guaranteed,
+        "unlimited_stills" => group.unlimited_stills,
+        "unlimited_versions" => group.unlimited_versions
       }
     end
 

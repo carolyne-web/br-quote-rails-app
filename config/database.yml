@@ -81,18 +81,16 @@ test:
 production:
   primary: &primary_production
     <<: *default
-    database: br_quote_rails_app_production
-    username: br_quote_rails_app
-    password: <%= ENV["BR_QUOTE_RAILS_APP_DATABASE_PASSWORD"] %>
+    url: <%= ENV["DATABASE_URL"] %>
   cache:
-    <<: *primary_production
-    database: br_quote_rails_app_production_cache
+    <<: *default
+    url: <%= ENV.fetch("CACHE_DATABASE_URL") { ENV["DATABASE_URL"] } %>
     migrations_paths: db/cache_migrate
   queue:
-    <<: *primary_production
-    database: br_quote_rails_app_production_queue
+    <<: *default
+    url: <%= ENV.fetch("QUEUE_DATABASE_URL") { ENV["DATABASE_URL"] } %>
     migrations_paths: db/queue_migrate
   cable:
-    <<: *primary_production
-    database: br_quote_rails_app_production_cable
+    <<: *default
+    url: <%= ENV.fetch("CABLE_DATABASE_URL") { ENV["DATABASE_URL"] } %>
     migrations_paths: db/cable_migrate
