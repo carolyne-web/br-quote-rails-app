@@ -2173,10 +2173,27 @@ export default class extends Controller {
       // Use passed guarantee state to avoid timing issues
       isGuaranteedForCombo = guaranteeState
     } else {
-      // Fallback to reading from DOM (for initial load or when no state passed)
-      const guaranteeCheckbox = document.querySelector(`.guarantee-checkbox[data-combo="${comboId}"]`)
-      isGuaranteedForCombo = guaranteeCheckbox && guaranteeCheckbox.checked
-      // For initial load when no checkbox exists yet, default to false
+      // Try to read from stored data first (for edit mode)
+      try {
+        const combinationsInput = document.querySelector('input[name="combinations"]')
+        if (combinationsInput && combinationsInput.value) {
+          const storedData = JSON.parse(combinationsInput.value)
+          const comboData = storedData[comboId] || storedData[`combo_${comboId}`]
+          if (comboData && comboData.is_guaranteed !== undefined) {
+            isGuaranteedForCombo = comboData.is_guaranteed
+            console.log(`🛡️ Using guarantee state from stored data for combo ${comboId}: ${isGuaranteedForCombo}`)
+          }
+        }
+      } catch (e) {
+        console.error('❌ Error loading guarantee state from stored data:', e)
+      }
+
+      // Fallback to reading from DOM if not found in stored data
+      if (isGuaranteedForCombo === false) {
+        const guaranteeCheckbox = document.querySelector(`.guarantee-checkbox[data-combo="${comboId}"]`)
+        isGuaranteedForCombo = guaranteeCheckbox && guaranteeCheckbox.checked
+        // For initial load when no checkbox exists yet, default to false
+      }
     }
 
     const rows = []
@@ -6754,12 +6771,23 @@ export default class extends Controller {
       // STEP 4: Use the existing populateAllTables function to populate the preview
       this.populateAllTables()
 
-      // STEP 5: Call the existing updateQuotePreview function to make it interactive
-      if (typeof updateQuotePreview === 'function') {
-        console.log('🔄 Calling existing updateQuotePreview function...')
-        updateQuotePreview()
-        console.log('✅ Interactive quote preview updated')
-      }
+      // STEP 4.5: Restore cast selection and regenerate tables
+      // Wait a bit for the cast selection UI to be built
+      setTimeout(() => {
+        console.log('🎭 Starting cast selection restoration...')
+        this.restoreCastSelection(storedData)
+
+        // Wait for checkboxes to be set, then regenerate tables
+        setTimeout(() => {
+          console.log('🔄 Regenerating tables with restored cast selection...')
+          this.updateQuotePreview()
+
+          // Update guarantee savings display after tables are regenerated
+          setTimeout(() => {
+            this.updateGuaranteeSavingsDisplay()
+          }, 100)
+        }, 50)
+      }, 150)
 
       // STEP 6: Debug and fix selectors after everything is rendered
       // Commented out to reduce console noise - uncomment if debugging selector issues
@@ -6779,50 +6807,87 @@ export default class extends Controller {
       const groupNumber = index + 1
       console.log(`📋 Populating form fields for Group ${groupNumber}:`, comboData)
 
-      // Populate talent fields
-      if (comboData.calculated_values) {
-        Object.entries(comboData.calculated_values).forEach(([categoryId, talentLines]) => {
-          Object.entries(talentLines).forEach(([lineIndex, lineData]) => {
-            // Populate talent count
-            const talentCountField = document.querySelector(`input[name="talent[${categoryId}][lines][${lineIndex}][talent_count]"]`)
-            if (talentCountField && lineData.unit_count) {
-              talentCountField.value = lineData.unit_count
-              console.log(`✅ Set talent count for category ${categoryId}, line ${lineIndex}: ${lineData.unit_count}`)
-            }
+      // DON'T populate shared talent fields from combinations data
+      // They are already populated from talent_data by populateTalentFromStoredData
+      // The combinations data is group-specific, while talent fields are shared across all groups
 
-            // Populate commercial count
-            const commercialCountField = document.querySelector(`input[name="talent[${categoryId}][lines][${lineIndex}][commercial_count]"]`)
-            if (commercialCountField && lineData.commercial_count) {
-              commercialCountField.value = lineData.commercial_count
-              console.log(`✅ Set commercial count for category ${categoryId}, line ${lineIndex}: ${lineData.commercial_count}`)
-            }
-
-            // Populate description (strip category prefix like "LD - ")
-            const descriptionField = document.querySelector(`input[name="talent[${categoryId}][description]"]`)
-            if (descriptionField && lineData.description) {
-              const cleanDescription = lineData.description.replace(/^[A-Z0-9]+ - /, '')
-              descriptionField.value = cleanDescription
-              console.log(`✅ Set description for category ${categoryId}: ${cleanDescription}`)
-            }
-          })
-        })
-      }
-
-      // Set combination-level fields (duration, territories, media types, guarantee)
+      // Only set combination-level fields (duration, territories, media types, guarantee)
       this.populateCombinationFields(groupNumber, comboData)
     })
 
     console.log('✅ Form fields populated from stored data')
   }
 
+  // Restore cast selection checkboxes based on calculated_values
+  restoreCastSelection(storedData) {
+    console.log('🎭 Restoring cast selection from stored data...')
+
+    Object.entries(storedData).forEach(([, comboData], index) => {
+      const groupNumber = index + 1
+
+      if (comboData.calculated_values) {
+        console.log(`🎭 Restoring cast selection for Group ${groupNumber}`)
+
+        // First, uncheck all cast selection checkboxes for this group
+        const container = document.querySelector(`.cast-selection-container[data-combo="${groupNumber}"]`)
+        if (container) {
+          const allCheckboxes = container.querySelectorAll('.cast-selection-checkbox')
+          allCheckboxes.forEach(checkbox => {
+            checkbox.checked = false
+          })
+        }
+
+        // Then check only the talent that appear in calculated_values
+        // Match by DESCRIPTION first (more reliable), then fall back to line index
+        Object.entries(comboData.calculated_values).forEach(([categoryId, talentLines]) => {
+          Object.entries(talentLines).forEach(([storedLineIndex, lineData]) => {
+            const description = lineData.description
+
+            // Try to find checkbox by description match first
+            const allCheckboxes = document.querySelectorAll(
+              `input.cast-selection-checkbox[data-combo="${groupNumber}"][data-category="${categoryId}"]`
+            )
+
+            let foundCheckbox = null
+            allCheckboxes.forEach(checkbox => {
+              const label = checkbox.nextElementSibling
+              if (label) {
+                // Extract just the description part (before the count/rate info in parentheses)
+                const labelText = label.textContent.split('(')[0].trim().toLowerCase()
+                // Use exact match to avoid "man" matching "woman"
+                if (labelText === description.toLowerCase()) {
+                  foundCheckbox = checkbox
+                }
+              }
+            })
+
+            // Fallback: try by line index if description match fails
+            if (!foundCheckbox) {
+              foundCheckbox = document.querySelector(
+                `input.cast-selection-checkbox[data-combo="${groupNumber}"][data-category="${categoryId}"][data-line="${storedLineIndex}"]`
+              )
+            }
+
+            if (foundCheckbox) {
+              foundCheckbox.checked = true
+              console.log(`✅ Checked cast selection for Group ${groupNumber}: Category ${categoryId}, "${description}"`)
+            } else {
+              console.log(`⚠️ Cast selection checkbox not found for Group ${groupNumber}: Category ${categoryId}, "${description}"`)
+            }
+          })
+        })
+      }
+    })
+
+    console.log('✅ Cast selection restored from stored data')
+  }
+
   // Populate exclusivity data for interactive functionality
   populateExclusivityFromStoredData(storedData) {
     console.log('🔐 Populating exclusivity data from stored data...')
 
-    // Initialize exclusivity data structure
-    if (!window.exclusivityData) {
-      window.exclusivityData = {}
-    }
+    // Clear and reinitialize exclusivity data structure to avoid duplicates
+    window.exclusivityData = {}
 
     Object.entries(storedData).forEach(([, comboData], index) => {
       const groupNumber = index + 1
@@ -6889,18 +6954,33 @@ export default class extends Controller {
 
     if (targetCellIndex < exclusivityCells.length) {
       const targetCell = exclusivityCells[targetCellIndex]
-      console.log(`🎯 Targeting cell ${targetCellIndex}, current content: "${targetCell.textContent.trim()}"`)
+      const currentContent = targetCell.textContent.trim()
+      console.log(`🎯 Targeting cell ${targetCellIndex}, current content: "${currentContent}"`)
 
-      // Replace the content with exclusivity type
-      const plusBtn = targetCell.querySelector('.exclusivity-plus-btn')
-      if (plusBtn) {
-        // Replace the plus button container with exclusivity text
-        targetCell.innerHTML = `<span class="exclusivity-text">${exclusivityType}</span>`
-      } else {
-        targetCell.textContent = exclusivityType
+      // Check if there's already an exclusivity-text span with the same value
+      const existingSpan = targetCell.querySelector('.exclusivity-text')
+      if (existingSpan && existingSpan.textContent.trim() === exclusivityType) {
+        console.log(`✅ Exclusivity already set to "${exclusivityType}", skipping update`)
+        return true
       }
 
-      console.log(`✅ Updated exclusivity cell ${targetCellIndex} to show: ${exclusivityType}`)
+      // Check if the text content already contains this exclusivity (backup check)
+      if (currentContent.includes(exclusivityType)) {
+        console.log(`✅ Exclusivity text already contains "${exclusivityType}", skipping update`)
+        return true
+      }
+
+      // Update or create the exclusivity span
+      if (existingSpan) {
+        // Update the existing span text
+        existingSpan.textContent = exclusivityType
+        console.log(`✅ Updated existing exclusivity span in cell ${targetCellIndex} to: ${exclusivityType}`)
+      } else {
+        // No span found, replace the entire content (including plus button if exists)
+        targetCell.innerHTML = `<span class="exclusivity-text">${exclusivityType}</span>`
+        console.log(`✅ Created new exclusivity span in cell ${targetCellIndex}: ${exclusivityType}`)
+      }
+
       return true
     } else {
       console.log(`⚠️ Target cell index ${targetCellIndex} exceeds available cells (${exclusivityCells.length})`)
@@ -6917,8 +6997,11 @@ export default class extends Controller {
 
     // Get all visible talent categories and count their lines to determine cell index
     const categories = [1, 2, 3, 4, 5, 6, 7]
+    const categoryIdNum = parseInt(categoryId)
+    const lineIndexNum = parseInt(lineIndex)
+
     for (const catId of categories) {
-      if (catId < parseInt(categoryId)) {
+      if (catId < categoryIdNum) {
         // Count visible talent lines in this category
         const catSection = document.querySelector(`#talent-category-${catId}`)
         if (catSection && !catSection.classList.contains('hidden')) {
@@ -6929,7 +7012,7 @@ export default class extends Controller {
     }
 
     // Add the line index within the current category
-    cellIndex += parseInt(lineIndex)
+    cellIndex += lineIndexNum
 
     return cellIndex
   }
@@ -7012,26 +7095,9 @@ export default class extends Controller {
     if (comboData.is_guaranteed) {
       console.log(`🛡️ Setting guarantee for Group ${groupNumber}`)
 
-      // Try multiple selectors for the guarantee checkbox based on debug findings
-      const guaranteeSelectors = [
-        `input[name="combinations[combination_${groupNumber}][is_guaranteed]"]`,
-        `input[name="combinations[combination_1][is_guaranteed]"]`, // Fallback to combination_1
-        `input[name*="is_guaranteed"]`, // Broader search
-        `#is_guaranteed_${groupNumber}`,
-        `input[data-combo="${groupNumber}"][name*="is_guaranteed"]`,
-        `.combo-content[data-combo="${groupNumber}"] input[name*="guaranteed"]`,
-        `.guarantee-checkbox`, // Class-based selector
-        `input[class*="guarantee"]` // Any input with guarantee in class
-      ]
-
-      let guaranteeCheckbox = null
-      for (const selector of guaranteeSelectors) {
-        guaranteeCheckbox = document.querySelector(selector)
-        if (guaranteeCheckbox) {
-          console.log(`🛡️ Found guarantee checkbox with selector: ${selector}`)
-          break
-        }
-      }
+      // The guarantee checkbox is dynamically created in the preview table
+      // with class 'guarantee-checkbox' and data-combo attribute
+      const guaranteeCheckbox = document.querySelector(`.guarantee-checkbox[data-combo="${groupNumber}"]`)
 
       if (guaranteeCheckbox) {
         guaranteeCheckbox.checked = true
@@ -7039,9 +7105,7 @@ export default class extends Controller {
         guaranteeCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
         console.log(`✅ Set and triggered guarantee for Group ${groupNumber}: ${comboData.is_guaranteed}`)
       } else {
-        console.log(`⚠️ Guarantee checkbox not found for Group ${groupNumber}`)
-        // Try to find it by searching within the group content
-        this.searchAndSetGuaranteeCheckbox(groupNumber)
+        console.log(`⚠️ Guarantee checkbox not found for Group ${groupNumber} - it will be set when the preview table is rendered`)
       }
     }
 
@@ -7070,27 +7134,31 @@ export default class extends Controller {
     }
   }
 
-  // Search for guarantee checkbox when standard selectors fail
-  searchAndSetGuaranteeCheckbox(groupNumber) {
-    console.log(`🔍 Searching for guarantee checkbox for Group ${groupNumber}`)
+  // Update guarantee savings display for all combos
+  updateGuaranteeSavingsDisplay() {
+    console.log('💰 Updating guarantee savings display...')
 
-    // Look within the specific group content
-    const groupContent = document.querySelector(`[data-combo="${groupNumber}"]`) ||
-                        document.querySelector(`.combo-content[data-combo="${groupNumber}"]`) ||
-                        document.querySelector(`.combination-content[data-combo="${groupNumber}"]`)
+    // Find all guarantee checkboxes that are checked
+    document.querySelectorAll('.guarantee-checkbox:checked').forEach(checkbox => {
+      const comboId = checkbox.getAttribute('data-combo')
+      if (!comboId) return
 
-    if (groupContent) {
-      const checkboxes = groupContent.querySelectorAll('input[type="checkbox"]')
-      checkboxes.forEach(checkbox => {
-        if (checkbox.name && (checkbox.name.includes('guaranteed') || checkbox.name.includes('is_guaranteed'))) {
-          checkbox.checked = true
-          checkbox.dispatchEvent(new Event('change', { bubbles: true }))
-          console.log(`✅ Found and set guarantee checkbox via search: ${checkbox.name}`)
+      console.log(`💰 Processing guarantee savings for combo ${comboId}`)
+
+      const guaranteeAmountSpan = document.querySelector(`.guarantee-amount[data-combo="${comboId}"]`)
+      const totalZarSpan = document.querySelector(`.total-zar-amount[data-combo="${comboId}"]`)
+
+      if (guaranteeAmountSpan && totalZarSpan) {
+        const guaranteedAmount = parseFloat(totalZarSpan.textContent.replace(/[R,\s]/g, '')) || 0
+        if (guaranteedAmount > 0) {
+          // Calculate original amount (before 25% discount)
+          const originalAmount = guaranteedAmount / 0.75
+          const savings = originalAmount - guaranteedAmount
+          guaranteeAmountSpan.innerHTML = `<span style="color: red;">R${this.formatNumber(savings)} saving</span>`
+          console.log(`✅ Set guarantee savings for combo ${comboId}: R${this.formatNumber(savings)}`)
         }
-      })
-    } else {
-      console.log(`⚠️ Could not find group content for Group ${groupNumber}`)
-    }
+      }
+    })
   }
 
   // Ensure all group sections exist in the Quote Preview
