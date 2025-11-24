@@ -88,6 +88,9 @@ export default class extends Controller {
     // Load stored combinations data for edit mode immediately (no delay needed)
     this.loadStoredCombinationsData()
 
+    // Calculate all category totals on page load (important for edit mode)
+    this.calculateAllVisibleCategoryTotals()
+
     console.log('✅ Quotation form controller connection COMPLETED successfully!')
   }
 
@@ -793,6 +796,25 @@ export default class extends Controller {
     if (typeof updateQuotePreview === 'function') {
       updateQuotePreview()
     }
+  }
+
+  calculateAllVisibleCategoryTotals() {
+    console.log('🔄 Calculating all visible category totals on page load...')
+
+    // Find all visible talent category sections
+    const visibleCategories = document.querySelectorAll('.talent-category-section:not(.hidden)')
+
+    visibleCategories.forEach(section => {
+      // Extract category ID from the section's id attribute (format: talent-category-{id})
+      const categoryId = section.id.replace('talent-category-', '')
+
+      if (categoryId) {
+        console.log(`  ✓ Calculating total for category: ${categoryId}`)
+        this.calculateCategoryTotal(categoryId)
+      }
+    })
+
+    console.log('✅ All visible category totals calculated')
   }
 
   calculateLineTotal(lineRow, baseRate) {
