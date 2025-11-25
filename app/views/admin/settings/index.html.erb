@@ -1,23 +1,28 @@
-<div class="bg-white shadow">
-  <div class="px-4 sm:px-6 lg:max-w-7xl lg:mx-auto lg:px-8">
-    <div class="py-6 md:flex md:items-center md:justify-between">
-      <div class="flex-1 min-w-0">
-        <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-          System Settings
-        </h1>
+<div class="min-h-screen bg-gray-50">
+  <!-- Header -->
+  <div class="bg-white shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+          <h1 class="text-3xl font-bold text-gray-900">
+            System Settings
+          </h1>
+          <p class="mt-2 text-sm text-gray-600">
+            Configure rates, multipliers, and system-wide defaults
+          </p>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<div class="mt-8 space-y-8">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
   <!-- Talent Categories Settings -->
-  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div class="px-4 py-5 sm:px-6">
-      <h3 class="text-lg leading-6 font-medium text-gray-900">
+  <div class="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
+    <div class="px-6 py-5 border-b border-gray-200">
+      <h3 class="text-lg leading-6 font-semibold text-gray-900">
         Talent Category Base Rates
       </h3>
-      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+      <p class="mt-1 text-sm text-gray-600">
         Set the base daily rates for each talent category
       </p>
     </div>
@@ -49,12 +54,12 @@
   </div>
 
   <!-- Duration Settings -->
-  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div class="px-4 py-5 sm:px-6">
-      <h3 class="text-lg leading-6 font-medium text-gray-900">
+  <div class="bg-white shadow-sm border border-gray-200 overflow-hidden rounded-xl">
+    <div class="px-6 py-5 border-b border-gray-200">
+      <h3 class="text-lg leading-6 font-semibold text-gray-900">
         Duration Percentages
       </h3>
-      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+      <p class="mt-1 text-sm text-gray-600">
         Set the percentage multipliers for different contract durations
       </p>
     </div>
@@ -86,12 +91,12 @@
   </div>
 
   <!-- Exclusivity Settings -->
-  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div class="px-4 py-5 sm:px-6">
-      <h3 class="text-lg leading-6 font-medium text-gray-900">
+  <div class="bg-white shadow-sm border border-gray-200 overflow-hidden rounded-xl">
+    <div class="px-6 py-5 border-b border-gray-200">
+      <h3 class="text-lg leading-6 font-semibold text-gray-900">
         Exclusivity Rates
       </h3>
-      <p class="mt-1 max-w-2xl text-gray-500">
+      <p class="mt-1 text-sm text-gray-600">
         Manage exclusivity types and their percentage multipliers
       </p>
     </div>
@@ -228,12 +233,12 @@
   </div>
 
   <!-- Media Type Multipliers -->
-  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div class="px-4 py-5 sm:px-6">
-      <h3 class="text-lg leading-6 font-medium text-gray-900">
+  <div class="bg-white shadow-sm border border-gray-200 overflow-hidden rounded-xl">
+    <div class="px-6 py-5 border-b border-gray-200">
+      <h3 class="text-lg leading-6 font-semibold text-gray-900">
         Media Type Multipliers
       </h3>
-      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+      <p class="mt-1 text-sm text-gray-600">
         Set the percentage multipliers for different media types (1 media = 50%, 2 media = 75%, 3+ media = 100%)
       </p>
     </div>
@@ -265,12 +270,12 @@
   </div>
 
   <!-- Product Type Rules -->
-  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div class="px-4 py-5 sm:px-6">
-      <h3 class="text-lg leading-6 font-medium text-gray-900">
+  <div class="bg-white shadow-sm border border-gray-200 overflow-hidden rounded-xl">
+    <div class="px-6 py-5 border-b border-gray-200">
+      <h3 class="text-lg leading-6 font-semibold text-gray-900">
         Product Type Rules
       </h3>
-      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+      <p class="mt-1 text-sm text-gray-600">
         Configure Kids category adjustments for different product types
       </p>
     </div>
@@ -311,17 +316,18 @@
   </div>
 
   <!-- Territories Management -->
-  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+  <div class="bg-white shadow-sm border border-gray-200 overflow-hidden rounded-xl">
+    <div class="px-6 py-5 flex justify-between items-center">
       <div>
-        <h3 class="text-lg leading-6 font-medium text-gray-900">
+        <h3 class="text-lg leading-6 font-semibold text-gray-900">
           Territory Percentages
         </h3>
-        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+        <p class="mt-1 text-sm text-gray-600">
           Manage territories and their percentage multipliers
         </p>
       </div>
-      <%= link_to "Manage Territories", admin_territories_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700" %>
+      <%= link_to "Manage Territories", admin_territories_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors" %>
     </div>
+  </div>
   </div>
 </div>

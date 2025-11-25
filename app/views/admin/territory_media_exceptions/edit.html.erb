@@ -24,7 +24,7 @@
 <div class="mt-8 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
   <div class="bg-white shadow overflow-hidden sm:rounded-lg">
     <div class="px-4 py-5 sm:p-6">
-      <%= form_with model: [:admin, @exception], local: true, class: "space-y-6" do |f| %>
+      <%= form_with model: @exception, url: admin_territory_exception_path(@exception), method: :patch, local: true, class: "space-y-6" do |f| %>
         <% if @exception.errors.any? %>
           <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
             <h3 class="font-semibold mb-2">Please correct the following errors:</h3>

@@ -1,6 +1,6 @@
 class Admin::TerritoryMediaExceptionsController < ApplicationController
   before_action :require_admin
-  before_action :set_exception, only: [:show, :edit, :update, :destroy]
+  before_action :set_exception, only: [:edit, :update, :destroy]
 
   def index
     @exceptions = TerritoryMediaException.all.order(:territory_name, :media_type)

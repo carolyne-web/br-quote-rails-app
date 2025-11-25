@@ -17,26 +17,19 @@
   <!-- Filters -->
   <div class="bg-white shadow rounded-lg mb-6">
     <div class="px-4 py-5 sm:p-6">
-      <%= form_with url: admin_quotations_path, method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-4" do |f| %>
+      <%= form_with url: admin_quotations_path, method: :get, local: true, class: "grid grid-cols-1 gap-4 sm:grid-cols-3" do |f| %>
         <div>
-          <%= f.text_field :search, value: params[:search], placeholder: "Search project name...", 
+          <%= f.text_field :search, value: params[:search], placeholder: "Search project name...",
               class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" %>
         </div>
-        
+
         <div>
-          <%= f.select :production_house_id, 
+          <%= f.select :production_house_id,
               options_from_collection_for_select(@production_houses, :id, :name, params[:production_house_id]),
               { prompt: "All Production Houses" },
               { class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" } %>
         </div>
-        
-        <div>
-          <%= f.select :status,
-              options_for_select(@statuses.map { |s| [s.humanize, s] }, params[:status]),
-              { prompt: "All Statuses" },
-              { class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" } %>
-        </div>
-        
+
         <div class="flex space-x-2">
           <%= f.submit "Filter", class: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700" %>
           <%= link_to "Clear", admin_quotations_path, class: "inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" %>
@@ -58,9 +51,6 @@
               Production House
             </th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Created
             </th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -73,6 +63,21 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <% @quotations.each do |quotation| %>
+            <%
+              # Calculate correct total from FinalQuotation
+              final_quotation = quotation.final_quotations.last
+              if final_quotation && final_quotation.final_quotation_groups.any?
+                all_talent_lines = final_quotation.final_quotation_groups.flat_map(&:final_quotation_talent_lines)
+                unique_talent_lines = all_talent_lines.group_by { |line| [line.category_type, line.description] }.map { |_, lines| lines.first }
+                talent_summary_total = unique_talent_lines.sum(&:total_talent_fee)
+                all_group_totals = final_quotation.final_quotation_groups.sum { |group|
+                  group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost)
+                }
+                total_value = talent_summary_total + all_group_totals
+              else
+                total_value = quotation.total_amount || 0
+              end
+            %>
             <tr class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div>
@@ -80,37 +85,24 @@
                     <%= quotation.project_name %>
                   </div>
                   <div class="text-sm text-gray-500">
-                    Quote #<%= quotation.id %>
+                    Quote #<%= quotation.project_number %>
                   </div>
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 <%= quotation.production_house&.name %>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                  <%= case quotation.status
-                      when 'draft' then 'bg-gray-100 text-gray-800'
-                      when 'pending' then 'bg-yellow-100 text-yellow-800'
-                      when 'approved' then 'bg-green-100 text-green-800'
-                      when 'rejected' then 'bg-red-100 text-red-800'
-                      else 'bg-gray-100 text-gray-800'
-                      end %>">
-                  <%= quotation.status.humanize %>
-                </span>
-              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 <%= quotation.created_at.strftime("%b %d, %Y") %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                R <%= number_with_delimiter(quotation.total_amount || 0) %>.00
+                R <%= number_with_delimiter(total_value.round(2)) %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <%= link_to "View", admin_quotation_path(quotation), 
+                <%= link_to "View", admin_quotation_path(quotation),
                     class: "text-indigo-600 hover:text-indigo-900 mr-3" %>
-                <%= link_to "PDF", pdf_admin_quotation_path(quotation), 
-                    class: "text-gray-600 hover:text-gray-900", 
-                    target: "_blank" %>
+                <%= link_to "PDF", pdf_admin_quotation_path(quotation),
+                    { class: "text-gray-600 hover:text-gray-900", target: "_blank" } %>
               </td>
             </tr>
           <% end %>
