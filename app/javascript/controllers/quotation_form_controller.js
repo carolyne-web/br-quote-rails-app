@@ -1241,59 +1241,83 @@ export default class extends Controller {
   }
 
   checkComboTerritoryOverride(comboId, threshold, durationMonths) {
-    // Calculate total percentage for this combo, considering territory exceptions
+    // Calculate total percentage for this combo
     const selectedTerritories = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
-    let totalPercentage = 0
 
-    // Get selected media types for this combo to check for exceptions
-    const selectedMediaTypes = this.getSelectedMediaTypesForCombo(comboId)
+    if (selectedTerritories.length === 0) {
+      this.hideTerritoryOverrideNotice(comboId)
+      this.unforceAllMediaForCombo(comboId)
+      return
+    }
+
+    // Special case: If Worldwide is selected (alone or with others), bypass override
+    // Worldwide (1200%) is already the default override value, so no need to show override message
+    const territoryNames = Array.from(selectedTerritories).map(cb => cb.dataset.territoryName)
+
+    if (territoryNames.includes('Worldwide')) {
+      console.log('🔄 Worldwide is selected - bypassing override logic (already at Worldwide rate)')
+      this.hideTerritoryOverrideNotice(comboId)
+      this.unforceAllMediaForCombo(comboId)
+      return
+    }
+
+    // Calculate total percentage using RAW territory percentages (NOT exception rates)
+    // Exception rates should only be used if override is NOT triggered
+    let totalPercentage = 0
 
     selectedTerritories.forEach(checkbox => {
       const territoryName = checkbox.dataset.territoryName || checkbox.textContent.trim()
-      let percentage = parseFloat(checkbox.dataset.percentage) || 0
-
-      // Check for territory exceptions for each selected media type
-      selectedMediaTypes.forEach(mediaType => {
-        const exceptionPercentage = this.findTerritoryException(territoryName, mediaType)
-        if (exceptionPercentage !== null) {
-          console.log(`🔄 Territory exception found: ${territoryName} + ${mediaType} = ${exceptionPercentage}% (instead of ${percentage}%)`)
-          percentage = exceptionPercentage
-        }
-      })
-
-      totalPercentage += percentage
+      const rawPercentage = parseFloat(checkbox.dataset.percentage) || 0
+      totalPercentage += rawPercentage
+      console.log(`📊 Territory: ${territoryName} = ${rawPercentage}% (raw)`)
     })
-    
+
+    console.log(`📊 Total territory percentage (raw): ${totalPercentage}% vs threshold: ${threshold}%`)
+
     if (totalPercentage >= threshold) {
       // Show override notice
       this.showTerritoryOverrideNotice(comboId, totalPercentage, threshold, durationMonths)
-      
+
       // Force All Media selection for this combo
       this.forceAllMediaForCombo(comboId)
-      
+
     } else {
       // Remove override notice if it exists
       this.hideTerritoryOverrideNotice(comboId)
+
+      // Unforce All Media to allow user to select other options again
+      this.unforceAllMediaForCombo(comboId)
     }
   }
 
   showTerritoryOverrideNotice(comboId, actualPercentage, threshold, durationMonths) {
+    console.log(`⚠️ Showing territory override notice for combo ${comboId}`)
     let noticeContainer = document.getElementById(`territory-override-notice-${comboId}`)
-    
+
     // Create notice container if it doesn't exist
     if (!noticeContainer) {
+      console.log(`📝 Creating new notice container`)
       noticeContainer = document.createElement('div')
       noticeContainer.id = `territory-override-notice-${comboId}`
       noticeContainer.className = 'bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-3 mb-4 rounded'
-      
+
       // Find where to insert the notice (after territory selection section)
       const comboContent = document.querySelector(`[data-combo="${comboId}"].combination-content`)
+      console.log(`🔍 Looking for combo content, found: ${!!comboContent}`)
       if (comboContent) {
         const territorySection = comboContent.querySelector('.territories-list')?.parentElement?.parentElement
+        console.log(`🔍 Looking for territory section, found: ${!!territorySection}`)
         if (territorySection) {
           territorySection.appendChild(noticeContainer)
+          console.log(`✅ Notice container appended to territory section`)
+        } else {
+          console.error(`❌ Territory section not found for combo ${comboId}`)
         }
+      } else {
+        console.error(`❌ Combo content not found for combo ${comboId}`)
       }
+    } else {
+      console.log(`ℹ️ Notice container already exists, updating content`)
     }
     
     noticeContainer.innerHTML = `
@@ -1328,12 +1352,44 @@ export default class extends Controller {
   }
 
   forceAllMediaForCombo(comboId) {
-    const allMediaCheckbox = document.querySelector(`input[name="combinations[${comboId}][media_types][]"][value="all_media"]`)
-    if (allMediaCheckbox && !allMediaCheckbox.checked) {
+    console.log(`🔒 Forcing All Media for combo ${comboId}`)
+    const selector = `input[name="combinations[${comboId}][media_types][]"][value="all_media"]`
+    console.log(`🔍 Looking for selector: ${selector}`)
+    const allMediaCheckbox = document.querySelector(selector)
+
+    if (!allMediaCheckbox) {
+      console.error(`❌ All Media checkbox not found for combo ${comboId}`)
+      return
+    }
+
+    console.log(`✅ Found All Media checkbox, currently checked: ${allMediaCheckbox.checked}`)
+
+    if (!allMediaCheckbox.checked) {
       allMediaCheckbox.checked = true
+      console.log(`✅ Set All Media checkbox to checked`)
       // Trigger the media logic to disable other options
       allMediaCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+      console.log(`✅ Dispatched change event`)
+    } else {
+      console.log(`ℹ️ All Media already checked, no action needed`)
     }
+  }
+
+  unforceAllMediaForCombo(comboId) {
+    // Re-enable all media checkboxes for this combo when override no longer applies
+    const mediaCheckboxes = document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]`)
+    mediaCheckboxes.forEach(checkbox => {
+      // Remove disabled attribute if it was set by the override
+      checkbox.disabled = false
+    })
+
+    // Also re-enable the labels
+    mediaCheckboxes.forEach(checkbox => {
+      const label = checkbox.closest('label')
+      if (label) {
+        label.classList.remove('opacity-50', 'cursor-not-allowed')
+      }
+    })
   }
 
   getWorldwideTerritory() {
@@ -1544,16 +1600,11 @@ export default class extends Controller {
         if (totalValue > 0) {
           // Get talent count for this category
           let talentCount = 0
-          
-          // Count talent from first row
-          const firstRow = categorySection.querySelector('.talent-input-row')
-          if (firstRow) {
-            talentCount += parseInt(firstRow.querySelector('[name*="talent_count"], .talent-count')?.value) || 0
-          }
-          
-          // Count talent from additional lines
-          const additionalLines = categorySection.querySelectorAll('[data-line-index] .talent-count')
-          additionalLines.forEach(input => {
+
+          // Count all talent inputs from additional-lines tbody (includes first row at index 0)
+          // This prevents double-counting since first row has data-line-index="0"
+          const allTalentInputs = categorySection.querySelectorAll('.additional-lines .talent-count')
+          allTalentInputs.forEach(input => {
             talentCount += parseInt(input.value) || 0
           })
           
@@ -2664,10 +2715,19 @@ export default class extends Controller {
         })
       })
 
+      // Track line indices to prevent duplicates
+      const seenLineIndices = new Set()
+
       allRows.forEach(({descriptionField, rateField, countField, lineIndex}) => {
         const description = descriptionField?.value || ''
         const rate = rateField?.value || 0
         const count = countField?.value || 0
+
+        // Skip if we've already processed this line index for this category
+        if (seenLineIndices.has(lineIndex)) {
+          console.warn(`⚠️ Duplicate line index detected: ${categoryId}_${lineIndex} - skipping`)
+          return
+        }
 
         // Only include rows that have actual talent count > 0 AND (description OR rate > 0)
         // This prevents showing fake data with 0 units
@@ -2687,7 +2747,8 @@ export default class extends Controller {
               dailyRate: parseFloat(rate) || 0,
               initialCount: parseInt(count) || 0
             })
-            console.log(`✅ Including talent: ${finalDescription} (${lineKey}) for combo ${comboId}`)
+            seenLineIndices.add(lineIndex)
+            console.log(`✅ Including talent: ${finalDescription} (${lineKey}) count=${count} for combo ${comboId}`)
           } else {
             console.log(`🚫 Skipping talent: ${description || categoryName} (${lineKey}) - not selected in cast for combo ${comboId}`)
           }
@@ -2927,15 +2988,15 @@ export default class extends Controller {
 
   getTerritoryMultiplier(territories, duration) {
     if (territories.length === 0) return 1.0
-    
+
     const totalPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
     const durationMonths = this.parseDurationMonths(duration)
-    
-    // Check for override
-    if (this.shouldApplyTerritoryOverride(durationMonths, totalPercentage)) {
+
+    // Check for override (but skip if Worldwide is selected)
+    if (this.shouldApplyTerritoryOverride(durationMonths, totalPercentage, territories)) {
       return 12.0 // Worldwide override
     }
-    
+
     return totalPercentage / 100.0
   }
 
@@ -2945,8 +3006,8 @@ export default class extends Controller {
     const totalPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
     const durationMonths = this.parseDurationMonths(duration)
 
-    // Force All Media if territory override is active
-    if (this.shouldApplyTerritoryOverride(durationMonths, totalPercentage)) {
+    // Force All Media if territory override is active (but skip if Worldwide is selected)
+    if (this.shouldApplyTerritoryOverride(durationMonths, totalPercentage, territories)) {
       return 1.0
     }
 
@@ -3001,15 +3062,23 @@ export default class extends Controller {
     return map[duration] || null
   }
 
-  shouldApplyTerritoryOverride(durationMonths, totalPercentage) {
+  shouldApplyTerritoryOverride(durationMonths, totalPercentage, territories = []) {
     if (!durationMonths || !totalPercentage) return false
-    
+
+    // Special case: If Worldwide is selected (alone or with others), bypass override
+    // Worldwide (1200%) is already the default override value, so no need to show override
+    const hasWorldwide = territories.some(t => t.name === 'Worldwide')
+    if (hasWorldwide) {
+      console.log('🔄 Worldwide is selected - bypassing override logic (already at Worldwide rate)')
+      return false
+    }
+
     const thresholds = {
       12: 1200,
       24: 2400,
       36: 3600
     }
-    
+
     const threshold = thresholds[durationMonths]
     return threshold && totalPercentage >= threshold
   }

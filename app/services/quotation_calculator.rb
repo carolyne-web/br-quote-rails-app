@@ -193,17 +193,24 @@ class QuotationCalculator
 
   def should_apply_territory_override?(duration_months, total_percentage)
     return false unless duration_months && total_percentage
-    
+
+    # Special case: If ONLY Worldwide is selected, bypass override
+    # Worldwide should use its exception rates (all_moving: 1000%, internet: 600%)
+    if @territories.length == 1 && @territories.first.name == 'Worldwide'
+      Rails.logger.info "🔄 Only Worldwide selected - bypassing override logic"
+      return false
+    end
+
     # Only apply to 12, 24, 36 month durations
     thresholds = {
       12 => 1200,  # 12 months: ≥1200%
-      24 => 2400,  # 24 months: ≥2400% 
+      24 => 2400,  # 24 months: ≥2400%
       36 => 3600   # 36 months: ≥3600%
     }
-    
+
     threshold = thresholds[duration_months]
     return false unless threshold
-    
+
     total_percentage >= threshold
   end
 
@@ -268,8 +275,9 @@ class QuotationCalculator
           # Use exception percentage
           media_percentage += exception.percentage.to_f
         else
-          # Use standard territory percentage
-          media_percentage += territory.percentage.to_f
+          # No exception found - return 0 to fall through to standard media multiplier logic
+          # (e.g., TV Only, Cinema Only, All Print Media should use 50%/75% multipliers)
+          return 0
         end
       end
 

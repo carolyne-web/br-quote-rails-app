@@ -437,6 +437,9 @@
                         <% end %>
                       <% end %>
                     </div>
+                    <div class="territory-no-results hidden p-4 text-center text-gray-500 text-sm" data-combo="1">
+                      No territories found for that search
+                    </div>
                   </div>
                 </div>
 
@@ -1179,6 +1182,9 @@ function removeUsageCombination(comboId) {
             <div class="territories-list space-y-1 p-2" data-combo="${comboId}">
               <!-- Territories will be populated by JavaScript -->
             </div>
+            <div class="territory-no-results hidden p-4 text-center text-gray-500 text-sm" data-combo="${comboId}">
+              No territories found for that search
+            </div>
           </div>
         </div>
 
@@ -1253,23 +1259,40 @@ function removeUsageCombination(comboId) {
       const comboId = e.target.getAttribute('data-combo');
       const searchTerm = e.target.value.toLowerCase();
       const territoriesList = document.querySelector(`.territories-list[data-combo="${comboId}"]`);
-      
+      const noResultsMessage = document.querySelector(`.territory-no-results[data-combo="${comboId}"]`);
+
       if (territoriesList) {
         const territoryItems = territoriesList.querySelectorAll('.territory-item');
-        
+        let visibleCount = 0;
+
         if (searchTerm.length >= 1) {
           territoryItems.forEach(item => {
             const territoryName = item.dataset.name;
             if (territoryName && territoryName.toLowerCase().includes(searchTerm)) {
               item.style.display = 'flex';
+              visibleCount++;
             } else {
               item.style.display = 'none';
             }
           });
+
+          // Show/hide no results message
+          if (noResultsMessage) {
+            if (visibleCount === 0) {
+              noResultsMessage.classList.remove('hidden');
+            } else {
+              noResultsMessage.classList.add('hidden');
+            }
+          }
         } else {
           territoryItems.forEach(item => {
             item.style.display = 'flex';
           });
+
+          // Hide no results message when search is cleared
+          if (noResultsMessage) {
+            noResultsMessage.classList.add('hidden');
+          }
         }
       }
     }
@@ -1882,8 +1905,8 @@ function removeUsageCombination(comboId) {
       }
 
       // Update talent summary when categories are toggled
-      if (typeof updateTalentSummary === 'function') {
-        updateTalentSummary();
+      if (typeof window.updateTalentSummary === 'function') {
+        window.updateTalentSummary();
       }
     });
   });
@@ -2022,7 +2045,9 @@ function removeUsageCombination(comboId) {
     }
 
     // Update talent summary
-    updateTalentSummary();
+    if (typeof window.updateTalentSummary === 'function') {
+      window.updateTalentSummary();
+    }
 
     // Update cast selection whenever talent totals change
     updateCastSelection();
@@ -2061,18 +2086,10 @@ function removeUsageCombination(comboId) {
             hasActiveCategories = true;
             grandTotal += categoryTotal;
 
-            // Get talent count from all rows (main + additional lines)
+            // Get talent count from all rows (count each input only once to avoid duplicates)
             let talentCount = 0;
-
-            // Count talent from first row
-            const firstRow = section.querySelector('.talent-input-row');
-            if (firstRow) {
-              talentCount += parseInt(firstRow.querySelector('[name*="talent_count"], .talent-count')?.value) || 0;
-            }
-
-            // Count talent from additional lines
-            const additionalLines = section.querySelectorAll('[data-line-index] .talent-count');
-            additionalLines.forEach(input => {
+            const allTalentInputs = section.querySelectorAll('.talent-count');
+            allTalentInputs.forEach(input => {
               talentCount += parseInt(input.value) || 0;
             });
 
@@ -2109,6 +2126,9 @@ function removeUsageCombination(comboId) {
       grandTotalElement.textContent = `R${grandTotal.toLocaleString()}`;
     }
   }
+
+  // Expose to window to ensure latest version is always used
+  window.updateTalentSummary = updateTalentSummary;
 
   // Function to update cast selection options in all combinations
   function updateCastSelection() {
@@ -2354,8 +2374,8 @@ document.querySelectorAll('.talent-btn').forEach(btn => {
     }
 
     // Update talent summary when categories are toggled
-    if (typeof updateTalentSummary === 'function') {
-      updateTalentSummary();
+    if (typeof window.updateTalentSummary === 'function') {
+      window.updateTalentSummary();
     }
   });
 });
@@ -2568,5 +2588,116 @@ document.addEventListener('turbo:load', function() {
 });
 
 } // End of script loading check
+
+// Always redefine updateTalentSummary to ensure latest version is used (outside guard)
+function updateTalentSummary() {
+  const categoryTotalsList = document.getElementById('category-totals-list');
+  if (!categoryTotalsList) return;
+
+  const categories = {
+    1: 'Lead',
+    2: 'Second Lead',
+    3: 'Featured Extra',
+    4: 'Teenager',
+    5: 'Kid',
+    6: 'Walk-on',
+    7: 'Extras'
+  };
+
+  let summaryHTML = '';
+  let grandTotal = 0;
+  let hasActiveCategories = false;
+
+  // Loop through all talent categories
+  Object.keys(categories).forEach(categoryId => {
+    const section = document.getElementById(`talent-category-${categoryId}`);
+    if (section) {
+      const categoryTotalElement = section.querySelector(`#category-total-${categoryId}`);
+
+      if (categoryTotalElement) {
+        const totalText = categoryTotalElement.textContent.replace(/[R,\s]/g, '');
+        const categoryTotal = parseInt(totalText) || 0;
+
+        if (categoryTotal > 0) {
+          hasActiveCategories = true;
+          grandTotal += categoryTotal;
+
+          // Get talent count from all rows (count each input only once to avoid duplicates)
+          let talentCount = 0;
+          const allTalentInputs = section.querySelectorAll('.talent-count');
+          allTalentInputs.forEach(input => {
+            talentCount += parseInt(input.value) || 0;
+          });
+
+          const categoryAbbrevs = { 1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD', 6: 'WO', 7: 'EX' };
+          const abbrev = categoryAbbrevs[categoryId] || '';
+
+          // Always show format: "4 LD Lead"
+          let displayText = categories[categoryId];
+          if (talentCount > 0) {
+            displayText = `${talentCount} ${abbrev} ${categories[categoryId]}`;
+          }
+
+          summaryHTML += `
+            <div class="flex justify-between items-center text-sm">
+              <span class="text-gray-700">${displayText}</span>
+              <span class="font-semibold text-gray-800">R${categoryTotal.toLocaleString()}</span>
+            </div>
+          `;
+        }
+      }
+    }
+  });
+
+  if (!hasActiveCategories) {
+    summaryHTML = '<div class="text-gray-500 italic text-sm">No talent categories selected</div>';
+    grandTotal = 0;
+  }
+
+  categoryTotalsList.innerHTML = summaryHTML;
+
+  // Update grand total
+  const grandTotalElement = document.getElementById('talent-grand-total');
+  if (grandTotalElement) {
+    grandTotalElement.textContent = `R${grandTotal.toLocaleString()}`;
+  }
+}
+window.updateTalentSummary = updateTalentSummary;
+
+// Sidebar navigation - always reinitialize on page load (outside guard)
+function initializeSidebarNavigation() {
+  const sidebarItems = document.querySelectorAll('[data-section]');
+
+  sidebarItems.forEach(item => {
+    // Remove existing listeners by cloning (prevents duplicate listeners)
+    const newItem = item.cloneNode(true);
+    item.parentNode.replaceChild(newItem, item);
+  });
+
+  // Re-query after cloning
+  const freshSidebarItems = document.querySelectorAll('[data-section]');
+
+  freshSidebarItems.forEach(item => {
+    item.addEventListener('click', function() {
+      const targetSection = document.getElementById(this.dataset.section);
+      if (targetSection) {
+        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Update active sidebar item
+        freshSidebarItems.forEach(i => {
+          i.classList.remove('font-medium', 'text-blue-600');
+          i.classList.add('text-gray-700');
+        });
+        this.classList.add('font-medium', 'text-blue-600');
+        this.classList.remove('text-gray-700');
+      }
+    });
+  });
+}
+
+// Initialize sidebar navigation on page load and Turbo navigation
+document.addEventListener('DOMContentLoaded', initializeSidebarNavigation);
+document.addEventListener('turbo:load', initializeSidebarNavigation);
+document.addEventListener('turbo:render', initializeSidebarNavigation);
 
 </script>
