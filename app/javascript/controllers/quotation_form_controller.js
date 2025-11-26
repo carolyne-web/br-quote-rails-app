@@ -2828,44 +2828,65 @@ export default class extends Controller {
     
     const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
     const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
-    
-    // Check for territory-media exceptions first (these override the entire calculation)
+
+    // Check if override is active (territories >= threshold for 12/24/36 months)
+    const durationMonths = this.parseDurationMonths(duration)
+    const overrideThresholds = { 12: 1200, 24: 2400, 36: 3600 }
+    let overridePercentage = null
+
+    if (overrideThresholds[durationMonths]) {
+      const totalTerritoryPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
+      const threshold = overrideThresholds[durationMonths]
+
+      if (totalTerritoryPercentage >= threshold) {
+        // Override is active - use Worldwide rate instead of territory exception
+        overridePercentage = threshold
+        console.log(`🔥 OVERRIDE ACTIVE: Total territories ${totalTerritoryPercentage}% >= ${threshold}% → Using Worldwide rate ${overridePercentage}%`)
+      }
+    }
+
+    // Check for territory-media exceptions (only if override is NOT active)
     let territoryExceptionPercentage = null
-    territories.forEach(territory => {
-      mediaTypes.forEach(mediaType => {
-        const exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
-        if (exceptionPercentage !== null) {
-          console.log(`🔄 Territory exception found: ${territory.name} + ${mediaType} = ${exceptionPercentage}% (replaces entire calculation)`)
-          territoryExceptionPercentage = Math.max(territoryExceptionPercentage || 0, exceptionPercentage)
-        }
+    if (overridePercentage === null) {
+      territories.forEach(territory => {
+        mediaTypes.forEach(mediaType => {
+          const exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
+          if (exceptionPercentage !== null) {
+            console.log(`🔄 Territory exception found: ${territory.name} + ${mediaType} = ${exceptionPercentage}% (replaces entire calculation)`)
+            territoryExceptionPercentage = Math.max(territoryExceptionPercentage || 0, exceptionPercentage)
+          }
+        })
       })
-    })
+    }
 
     let percentage
-    if (territoryExceptionPercentage !== null) {
-      // Use territory exception as the base percentage (replaces duration × territory × media calculation)
-      console.log(`🎯 Using territory exception as base: ${territoryExceptionPercentage}%`)
-      percentage = territoryExceptionPercentage
+    const basePercentage = overridePercentage !== null ? overridePercentage : territoryExceptionPercentage
+
+    if (basePercentage !== null) {
+      // Use override or territory exception as the base percentage (replaces duration × territory × media calculation)
+      const source = overridePercentage !== null ? 'OVERRIDE' : 'territory exception'
+      console.log(`🎯 Using ${source} as base: ${basePercentage}%`)
+      percentage = basePercentage
 
       // Still apply unlimited options and custom exclusivities as percentages of the base
       // Convert base percentage to a factor (e.g., 300% → 3.0)
-      const baseFactor = territoryExceptionPercentage / 100
+      const baseFactor = basePercentage / 100
 
       if (unlimitedStills) {
         const stillsAddition = 15 * baseFactor
-        console.log(`📸 Adding unlimited stills: +${stillsAddition.toFixed(1)}% (15% of ${territoryExceptionPercentage}%)`)
+        console.log(`📸 Adding unlimited stills: +${stillsAddition.toFixed(1)}% (15% of ${basePercentage}%)`)
         percentage += stillsAddition
       }
       if (unlimitedVersions) {
         const versionsAddition = 15 * baseFactor
-        console.log(`🎬 Adding unlimited versions: +${versionsAddition.toFixed(1)}% (15% of ${territoryExceptionPercentage}%)`)
+        console.log(`🎬 Adding unlimited versions: +${versionsAddition.toFixed(1)}% (15% of ${basePercentage}%)`)
         percentage += versionsAddition
       }
 
       const rowExclusivityPercentage = applicableExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
       if (rowExclusivityPercentage > 0) {
         const exclusivityAddition = rowExclusivityPercentage * baseFactor
-        console.log(`🔒 Adding exclusivity: +${exclusivityAddition.toFixed(1)}% (${rowExclusivityPercentage}% of ${territoryExceptionPercentage}%)`)
+        console.log(`🔒 Adding exclusivity: +${exclusivityAddition.toFixed(1)}% (${rowExclusivityPercentage}% of ${basePercentage}%)`)
         percentage += exclusivityAddition
       } else {
         // No exclusivity addition

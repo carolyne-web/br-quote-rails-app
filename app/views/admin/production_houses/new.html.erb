@@ -28,6 +28,12 @@
         </div>
 
         <div>
+          <%= f.label :email, class: "block text-sm font-medium text-gray-700" %>
+          <%= f.email_field :email, class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm", placeholder: "email@example.com" %>
+          <p class="mt-1 text-sm text-gray-500">Used for password reset emails</p>
+        </div>
+
+        <div>
           <%= f.label :password, class: "block text-sm font-medium text-gray-700" %>
           <%= f.password_field :password, class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" %>
         </div>

@@ -1,4 +1,36 @@
-<div>
-  <h1 class="font-bold text-4xl">PasswordResets#new</h1>
-  <p>Find me in app/views/password_resets/new.html.erb</p>
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-md w-full space-y-8">
+    <div>
+      <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        Reset Your Password
+      </h2>
+      <p class="mt-2 text-center text-sm text-gray-600">
+        Enter your email address and we'll send you instructions to reset your password
+      </p>
+    </div>
+
+    <%= form_with url: forgot_password_path, method: :post, local: true, class: "mt-8 space-y-6" do |f| %>
+      <%= f.hidden_field :user_type, value: @user_type %>
+
+      <div>
+        <%= f.label :email, "Email Address", class: "sr-only" %>
+        <%= f.email_field :email, required: true, autofocus: true,
+            class: "appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm",
+            placeholder: "Email address" %>
+      </div>
+
+      <div>
+        <%= f.submit "Send Reset Instructions",
+            class: "group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" %>
+      </div>
+
+      <div class="text-center space-y-2">
+        <% if @user_type == 'admin' %>
+          <%= link_to "Back to Admin Login", admin_login_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
+        <% else %>
+          <%= link_to "Back to Login", login_path, class: "text-sm text-gray-600 hover:text-gray-900" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
 </div>

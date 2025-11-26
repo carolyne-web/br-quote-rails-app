@@ -31,6 +31,7 @@
         <tr>
           <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
           <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
           <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
           <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
         </tr>
@@ -40,10 +41,13 @@
           <tr class="hover:bg-gray-50 transition-colors">
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= house.name %></td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= house.code %></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= house.email || '-' %></td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= house.created_at.strftime("%B %d, %Y") %></td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <%= link_to "Edit", edit_admin_production_house_path(house), class: "text-blue-600 hover:text-blue-900 mr-3 transition-colors" %>
-              <%= button_to "Delete", admin_production_house_path(house), method: :delete, data: { confirm: "Are you sure? This will remove the production house association from all related support requests." }, class: "text-red-600 hover:text-red-900 transition-colors" %>
+              <div class="flex items-center gap-3">
+                <%= link_to "Edit", edit_admin_production_house_path(house), class: "text-blue-600 hover:text-blue-900 transition-colors" %>
+                <%= button_to "Delete", admin_production_house_path(house), method: :delete, data: { confirm: "Are you sure? This will remove the production house association from all related support requests." }, class: "text-red-600 hover:text-red-900 transition-colors", form: { style: "display: inline;" } %>
+              </div>
             </td>
           </tr>
         <% end %>

@@ -46,6 +46,6 @@ class Admin::ProductionHousesController < ApplicationController
   end
 
   def production_house_params
-    params.require(:production_house).permit(:name, :code, :password, :password_confirmation)
+    params.require(:production_house).permit(:name, :code, :email, :password, :password_confirmation)
   end
 end

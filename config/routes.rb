@@ -1,18 +1,26 @@
 Rails.application.routes.draw do
-  get "password_resets/new"
-  get "password_resets/create"
-  get "password_resets/edit"
-  get "password_resets/update"
   get "quotations/index"
   root "sessions#new"
+
+  # Password Reset Routes
+  get "forgot_password", to: "password_resets#new", as: "forgot_password"
+  post "forgot_password", to: "password_resets#create"
+  get "forgot_password/admin", to: "password_resets#new", defaults: { user_type: 'admin' }, as: "forgot_password_admin"
+  get "password_resets/:id/edit", to: "password_resets#edit", as: "edit_password_reset"
+  patch "password_resets/:id", to: "password_resets#update", as: "password_reset"
 
   # Production House Authentication
   get "login", to: "sessions#new"
   post "login", to: "sessions#create"
   delete "logout", to: "sessions#destroy"
 
+  # Production House Profile
+  get "profile", to: "profile#show"
+  patch "profile/update_password", to: "profile#update_password"
+  patch "profile/update_email", to: "profile#update_email"
+
   # Admin Authentication
-  get "admin/login", to: "sessions#admin_new"
+  get "admin/login", to: "sessions#admin_new", as: "admin_login"
   post "admin/login", to: "sessions#admin_create"
   delete "admin/logout", to: "sessions#admin_destroy"
   post "admin/dismiss_welcome", to: "sessions#admin_dismiss_welcome"
@@ -29,7 +37,6 @@ Rails.application.routes.draw do
     get "profile", to: "profile#show"
     patch "profile/update_password", to: "profile#update_password"
     patch "profile/update_email", to: "profile#update_email"
-    patch "profile/update_banking", to: "profile#update_banking"
     resources :support_requests, only: [:index, :show, :update]
     resources :settings, only: [ :index, :edit, :update, :create, :destroy ] do
       collection do

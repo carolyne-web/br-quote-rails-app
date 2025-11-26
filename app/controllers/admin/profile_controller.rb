@@ -2,23 +2,16 @@ class Admin::ProfileController < ApplicationController
   before_action :ensure_admin_authenticated
 
   def show
-    @admin_settings = {
-      email: ENV['ADMIN_EMAIL'] || '',
-      banking_details: {
-        bank_name: ENV['BANK_NAME'] || '',
-        account_number: ENV['ACCOUNT_NUMBER'] || '',
-        branch_code: ENV['BRANCH_CODE'] || '',
-        account_holder: ENV['ACCOUNT_HOLDER'] || ''
-      }
-    }
+    @admin_user = current_admin_user
   end
 
   def update_password
+    @admin_user = current_admin_user
     current_password = params[:current_password]
     new_password = params[:new_password]
     confirm_password = params[:confirm_password]
 
-    if current_password != ENV["ADMIN_PASSWORD"]
+    if !@admin_user.authenticate(current_password)
       flash[:alert] = "Current password is incorrect"
       redirect_to admin_profile_path
       return
@@ -36,15 +29,22 @@ class Admin::ProfileController < ApplicationController
       return
     end
 
-    # In a real application, you'd want to update this in a secure way
-    # For now, we'll just show a message that the password would be updated
-    flash[:notice] = "Password updated successfully. Please contact system administrator to update environment variables."
-    redirect_to admin_profile_path
+    @admin_user.password = new_password
+    @admin_user.password_confirmation = confirm_password
+
+    if @admin_user.save
+      flash[:notice] = "Password updated successfully"
+      redirect_to admin_profile_path
+    else
+      flash[:alert] = @admin_user.errors.full_messages.join(", ")
+      redirect_to admin_profile_path
+    end
   end
 
   def update_email
+    @admin_user = current_admin_user
     new_email = params[:email]
-    
+
     if new_email.blank?
       flash[:alert] = "Email cannot be blank"
       redirect_to admin_profile_path
@@ -57,19 +57,15 @@ class Admin::ProfileController < ApplicationController
       return
     end
 
-    # Store in session for now, in production you'd update environment variable
-    session[:admin_email] = new_email
-    flash[:notice] = "Email updated successfully"
-    redirect_to admin_profile_path
-  end
+    @admin_user.email = new_email
 
-  def update_banking
-    banking_params = params.require(:banking).permit(:bank_name, :account_number, :branch_code, :account_holder)
-    
-    # Store in session for now, in production you'd update environment variables
-    session[:banking_details] = banking_params.to_h
-    flash[:notice] = "Banking details updated successfully"
-    redirect_to admin_profile_path
+    if @admin_user.save
+      flash[:notice] = "Email updated successfully"
+      redirect_to admin_profile_path
+    else
+      flash[:alert] = @admin_user.errors.full_messages.join(", ")
+      redirect_to admin_profile_path
+    end
   end
 
   private
@@ -78,5 +74,13 @@ class Admin::ProfileController < ApplicationController
     unless admin_logged_in?
       redirect_to admin_login_path
     end
+  end
+
+  def current_admin_user
+    @current_admin_user ||= AdminUser.find_by(id: session[:admin_user_id])
+  end
+
+  def admin_logged_in?
+    !session[:admin_user_id].nil? && current_admin_user.present?
   end
 end
