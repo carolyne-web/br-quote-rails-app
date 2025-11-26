@@ -799,12 +799,12 @@ export default class extends Controller {
   }
 
   calculateAllVisibleCategoryTotals() {
-    console.log('🔄 Calculating all visible category totals on page load...')
+    console.log('🔄 Calculating all category totals on page load...')
 
-    // Find all visible talent category sections
-    const visibleCategories = document.querySelectorAll('.talent-category-section:not(.hidden)')
+    // Find ALL talent category sections (including hidden ones for edit mode)
+    const allCategories = document.querySelectorAll('.talent-category-section')
 
-    visibleCategories.forEach(section => {
+    allCategories.forEach(section => {
       // Extract category ID from the section's id attribute (format: talent-category-{id})
       const categoryId = section.id.replace('talent-category-', '')
 
@@ -814,7 +814,7 @@ export default class extends Controller {
       }
     })
 
-    console.log('✅ All visible category totals calculated')
+    console.log('✅ All category totals calculated')
   }
 
   calculateLineTotal(lineRow, baseRate) {

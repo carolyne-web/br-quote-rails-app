@@ -35,7 +35,10 @@ class QuotationsController < ApplicationController
       # If no params combinations, check if we have stored combinations data in quotation_detail
       if combinations_data.blank? && @quotation.quotation_detail&.combinations_data.present?
         begin
-          combinations_data = JSON.parse(@quotation.quotation_detail.combinations_data)
+          stored_cache = JSON.parse(@quotation.quotation_detail.combinations_data)
+          # Extract combinations from the cache structure {talent: {...}, combinations: {...}}
+          combinations_data = stored_cache["combinations"] || stored_cache
+          Rails.logger.info "📦 Loaded stored combinations data with #{combinations_data.keys.count} combinations"
         rescue JSON::ParserError
           Rails.logger.error "Failed to parse stored combinations data"
           combinations_data = nil
@@ -136,6 +139,10 @@ class QuotationsController < ApplicationController
 
   def update
     if @quotation.update(quotation_params)
+      # Delete existing final quotations so they'll be regenerated with new data
+      @quotation.final_quotations.destroy_all
+      Rails.logger.info "🗑️ Deleted existing final quotations - will regenerate on next view"
+
       # Process talent categories, territories, etc. (reuse existing logic from create)
       begin
         process_talent_categories
