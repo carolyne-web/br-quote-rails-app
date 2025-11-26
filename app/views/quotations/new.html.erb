@@ -57,12 +57,20 @@
     <!-- Sidebar -->
     <aside class="flex-shrink-0 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between shadow rounded-2xl" style="width: 20%; min-width: 20%;">
       <div class="flex-1 overflow-y-auto">
-        <h2 class="text-lg font-semibold mb-4">Quote Sections</h2>
-        <ul class="space-y-2 text-sm text-gray-700">
-          <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Campaign Information</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Usage Summary</li>
+        <h2 class="text-lg font-semibold mb-4 text-gray-800">Quote Sections</h2>
+        <ul class="space-y-1">
+          <li class="px-3 py-2.5 rounded-lg font-medium text-blue-600 bg-blue-50 cursor-pointer transition-all hover:bg-blue-100 active:scale-95" data-section="project-info">
+            <span class="text-sm">Campaign Information</span>
+          </li>
+          <li class="px-3 py-2.5 rounded-lg text-gray-700 cursor-pointer transition-all hover:bg-gray-100 hover:text-blue-600 active:scale-95" data-section="talent-categories">
+            <span class="text-sm">Talent Categories</span>
+          </li>
+          <li class="px-3 py-2.5 rounded-lg text-gray-700 cursor-pointer transition-all hover:bg-gray-100 hover:text-blue-600 active:scale-95" data-section="licensing">
+            <span class="text-sm">Usage & Licensing</span>
+          </li>
+          <li class="px-3 py-2.5 rounded-lg text-gray-700 cursor-pointer transition-all hover:bg-gray-100 hover:text-blue-600 active:scale-95" data-section="guarantee">
+            <span class="text-sm">Usage Summary</span>
+          </li>
         </ul>
       </div>
       <div class="border-t pt-4 flex-shrink-0 hidden">
@@ -776,26 +784,9 @@ window.territoryExceptions = <%= @territory_exceptions.map { |ex|
 function initializeQuotationForm() {
   console.log('Initializing quotation form...');
   console.log('add-combination button:', document.getElementById('add-combination'));
-  // Sidebar navigation
-  const sidebarItems = document.querySelectorAll('[data-section]');
-  const sections = document.querySelectorAll('section[id]');
-  
-  sidebarItems.forEach(item => {
-    item.addEventListener('click', function() {
-      const targetSection = document.getElementById(this.dataset.section);
-      if (targetSection) {
-        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
-        // Update active sidebar item
-        sidebarItems.forEach(i => {
-          i.classList.remove('font-medium', 'text-blue-600');
-          i.classList.add('text-gray-700');
-        });
-        this.classList.add('font-medium', 'text-blue-600');
-        this.classList.remove('text-gray-700');
-      }
-    });
-  });
+
+  // Sidebar navigation is handled by initializeSidebarNavigation()
+  // No need to duplicate here
 
   // Territory Combinations Management
   // Removed nextComboId global variable - now calculating dynamically
@@ -2678,21 +2669,23 @@ function initializeSidebarNavigation() {
   const freshSidebarItems = document.querySelectorAll('[data-section]');
 
   freshSidebarItems.forEach(item => {
-    item.addEventListener('click', function() {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
       const targetSection = document.getElementById(this.dataset.section);
       if (targetSection) {
         targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-        // Update active sidebar item
+        // Update active sidebar item with new styles
         freshSidebarItems.forEach(i => {
-          i.classList.remove('font-medium', 'text-blue-600');
+          i.classList.remove('font-medium', 'text-blue-600', 'bg-blue-50');
           i.classList.add('text-gray-700');
         });
-        this.classList.add('font-medium', 'text-blue-600');
+        this.classList.add('font-medium', 'text-blue-600', 'bg-blue-50');
         this.classList.remove('text-gray-700');
       }
     });
   });
+  console.log('✅ Sidebar navigation initialized with', freshSidebarItems.length, 'items');
 }
 
 // Initialize sidebar navigation on page load and Turbo navigation
