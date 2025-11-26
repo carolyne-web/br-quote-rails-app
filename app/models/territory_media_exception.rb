@@ -4,15 +4,10 @@ class TerritoryMediaException < ApplicationRecord
   validates :percentage, presence: true, numericality: { greater_than: 0 }
   validates :territory_name, uniqueness: { scope: :media_type, message: "and media type combination already exists" }
 
-  # Define available territory names (only territories that have exceptions)
-  TERRITORY_NAMES = [
-    'Worldwide',
-    'USA',
-    'West Europe (excl UK)',
-    'West Europe (incl UK)',
-    'All Europe (excl UK)',
-    'All Europe (incl UK)'
-  ].freeze
+  # Dynamic method to get available territory names from database
+  def self.territory_names
+    Territory.order(:name).pluck(:name).uniq
+  end
 
   # Define available media types (using current form values from /quotations/new)
   MEDIA_TYPES = [
@@ -34,8 +29,8 @@ class TerritoryMediaException < ApplicationRecord
     'internet' => 'Internet Only'
   }.freeze
 
-  validates :territory_name, inclusion: { in: TERRITORY_NAMES }
   validates :media_type, inclusion: { in: MEDIA_TYPES }
+  validate :territory_name_exists_in_database
 
   scope :for_territory, ->(territory_name) { where(territory_name: territory_name) }
   scope :for_media_type, ->(media_type) { where(media_type: media_type) }
@@ -53,5 +48,14 @@ class TerritoryMediaException < ApplicationRecord
   # Instance method to format percentage for display
   def formatted_percentage
     "#{percentage.to_i}%"
+  end
+
+  private
+
+  # Custom validation to check if territory name exists in database
+  def territory_name_exists_in_database
+    unless Territory.exists?(name: territory_name)
+      errors.add(:territory_name, "must be a valid territory from the database")
+    end
   end
 end

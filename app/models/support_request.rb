@@ -1,5 +1,5 @@
 class SupportRequest < ApplicationRecord
-  belongs_to :production_house, optional: false
+  belongs_to :production_house, optional: true
 
   validates :subject, presence: true, length: { maximum: 255 }
   validates :message, presence: true, length: { maximum: 5000 }

@@ -4,24 +4,38 @@ puts "Clearing existing data..."
 Setting.destroy_all
 Territory.destroy_all
 ProductionHouse.destroy_all
+AdminUser.destroy_all
+PasswordResetToken.destroy_all
+
+# Create default admin user
+AdminUser.create!(
+  name: "Admin",
+  email: "admin@example.com",
+  password: "admin123",
+  password_confirmation: "admin123"
+)
+
+puts "Created admin user (email: admin@example.com, password: admin123)"
 
 # Create default admin production house for testing
 ProductionHouse.create!(
   name: "Demo Production House",
   code: "DEMO001",
+  email: "demo@example.com",
   password: "password123"
 )
 
-puts "Created demo production house (code: DEMO001, password: password123)"
+puts "Created demo production house (code: DEMO001, email: demo@example.com, password: password123)"
 
 # Create another production house for testing
 ProductionHouse.create!(
   name: "BENR2 Production House",
   code: "BENR2",
+  email: "benr2@example.com",
   password: "br123"
 )
 
-puts "Created BENR2 production house (code: BENR2, password: br123)"
+puts "Created BENR2 production house (code: BENR2, email: benr2@example.com, password: br123)"
 
 # Talent Categories Base Rates
 talent_rates = [

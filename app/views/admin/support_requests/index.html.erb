@@ -70,8 +70,8 @@
       <% if @support_requests.any? %>
         <ul role="list" class="divide-y divide-gray-200">
           <% @support_requests.each do |request| %>
-            <li>
-              <%= link_to admin_support_request_path(request), class: "block hover:bg-gray-50" do %>
+            <li class="transition-all duration-200">
+              <%= link_to admin_support_request_path(request), class: "block hover:bg-purple-50 hover:shadow-md hover:border-l-4 hover:border-purple-500 transition-all duration-200" do %>
                 <div class="px-4 py-4 sm:px-6">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center">
@@ -96,7 +96,7 @@
                   <div class="mt-2 sm:flex sm:justify-between">
                     <div class="sm:flex">
                       <p class="flex items-center text-sm text-gray-500">
-                        From: <%= request.production_house.name %>
+                        From: <%= request.production_house&.name || 'Unknown' %>
                       </p>
                     </div>
                     <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">

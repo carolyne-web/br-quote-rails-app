@@ -41,7 +41,7 @@
           <div>
             <%= f.label :territory_name, "Territory", class: "block text-sm font-medium text-gray-700 mb-2" %>
             <%= f.select :territory_name,
-                options_for_select(TerritoryMediaException::TERRITORY_NAMES.map { |name| [name, name] }, @exception.territory_name),
+                options_for_select(TerritoryMediaException.territory_names.map { |name| [name, name] }, @exception.territory_name),
                 { prompt: "Select a territory" },
                 { class: "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" } %>
           </div>

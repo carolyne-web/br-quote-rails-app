@@ -10,9 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_11_18_153820) do
+ActiveRecord::Schema[8.0].define(version: 2025_11_26_075152) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "admin_users", force: :cascade do |t|
+    t.string "email", null: false
+    t.string "password_digest", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_admin_users_on_email", unique: true
+  end
 
   create_table "day_on_sets", force: :cascade do |t|
     t.bigint "talent_category_id", null: false
@@ -123,13 +132,28 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_18_153820) do
     t.index ["quotation_id"], name: "index_final_quotations_on_quotation_id"
   end
 
+  create_table "password_reset_tokens", force: :cascade do |t|
+    t.string "token", null: false
+    t.string "email", null: false
+    t.string "user_type", null: false
+    t.datetime "expires_at", null: false
+    t.boolean "used", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email", "user_type"], name: "index_password_reset_tokens_on_email_and_user_type"
+    t.index ["email"], name: "index_password_reset_tokens_on_email"
+    t.index ["token"], name: "index_password_reset_tokens_on_token", unique: true
+  end
+
   create_table "production_houses", force: :cascade do |t|
     t.string "name", null: false
     t.string "password_digest", null: false
     t.string "code", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "email"
     t.index ["code"], name: "index_production_houses_on_code", unique: true
+    t.index ["email"], name: "index_production_houses_on_email", unique: true
     t.index ["name"], name: "index_production_houses_on_name", unique: true
   end
 
@@ -218,7 +242,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_11_18_153820) do
   end
 
   create_table "support_requests", force: :cascade do |t|
-    t.bigint "production_house_id", null: false
+    t.bigint "production_house_id"
     t.string "subject"
     t.text "message"
     t.integer "priority"

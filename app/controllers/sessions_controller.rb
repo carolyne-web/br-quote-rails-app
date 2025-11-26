@@ -28,13 +28,16 @@ class SessionsController < ApplicationController
   end
 
   def admin_create
-    if params[:admin_password] == ENV["ADMIN_PASSWORD"]
+    admin_user = AdminUser.find_by(email: params[:email])
+
+    if admin_user && admin_user.authenticate(params[:password])
+      session[:admin_user_id] = admin_user.id
       session[:admin_authenticated] = true
       session[:show_admin_welcome] = true
-      flash[:notice] = "Welcome back, Admin!"
+      flash[:notice] = "Welcome back, #{admin_user.name}!"
       redirect_to admin_dashboard_path
     else
-      flash.now[:alert] = "Invalid admin password"
+      flash.now[:alert] = "Invalid email or password"
       render :admin_new
     end
   end
