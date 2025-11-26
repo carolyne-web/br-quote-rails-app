@@ -1,4 +1,12 @@
 <!-- app/views/quotations/new.html.erb -->
+<style>
+  html, body {
+    scroll-behavior: smooth;
+  }
+  section[id] {
+    scroll-margin-top: 2rem;
+  }
+</style>
 <div class="min-h-screen bg-gray-50 flex" data-controller="quotation-form">
   <%= form_with model: @quotation, local: true, class: "w-full flex px-6" do |f| %>
 
@@ -55,7 +63,7 @@
     </script>
 
     <!-- Sidebar -->
-    <aside class="flex-shrink-0 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between shadow rounded-2xl" style="width: 20%; min-width: 20%;">
+    <aside class="flex-shrink-0 bg-white shadow-lg flex flex-col sticky top-4 self-start p-4 justify-between shadow rounded-2xl" style="width: 20%; min-width: 20%; max-height: calc(100vh - 2rem);">
       <div class="flex-1 overflow-y-auto">
         <h2 class="text-lg font-semibold mb-4 text-gray-800">Quote Sections</h2>
         <ul class="space-y-1">
@@ -2654,43 +2662,5 @@ function updateTalentSummary() {
   }
 }
 window.updateTalentSummary = updateTalentSummary;
-
-// Sidebar navigation - always reinitialize on page load (outside guard)
-function initializeSidebarNavigation() {
-  const sidebarItems = document.querySelectorAll('[data-section]');
-
-  sidebarItems.forEach(item => {
-    // Remove existing listeners by cloning (prevents duplicate listeners)
-    const newItem = item.cloneNode(true);
-    item.parentNode.replaceChild(newItem, item);
-  });
-
-  // Re-query after cloning
-  const freshSidebarItems = document.querySelectorAll('[data-section]');
-
-  freshSidebarItems.forEach(item => {
-    item.addEventListener('click', function(e) {
-      e.preventDefault();
-      const targetSection = document.getElementById(this.dataset.section);
-      if (targetSection) {
-        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-        // Update active sidebar item with new styles
-        freshSidebarItems.forEach(i => {
-          i.classList.remove('font-medium', 'text-blue-600', 'bg-blue-50');
-          i.classList.add('text-gray-700');
-        });
-        this.classList.add('font-medium', 'text-blue-600', 'bg-blue-50');
-        this.classList.remove('text-gray-700');
-      }
-    });
-  });
-  console.log('✅ Sidebar navigation initialized with', freshSidebarItems.length, 'items');
-}
-
-// Initialize sidebar navigation on page load and Turbo navigation
-document.addEventListener('DOMContentLoaded', initializeSidebarNavigation);
-document.addEventListener('turbo:load', initializeSidebarNavigation);
-document.addEventListener('turbo:render', initializeSidebarNavigation);
 
 </script>

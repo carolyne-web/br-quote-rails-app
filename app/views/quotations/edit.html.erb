@@ -1,4 +1,12 @@
 <!-- app/views/quotations/edit.html.erb -->
+<style>
+  html, body {
+    scroll-behavior: smooth;
+  }
+  section[id] {
+    scroll-margin-top: 2rem;
+  }
+</style>
 <div class="min-h-screen bg-gray-50 flex" data-controller="quotation-form">
   <%= form_with model: @quotation, local: true, class: "w-full flex px-6" do |f| %>
 
@@ -55,14 +63,22 @@
     </script>
 
     <!-- Sidebar -->
-    <aside class="flex-shrink-0 bg-white shadow-lg flex flex-col sticky top-0 h-screen p-4 justify-between shadow rounded-2xl" style="width: 20%; min-width: 20%;">
+    <aside class="flex-shrink-0 bg-white shadow-lg flex flex-col sticky top-4 self-start p-4 justify-between shadow rounded-2xl" style="width: 20%; min-width: 20%; max-height: calc(100vh - 2rem);">
       <div class="flex-1 overflow-y-auto">
-        <h2 class="text-lg font-semibold mb-4">Quote Sections</h2>
-        <ul class="space-y-2 text-sm text-gray-700">
-          <li class="font-medium text-blue-600 cursor-pointer" data-section="project-info">Campaign Information</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="talent-categories">Talent Categories</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="licensing">Usage & Licensing</li>
-          <li class="cursor-pointer hover:text-blue-600" data-section="guarantee">Usage Summary</li>
+        <h2 class="text-lg font-semibold mb-4 text-gray-800">Quote Sections</h2>
+        <ul class="space-y-1">
+          <li class="px-3 py-2.5 rounded-lg font-medium text-blue-600 bg-blue-50 cursor-pointer transition-all hover:bg-blue-100 active:scale-95" data-section="project-info">
+            <span class="text-sm">Campaign Information</span>
+          </li>
+          <li class="px-3 py-2.5 rounded-lg text-gray-700 cursor-pointer transition-all hover:bg-gray-100 hover:text-blue-600 active:scale-95" data-section="talent-categories">
+            <span class="text-sm">Talent Categories</span>
+          </li>
+          <li class="px-3 py-2.5 rounded-lg text-gray-700 cursor-pointer transition-all hover:bg-gray-100 hover:text-blue-600 active:scale-95" data-section="licensing">
+            <span class="text-sm">Usage & Licensing</span>
+          </li>
+          <li class="px-3 py-2.5 rounded-lg text-gray-700 cursor-pointer transition-all hover:bg-gray-100 hover:text-blue-600 active:scale-95" data-section="guarantee">
+            <span class="text-sm">Usage Summary</span>
+          </li>
         </ul>
       </div>
       <div class="border-t pt-4 flex-shrink-0 hidden">

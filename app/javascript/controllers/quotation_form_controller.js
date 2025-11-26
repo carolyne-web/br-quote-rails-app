@@ -91,6 +91,9 @@ export default class extends Controller {
     // Calculate all category totals on page load (important for edit mode)
     this.calculateAllVisibleCategoryTotals()
 
+    // Initialize sidebar navigation
+    this.initializeSidebarNavigation()
+
     console.log('✅ Quotation form controller connection COMPLETED successfully!')
   }
 
@@ -161,6 +164,121 @@ export default class extends Controller {
     window.quotationComboSummaryChangeHandler = null
 
     console.log('✅ All event listeners cleaned up successfully')
+  }
+
+  // Initialize sidebar navigation for section scrolling
+  initializeSidebarNavigation() {
+    console.log('🔄 Initializing sidebar navigation...')
+    const sidebarItems = document.querySelectorAll('[data-section]')
+    console.log('📍 Found sidebar items:', sidebarItems.length)
+
+    // Click handler for navigation
+    sidebarItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const sectionId = item.dataset.section
+        console.log('🎯 Clicking section:', sectionId)
+        const targetSection = document.getElementById(sectionId)
+
+        if (targetSection) {
+          console.log('✅ Found target section, scrolling...')
+
+          // Calculate absolute position of target section
+          const rect = targetSection.getBoundingClientRect()
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+          const targetPosition = rect.top + scrollTop - 80 // 80px offset for spacing
+
+          console.log('📍 Target section rect:', rect)
+          console.log('📍 Current scroll position:', scrollTop)
+          console.log('📍 Calculated target position:', targetPosition)
+
+          // Scroll to the calculated position
+          window.scrollTo({
+            top: targetPosition,
+            behavior: 'smooth'
+          })
+
+          // Update active sidebar item with new styles
+          this.updateActiveSidebarItem(item, sidebarItems)
+        } else {
+          console.error('❌ Section not found:', sectionId)
+        }
+      })
+    })
+
+    // Set up scroll spy - update sidebar based on scroll position
+    this.setupScrollSpy(sidebarItems)
+
+    console.log('✅ Sidebar navigation initialized with', sidebarItems.length, 'items')
+  }
+
+  // Update active sidebar item styles
+  updateActiveSidebarItem(activeItem, allItems) {
+    allItems.forEach(i => {
+      i.classList.remove('font-medium', 'text-blue-600', 'bg-blue-50')
+      i.classList.add('text-gray-700')
+    })
+    activeItem.classList.add('font-medium', 'text-blue-600', 'bg-blue-50')
+    activeItem.classList.remove('text-gray-700')
+  }
+
+  // Set up scroll spy to highlight sections as you scroll
+  setupScrollSpy(sidebarItems) {
+    const sections = []
+    sidebarItems.forEach(item => {
+      const sectionId = item.dataset.section
+      const section = document.getElementById(sectionId)
+      if (section) {
+        sections.push({ element: section, id: sectionId, navItem: item })
+      }
+    })
+
+    // Use Intersection Observer for better performance
+    const observerOptions = {
+      root: null,
+      rootMargin: '-100px 0px -66%',
+      threshold: 0
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const sectionId = entry.target.id
+          const navItem = Array.from(sidebarItems).find(item => item.dataset.section === sectionId)
+          if (navItem) {
+            console.log('📍 Section in view:', sectionId)
+            this.updateActiveSidebarItem(navItem, sidebarItems)
+          }
+        }
+      })
+    }, observerOptions)
+
+    // Observe all sections
+    sections.forEach(section => {
+      observer.observe(section.element)
+    })
+
+    // Handle last section specially - highlight when near bottom of page
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+      const windowHeight = window.innerHeight
+      const documentHeight = document.documentElement.scrollHeight
+
+      // If we're within 200px of the bottom, highlight the last section
+      if (scrollTop + windowHeight >= documentHeight - 200) {
+        const lastSection = sections[sections.length - 1]
+        if (lastSection) {
+          console.log('📍 Near bottom - highlighting last section:', lastSection.id)
+          this.updateActiveSidebarItem(lastSection.navItem, sidebarItems)
+        }
+      }
+    }
+
+    // Add scroll listener for bottom detection
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    console.log('✅ Scroll spy set up for', sections.length, 'sections')
   }
 
   // Method to clear all exclusivity data to prevent persistence between quotes
