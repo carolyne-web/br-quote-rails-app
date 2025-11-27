@@ -35,4 +35,8 @@ echo "Setting up Solid Queue..."
 bundle exec rails solid_queue:install:migrations
 bundle exec rails db:migrate
 
+# Seed database with default data (only runs on first deploy or when tables are empty)
+echo "Seeding database..."
+bundle exec rails db:seed
+
 echo "Build completed successfully!"

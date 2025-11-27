@@ -8,14 +8,15 @@ AdminUser.destroy_all
 PasswordResetToken.destroy_all
 
 # Create default admin user
+admin_password = ENV.fetch('ADMIN_PASSWORD', 'admin123')
 AdminUser.create!(
   name: "Admin",
   email: "admin@example.com",
-  password: "admin123",
-  password_confirmation: "admin123"
+  password: admin_password,
+  password_confirmation: admin_password
 )
 
-puts "Created admin user (email: admin@example.com, password: admin123)"
+puts "Created admin user (email: admin@example.com)"
 
 # Create default admin production house for testing
 ProductionHouse.create!(
