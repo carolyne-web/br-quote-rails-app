@@ -5,28 +5,13 @@ databases:
   - name: br-quote-db
     databaseName: br_quote_rails_app_production
     user: br_quote_rails_app
-    plan: starter  # Use 'free' for free tier, 'starter' for paid ($7/month)
-
-  - name: br-quote-cache-db
-    databaseName: br_quote_rails_app_production_cache
-    user: br_quote_rails_app
-    plan: starter
-
-  - name: br-quote-queue-db
-    databaseName: br_quote_rails_app_production_queue
-    user: br_quote_rails_app
-    plan: starter
-
-  - name: br-quote-cable-db
-    databaseName: br_quote_rails_app_production_cable
-    user: br_quote_rails_app
-    plan: starter
+    plan: free  # Use 'free' for free tier, 'starter' for paid ($7/month)
 
 services:
   - type: web
     name: br-quote-app
     runtime: ruby
-    plan: starter  # Use 'free' for free tier, 'starter' for paid ($7/month)
+    plan: free  # Use 'free' for free tier, 'starter' for paid ($7/month)
     buildCommand: "./bin/render-build.sh"
     startCommand: "bundle exec puma -C config/puma.rb"
     healthCheckPath: /up
@@ -40,21 +25,6 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: br-quote-db
-          property: connectionString
-
-      - key: CACHE_DATABASE_URL
-        fromDatabase:
-          name: br-quote-cache-db
-          property: connectionString
-
-      - key: QUEUE_DATABASE_URL
-        fromDatabase:
-          name: br-quote-queue-db
-          property: connectionString
-
-      - key: CABLE_DATABASE_URL
-        fromDatabase:
-          name: br-quote-cable-db
           property: connectionString
 
       - key: RAILS_LOG_TO_STDOUT

@@ -22,17 +22,17 @@ bundle exec rails assets:precompile
 # Clean old assets
 bundle exec rails assets:clean
 
-# Run database migrations for all databases
-echo "Running primary database migrations..."
+# Run database migrations
+echo "Running database migrations..."
 bundle exec rails db:migrate
 
-echo "Running cache database migrations..."
-bundle exec rails db:migrate:cache
+# Rails 8 Solid gems (Cache, Queue, Cable) use the same database
+echo "Setting up Solid Cache..."
+bundle exec rails solid_cache:install:migrations
+bundle exec rails db:migrate
 
-echo "Running queue database migrations..."
-bundle exec rails db:migrate:queue
-
-echo "Running cable database migrations..."
-bundle exec rails db:migrate:cable
+echo "Setting up Solid Queue..."
+bundle exec rails solid_queue:install:migrations
+bundle exec rails db:migrate
 
 echo "Build completed successfully!"
