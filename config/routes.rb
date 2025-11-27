@@ -76,7 +76,7 @@ Rails.application.routes.draw do
       post :duplicate
     end
   end
-  resources :support_requests, only: [:create, :new]
+  resources :support_requests, only: [:create, :new, :index, :show]
 
   # API endpoints for dynamic forms (to be added)
   namespace :api do

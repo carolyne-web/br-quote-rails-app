@@ -40,13 +40,13 @@ puts "Created BENR2 production house (code: BENR2, email: benr2@example.com, pas
 
 # Talent Categories Base Rates
 talent_rates = [
-  { key: 'lead_base_rate', value: '5000', display: 'Lead' },
-  { key: 'second_lead_base_rate', value: '3000', display: 'Second Lead' },
-  { key: 'featured_extra_base_rate', value: '1500', display: 'Featured Extra' },
-  { key: 'teenager_base_rate', value: '1000', display: 'Teenager' },
-  { key: 'kid_base_rate', value: '800', display: 'Kid' },
-  { key: 'walk_on_base_rate', value: '500', display: 'Walk-on' },
-  { key: 'extras_base_rate', value: '300', display: 'Extras' }
+  { key: 'lead_base_rate', value: '10000', display: 'Lead' },
+  { key: 'second_lead_base_rate', value: '8500', display: 'Second Lead' },
+  { key: 'featured_extra_base_rate', value: '7500', display: 'Featured Extra' },
+  { key: 'teenager_base_rate', value: '6000', display: 'Teenager' },
+  { key: 'kid_base_rate', value: '5000', display: 'Kid' },
+  { key: 'walk_on_base_rate', value: '1500', display: 'Walk-on' },
+  { key: 'extras_base_rate', value: '1300', display: 'Extras' }
 ]
 
 talent_rates.each do |rate|

@@ -1,0 +1,88 @@
+<div class="max-w-4xl mx-auto px-4 py-6">
+  <div class="mb-6">
+    <%= link_to support_requests_path, class: "inline-flex items-center text-sm text-gray-600 hover:text-gray-900" do %>
+      <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+      </svg>
+      Back to My Issues
+    <% end %>
+  </div>
+
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-gray-900"><%= @support_request.subject %></h1>
+        <div class="flex items-center space-x-2">
+          <span class="<%= @support_request.priority_badge_class %>">
+            <%= @support_request.priority_text %>
+          </span>
+          <span class="<%= @support_request.status_badge_class %>">
+            <%= @support_request.status_text %>
+          </span>
+        </div>
+      </div>
+      <div class="mt-2 text-sm text-gray-500">
+        Submitted on <%= @support_request.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+      </div>
+    </div>
+
+    <!-- Your Message -->
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h3 class="text-sm font-medium text-gray-700 mb-2">Your Message:</h3>
+      <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+        <p class="text-gray-800 whitespace-pre-wrap"><%= @support_request.message %></p>
+      </div>
+    </div>
+
+    <!-- Admin Response -->
+    <div class="px-6 py-4">
+      <h3 class="text-sm font-medium text-gray-700 mb-2">Admin Response:</h3>
+      <% if @support_request.admin_response.present? %>
+        <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+          <div class="flex items-start">
+            <svg class="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+            </svg>
+            <p class="text-gray-800 whitespace-pre-wrap flex-1"><%= @support_request.admin_response %></p>
+          </div>
+          <% if @support_request.updated_at != @support_request.created_at %>
+            <div class="mt-3 text-xs text-gray-600">
+              Responded on <%= @support_request.updated_at.strftime("%B %d, %Y at %I:%M %p") %>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="bg-gray-50 border-l-4 border-gray-300 p-4 rounded">
+          <div class="flex items-center text-gray-600">
+            <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>No response yet. Our team will review your issue shortly.</span>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Actions -->
+    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+      <div class="flex justify-between items-center">
+        <div class="text-sm text-gray-600">
+          <% if @support_request.status == 2 || @support_request.status == 3 %>
+            <span class="inline-flex items-center text-green-600">
+              <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+              </svg>
+              This issue has been marked as resolved
+            </span>
+          <% else %>
+            <span class="text-gray-600">If you need to add more information, please submit a new issue referencing this one.</span>
+          <% end %>
+        </div>
+        <%= link_to support_requests_path, class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
+          Back to My Issues
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

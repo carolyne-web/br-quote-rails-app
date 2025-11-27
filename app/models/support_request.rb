@@ -131,4 +131,8 @@ class SupportRequest < ApplicationRecord
     when 3 then 'Urgent'
     end
   end
+
+  # Aliases for view compatibility
+  alias_method :status_text, :status_name
+  alias_method :priority_text, :priority_name
 end

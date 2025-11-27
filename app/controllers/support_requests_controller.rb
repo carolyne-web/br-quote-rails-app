@@ -1,6 +1,14 @@
 class SupportRequestsController < ApplicationController
   before_action :ensure_logged_in
 
+  def index
+    @support_requests = current_production_house.support_requests.order(created_at: :desc)
+  end
+
+  def show
+    @support_request = current_production_house.support_requests.find(params[:id])
+  end
+
   def new
     @support_request = SupportRequest.new
   end
@@ -11,8 +19,8 @@ class SupportRequestsController < ApplicationController
     @support_request.status = 0  # open
 
     if @support_request.save
-      flash[:notice] = "Support request submitted successfully. We'll get back to you soon!"
-      redirect_to quotations_path
+      flash[:notice] = "Issue reported successfully. Check 'My Issues' to see admin responses."
+      redirect_to support_requests_path
     else
       flash.now[:alert] = "Please correct the errors below."
       render :new
