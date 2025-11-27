@@ -8,13 +8,7 @@ bundle install
 # Install Node.js dependencies for Puppeteer (used by Grover for PDF generation)
 npm install
 
-# Install Chromium for Puppeteer on Render
-# Render uses Ubuntu, so we need to install chromium-browser
-echo "Installing Chromium dependencies..."
-
-# Install required packages for Chromium
-apt-get update || true
-apt-get install -y chromium-browser || true
+# Note: Render has Chromium pre-installed, no need to install it
 
 # Precompile assets
 bundle exec rails assets:precompile
