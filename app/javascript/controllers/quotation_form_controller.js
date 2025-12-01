@@ -2956,10 +2956,16 @@ export default class extends Controller {
       const totalTerritoryPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
       const threshold = overrideThresholds[durationMonths]
 
-      if (totalTerritoryPercentage >= threshold) {
+      // Special case: If Worldwide is selected (alone or with others), bypass override
+      // Worldwide should use its exception rates (all_moving: 1000%, internet: 600%)
+      const hasWorldwide = territories.some(t => t.name === 'Worldwide')
+
+      if (totalTerritoryPercentage >= threshold && !hasWorldwide) {
         // Override is active - use Worldwide rate instead of territory exception
         overridePercentage = threshold
         console.log(`🔥 OVERRIDE ACTIVE: Total territories ${totalTerritoryPercentage}% >= ${threshold}% → Using Worldwide rate ${overridePercentage}%`)
+      } else if (hasWorldwide) {
+        console.log(`🔄 Worldwide is selected - bypassing override logic to allow exception rates`)
       }
     }
 
@@ -3078,25 +3084,36 @@ export default class extends Controller {
     // This is the base buyout percentage WITHOUT custom exclusivities
     const durationSelect = document.querySelector(`select[name*="combinations[${comboId}][duration]"]`)
     const duration = durationSelect?.value || ''
-    
+
     const territoryCheckboxes = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
     const territories = Array.from(territoryCheckboxes).map(cb => ({
+      name: cb.getAttribute('data-territory-name'),
       percentage: parseFloat(cb.getAttribute('data-percentage') || 0)
     }))
-    
+
     const mediaCheckboxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
     const mediaTypes = Array.from(mediaCheckboxes).map(cb => cb.value)
-    
+
     const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
     const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
-    
-    // NEW FORMULA:
-    // Core Buyout Factor = duration × territory × media
-    const durationMultiplier = this.getDurationMultiplier(duration)
-    const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
-    const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
-    const coreBuyoutFactor = durationMultiplier * territoryMultiplier * mediaMultiplier
-    
+
+    // Check for territory-media exceptions first
+    const exceptionPercentage = this.checkTerritoryMediaExceptions(territories, mediaTypes)
+
+    let coreBuyoutFactor
+    if (exceptionPercentage !== null) {
+      // Use exception percentage directly (already includes territory + media combination)
+      console.log(`🔄 Using territory exception: ${exceptionPercentage}%`)
+      coreBuyoutFactor = this.getDurationMultiplier(duration) * (exceptionPercentage / 100)
+    } else {
+      // NEW FORMULA:
+      // Core Buyout Factor = duration × territory × media
+      const durationMultiplier = this.getDurationMultiplier(duration)
+      const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
+      const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
+      coreBuyoutFactor = durationMultiplier * territoryMultiplier * mediaMultiplier
+    }
+
     // Buyout % = (Core Buyout Factor × 100)
     //          + (unlimited options % × Core Buyout Factor)
     let percentage = coreBuyoutFactor * 100
@@ -3111,6 +3128,28 @@ export default class extends Controller {
 
     // Do NOT add custom exclusivities here - that's handled per row
     return percentage
+  }
+
+  checkTerritoryMediaExceptions(territories, mediaTypes) {
+    // Check if there are territory-media exceptions for the selected combination
+    // Returns the exception percentage if found, null otherwise
+    if (!territories || territories.length === 0 || !mediaTypes || mediaTypes.length === 0) {
+      return null
+    }
+
+    let maxExceptionPercentage = null
+
+    territories.forEach(territory => {
+      mediaTypes.forEach(mediaType => {
+        const exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
+        if (exceptionPercentage !== null) {
+          console.log(`🔄 Found territory exception: ${territory.name} + ${mediaType} = ${exceptionPercentage}%`)
+          maxExceptionPercentage = Math.max(maxExceptionPercentage || 0, exceptionPercentage)
+        }
+      })
+    })
+
+    return maxExceptionPercentage
   }
 
   getDurationMultiplier(duration) {

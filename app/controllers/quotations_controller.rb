@@ -502,7 +502,7 @@ class QuotationsController < ApplicationController
   def load_form_data
     @talent_settings = Setting.where(category: "talent").order(:key)
     @duration_settings = Setting.where(category: "duration").order(:key)
-    @territories = Territory.all.order(:name)
+    @territories = Territory.where(media_type: 'all_media').order(:name)
     @territory_exceptions = TerritoryMediaException.all
     
     # Raw exclusivity settings for popup
