@@ -70,6 +70,7 @@ export default class extends Controller {
     this.setupCurrencyAndGuaranteeListeners()
     this.setupFormSubmissionHandler()
     this.setupCastSelection()
+    this.setupTerritoryExclusivityLogic()
 
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
@@ -1323,6 +1324,62 @@ export default class extends Controller {
     document.addEventListener('change', (e) => {
       if (e.target.classList.contains('combination-territory-checkbox')) {
         this.checkTerritoryOverrides()
+      }
+    })
+  }
+
+  setupTerritoryExclusivityLogic() {
+    // When Worldwide is selected, disable all other territories in the same combo
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('combination-territory-checkbox')) {
+        const comboId = e.target.getAttribute('data-combo')
+        const territoryName = e.target.getAttribute('data-territory-name')
+
+        if (territoryName === 'Worldwide') {
+          this.handleWorldwideSelection(comboId, e.target.checked)
+        } else {
+          // If any other territory is checked, uncheck Worldwide
+          if (e.target.checked) {
+            const worldwideCheckbox = document.querySelector(`.combination-territory-checkbox[data-combo="${comboId}"][data-territory-name="Worldwide"]`)
+            if (worldwideCheckbox && worldwideCheckbox.checked) {
+              worldwideCheckbox.checked = false
+              this.handleWorldwideSelection(comboId, false)
+            }
+          }
+        }
+      }
+    })
+
+    // Check initial state on page load for all combos
+    document.querySelectorAll('.combination-territory-checkbox[data-territory-name="Worldwide"]:checked').forEach(checkbox => {
+      const comboId = checkbox.getAttribute('data-combo')
+      this.handleWorldwideSelection(comboId, true)
+    })
+  }
+
+  handleWorldwideSelection(comboId, isChecked) {
+    // Get all territory checkboxes for this combo except Worldwide
+    const allTerritories = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]`)
+
+    allTerritories.forEach(checkbox => {
+      const territoryName = checkbox.getAttribute('data-territory-name')
+      if (territoryName !== 'Worldwide') {
+        if (isChecked) {
+          // Disable and uncheck other territories
+          checkbox.checked = false
+          checkbox.disabled = true
+          const label = checkbox.closest('label')
+          if (label) {
+            label.classList.add('opacity-50', 'cursor-not-allowed')
+          }
+        } else {
+          // Re-enable other territories
+          checkbox.disabled = false
+          const label = checkbox.closest('label')
+          if (label) {
+            label.classList.remove('opacity-50', 'cursor-not-allowed')
+          }
+        }
       }
     })
   }
