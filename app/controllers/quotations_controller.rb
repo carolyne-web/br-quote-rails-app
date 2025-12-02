@@ -138,7 +138,13 @@ class QuotationsController < ApplicationController
   end
 
   def update
-    if @quotation.update(quotation_params)
+    # Sync campaign_name to project_name before updating
+    params_hash = quotation_params
+    if params_hash[:project_name].blank? && params_hash[:campaign_name].present?
+      params_hash[:project_name] = params_hash[:campaign_name]
+    end
+
+    if @quotation.update(params_hash)
       # Delete existing final quotations so they'll be regenerated with new data
       @quotation.final_quotations.destroy_all
       Rails.logger.info "🗑️ Deleted existing final quotations - will regenerate on next view"

@@ -56,7 +56,9 @@ class FinalQuotationPdf
 
   def format_amount(amount)
     converted = convert_amount(amount)
-    "#{@currency_symbol}#{number_with_delimiter(converted)}"
+    # Strip insignificant zeros (e.g., 3750.0 -> 3750, but 3750.50 -> 3750.50)
+    formatted = converted == converted.to_i ? converted.to_i : converted
+    "#{@currency_symbol}#{number_with_delimiter(formatted)}"
   end
 
   private
@@ -159,6 +161,35 @@ class FinalQuotationPdf
           row(1).font_style = :bold
         end
       end
+    end
+
+    # Show exchange rate if currency is not ZAR
+    if @currency != 'ZAR'
+      move_down 12
+
+      # Draw a separator line
+      stroke_color GRAY_200
+      line_width 0.5
+      stroke_horizontal_rule
+      line_width 1
+      move_down 8
+
+      # Get currency name
+      currency_names = {
+        'USD' => 'US Dollar',
+        'EUR' => 'Euro',
+        'GBP' => 'British Pound'
+      }
+      currency_name = currency_names[@currency] || @currency
+
+      # Invert the rate to show "1 USD = X Rand"
+      inverted_rate = 1.0 / @exchange_rate
+
+      # Format the exchange rate text
+      text "Exchange Rate: 1 #{currency_name} = R#{number_with_precision(inverted_rate, precision: 2)}",
+           size: 9,
+           color: GRAY_600,
+           style: :italic
     end
 
     move_down 24  # space-y-8 = 32px ≈ 24pt
@@ -338,7 +369,7 @@ class FinalQuotationPdf
                 line.talent_count.to_s,
                 line.exclusivity_type.present? ? line.exclusivity_type : '-',
                 (line.commercial_count || 1).to_s,
-                "#{number_with_precision(display_percentage, precision: 1)}%",
+                "#{display_percentage.to_i}%",
                 format_amount(line.per_talent_amount || (line.total_line_cost / line.talent_count)),
                 format_amount(line.total_line_cost)
               ]

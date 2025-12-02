@@ -85,6 +85,10 @@
             <div class="font-medium text-sm text-gray-900"><%= @final_quotation.commercial_type&.humanize %></div>
           </div>
         </div>
+
+        <!-- Exchange rate display (hidden by default, shown when currency is changed) -->
+        <div data-currency-toggle-target="rateDisplay" class="hidden mt-4 pt-4 border-t border-gray-200">
+        </div>
       </div>
 
       <!-- 2. Talent Summary Table -->
