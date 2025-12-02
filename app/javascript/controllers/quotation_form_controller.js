@@ -2665,7 +2665,7 @@ export default class extends Controller {
               <input type="number" min="1" max="20" step="1" value="${existingCommercialValues[`${categoryId}_${lineIndex}`] || 1}" name="talent[${categoryId}][lines][${lineIndex}][commercial_count]" id="commercial_count_${comboId}_${categoryId}_${lineIndex}" class="w-16 px-2 py-1 text-xs text-center border rounded commercial-count-input focus:outline-none focus:ring-2 focus:ring-blue-500" data-combo="${comboId}" data-category="${categoryId}" data-line="${lineIndex}" style="-webkit-appearance: auto; -moz-appearance: textfield-multiline;">
               <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][buyout_percentage]" value="${rowBuyoutPercentage}">
             </td>
-            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${rowBuyoutPercentage.toFixed(1)}%</td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${Math.round(rowBuyoutPercentage)}%</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(totalRands / unit)}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right">R${this.formatNumber(totalRands)}</td>
           </tr>
@@ -3096,14 +3096,46 @@ export default class extends Controller {
       percentage += rowExclusivityPercentage * coreBuyoutFactor
     }
     
+    // Separate base percentage from exclusivity
+    const rowExclusivityPercentage = applicableExclusivities.reduce((sum, ex) => sum + ex.percentage, 0)
+
+    // Calculate exclusivity addition based on base (before exclusivity was added)
+    let exclusivityAddition = 0
+    if (rowExclusivityPercentage > 0) {
+      if (basePercentage !== null) {
+        // When using override or territory exception
+        const baseFactor = basePercentage / 100
+        exclusivityAddition = rowExclusivityPercentage * baseFactor
+      } else {
+        // When using standard calculation
+        const durationMultiplier = this.getDurationMultiplier(duration)
+        const territoryMultiplier = this.getTerritoryMultiplier(territories, duration)
+        const mediaMultiplier = this.getMediaMultiplier(mediaTypes, territories, duration)
+        const coreBuyoutFactor = durationMultiplier * territoryMultiplier * mediaMultiplier
+
+        // Calculate base with unlimited options
+        let baseWithUnlimited = coreBuyoutFactor * 100
+        if (unlimitedStills) baseWithUnlimited += 15 * coreBuyoutFactor
+        if (unlimitedVersions) baseWithUnlimited += 15 * coreBuyoutFactor
+
+        exclusivityAddition = rowExclusivityPercentage * coreBuyoutFactor
+      }
+    }
+
+    // Base percentage without exclusivity
+    const basePercentageOnly = percentage - exclusivityAddition
+
+    console.log(`📊 Base percentage (without exclusivity): ${basePercentageOnly}%`)
+    console.log(`📊 Exclusivity addition: ${exclusivityAddition}%`)
+
     // Apply product factor for Kids category (KD = category 5) when Kids > 1
     let productFactor = 1.0
     if (categoryId === 5) { // Kids category
       const productType = this.getSelectedProductType()
       const kidsCount = this.getKidsCount()
-      
+
       console.log(`🧒 KIDS DISCOUNT DEBUG - CategoryID: ${categoryId}, ProductType: ${productType}, KidsCount: ${kidsCount}`)
-      
+
       if (kidsCount >= 1) {
         switch (productType) {
           case 'adult':
@@ -3111,7 +3143,7 @@ export default class extends Controller {
             console.log(`🧒 ADULT PRODUCT + Kids (${kidsCount}): Product factor = ${productFactor}`)
             break
           case 'family':
-            productFactor = 0.75 // Family: 75% of buyout amount  
+            productFactor = 0.75 // Family: 75% of buyout amount
             console.log(`🧒 FAMILY PRODUCT + Kids (${kidsCount}): Product factor = ${productFactor}`)
             break
           case 'kids':
@@ -3123,15 +3155,63 @@ export default class extends Controller {
         console.log(`🧒 No kids found (${kidsCount}), no product factor applied`)
       }
     }
-    
-    // Apply product factor to the percentage (Option A: show effective buyout %)
-    let effectivePercentage = percentage * productFactor
 
-    // Apply commercial multiplier based on commercial type and number of commercials
-    const commercialMultiplier = this.getCommercialPercentage(comboId, categoryId, lineIndex) / 100
-    effectivePercentage *= commercialMultiplier
+    // Apply product factor to base and exclusivity
+    const adjustedBase = basePercentageOnly * productFactor
+    const adjustedExclusivity = exclusivityAddition * productFactor
 
-    // Store product factor for use in total calculation (but now it should be 1.0 since we applied it to percentage)
+    // NEW LOGIC: Apply commercial multiplier with exclusivity only on 1st commercial
+    const commercialTypeInput = document.querySelector('input[name="quotation[commercial_type]"]:checked')
+    const commercialsCountInput = document.querySelector(`.commercial-count-input[data-combo="${comboId}"][data-category="${categoryId}"][data-line="${lineIndex}"]`)
+
+    let effectivePercentage
+
+    if (!commercialTypeInput || !commercialsCountInput) {
+      // No commercial info, use full percentage with exclusivity
+      effectivePercentage = (adjustedBase + adjustedExclusivity)
+      console.log(`📊 No commercial info, using full percentage: ${effectivePercentage}%`)
+    } else {
+      const commercialType = commercialTypeInput.value
+      const numberOfCommercials = parseInt(commercialsCountInput.value) || 1
+
+      console.log(`📊 Calculating with ${numberOfCommercials} ${commercialType} commercials`)
+
+      if (numberOfCommercials <= 1) {
+        // Only 1 commercial - include exclusivity
+        effectivePercentage = adjustedBase + adjustedExclusivity
+        console.log(`📊 1 commercial: base (${adjustedBase}%) + exclusivity (${adjustedExclusivity}%) = ${effectivePercentage}%`)
+      } else {
+        // Multiple commercials - exclusivity only on 1st
+        let totalPercentage = 0
+
+        for (let i = 1; i <= numberOfCommercials; i++) {
+          let commercialPercentage = 0
+
+          if (i === 1) {
+            // 1st commercial: 100% of (base + exclusivity)
+            commercialPercentage = adjustedBase + adjustedExclusivity
+            console.log(`📊 Commercial ${i}: 100% of (base + exclusivity) = ${commercialPercentage}%`)
+          } else {
+            // 2nd+ commercials: base only (no exclusivity)
+            let multiplier = 0
+            if (commercialType === 'non_brand') {
+              multiplier = (i === 2) ? 0.5 : 0.25
+            } else if (commercialType === 'brand') {
+              multiplier = (i === 2) ? 0.75 : 0.5
+            }
+            commercialPercentage = adjustedBase * multiplier
+            console.log(`📊 Commercial ${i}: ${multiplier * 100}% of base only = ${commercialPercentage}%`)
+          }
+
+          totalPercentage += commercialPercentage
+        }
+
+        effectivePercentage = totalPercentage
+        console.log(`📊 Total with ${numberOfCommercials} commercials: ${effectivePercentage}%`)
+      }
+    }
+
+    // Store product factor for use in total calculation
     this.lastProductFactor = 1.0
 
     return effectivePercentage

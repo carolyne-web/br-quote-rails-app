@@ -20,8 +20,7 @@ bundle exec rails assets:clean
 echo "Running database migrations..."
 bundle exec rails db:migrate
 
-# Seed database with default data
-echo "Seeding database..."
-bundle exec rails db:seed
+# Note: Seeds are NOT run automatically on deployment to preserve production data
+# To seed the database manually (first time only), run: bundle exec rails db:seed
 
 echo "Build completed successfully!"

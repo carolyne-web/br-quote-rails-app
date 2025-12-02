@@ -142,7 +142,7 @@
                     <% end %>
                   </td>
                   <td class="px-4 py-3 text-sm text-right font-semibold text-green-600 border-b">
-                    <span data-currency-toggle-target="amount" data-base-amount="<%= talent_line.total_talent_fee %>">R<%= number_with_delimiter(talent_line.total_talent_fee) %></span>
+                    <span data-currency-toggle-target="amount" data-base-amount="<%= talent_line.total_talent_fee %>">R<%= number_with_precision(talent_line.total_talent_fee, precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></span>
                   </td>
                 </tr>
               <% end %>
@@ -154,7 +154,7 @@
                 </td>
                 <td class="px-4 py-3 text-sm font-bold text-green-600 text-right border-t">
                   <% talent_summary_total = unique_talent_lines.sum(&:total_talent_fee) %>
-                  <span data-currency-toggle-target="amount" data-base-amount="<%= talent_summary_total %>">R<%= number_with_delimiter(talent_summary_total) %></span>
+                  <span data-currency-toggle-target="amount" data-base-amount="<%= talent_summary_total %>">R<%= number_with_precision(talent_summary_total, precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></span>
                 </td>
               </tr>
             </tfoot>
@@ -263,8 +263,8 @@
                       %>
                       <%= number_with_precision(display_percentage, precision: 0) %>%
                     </td>
-                    <td class="px-3 py-2 text-right border"><span data-currency-toggle-target="amount" data-base-amount="<%= line.per_talent_amount || (line.total_line_cost / line.talent_count) %>">R<%= number_with_delimiter(line.per_talent_amount || (line.total_line_cost / line.talent_count)) %></span></td>
-                    <td class="px-3 py-2 text-right border font-medium"><span data-currency-toggle-target="amount" data-base-amount="<%= line.total_line_cost %>">R<%= number_with_delimiter(line.total_line_cost) %></span></td>
+                    <td class="px-3 py-2 text-right border"><span data-currency-toggle-target="amount" data-base-amount="<%= line.per_talent_amount || (line.total_line_cost / line.talent_count) %>">R<%= number_with_precision(line.per_talent_amount || (line.total_line_cost / line.talent_count), precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></span></td>
+                    <td class="px-3 py-2 text-right border font-medium"><span data-currency-toggle-target="amount" data-base-amount="<%= line.total_line_cost %>">R<%= number_with_precision(line.total_line_cost, precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></span></td>
                   </tr>
                 <% end %>
               </tbody>
@@ -283,7 +283,7 @@
                       -
                     </td>
                     <td class="px-3 py-2 text-sm font-bold text-red-700 text-right border-t">
-                      -<span data-currency-toggle-target="amount" data-base-amount="<%= savings.round(2) %>">R<%= number_with_delimiter(savings.round(2)) %></span>
+                      -<span data-currency-toggle-target="amount" data-base-amount="<%= savings.round(2) %>">R<%= number_with_precision(savings.round(2), precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></span>
                     </td>
                   </tr>
                 <% end %>
@@ -295,7 +295,7 @@
                     -
                   </td>
                   <td class="px-3 py-2 text-sm font-bold text-blue-600 text-right border-t">
-                    <span data-currency-toggle-target="amount" data-base-amount="<%= group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost) %>">R<%= number_with_delimiter(group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost)) %></span>
+                    <span data-currency-toggle-target="amount" data-base-amount="<%= group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost) %>">R<%= number_with_precision(group.final_quotation_talent_lines.select { |line| line.usage_fee.to_f > 0 }.sum(&:total_line_cost), precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></span>
                   </td>
                 </tr>
               </tfoot>
@@ -318,13 +318,13 @@
             grand_total = talent_summary_total_for_grand + all_group_totals
           %>
           <div class="text-sm text-gray-600 mb-2">
-            Talent Summary Total: <span class="font-medium" data-currency-toggle-target="amount" data-base-amount="<%= talent_summary_total_for_grand %>">R<%= number_with_delimiter(talent_summary_total_for_grand) %></span>
+            Talent Summary Total: <span class="font-medium" data-currency-toggle-target="amount" data-base-amount="<%= talent_summary_total_for_grand %>">R<%= number_with_precision(talent_summary_total_for_grand, precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></span>
           </div>
           <div class="text-sm text-gray-600 mb-2">
-            All Group Totals: <span class="font-medium" data-currency-toggle-target="amount" data-base-amount="<%= all_group_totals %>">R<%= number_with_delimiter(all_group_totals) %></span>
+            All Group Totals: <span class="font-medium" data-currency-toggle-target="amount" data-base-amount="<%= all_group_totals %>">R<%= number_with_precision(all_group_totals, precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></span>
           </div>
           <div class="text-2xl font-bold text-green-600 border-t pt-2">
-            <span data-currency-toggle-target="amount" data-base-amount="<%= grand_total %>">R<%= number_with_delimiter(grand_total) %></span>
+            <span data-currency-toggle-target="amount" data-base-amount="<%= grand_total %>">R<%= number_with_precision(grand_total, precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></span>
           </div>
         </div>
       </div>
@@ -340,15 +340,15 @@
         <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <dt class="text-sm font-medium text-gray-500">Total Amount</dt>
-            <dd class="text-2xl font-bold text-gray-900">R <%= number_with_delimiter(@quotation.total_amount || 0) %></dd>
+            <dd class="text-2xl font-bold text-gray-900">R <%= number_with_precision(@quotation.total_amount || 0, precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></dd>
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500">Talent Fees</dt>
-            <dd class="text-sm text-gray-900">R <%= number_with_delimiter(@calculation[:total_talent_fee] || 0) %></dd>
+            <dd class="text-sm text-gray-900">R <%= number_with_precision(@calculation[:total_talent_fee] || 0, precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></dd>
           </div>
           <div>
             <dt class="text-sm font-medium text-gray-500">Usage & Buyout</dt>
-            <dd class="text-sm text-gray-900">R <%= number_with_delimiter(@calculation[:usage_buyout_total] || 0) %></dd>
+            <dd class="text-sm text-gray-900">R <%= number_with_precision(@calculation[:usage_buyout_total] || 0, precision: 2, strip_insignificant_zeros: true, delimiter: ',') %></dd>
           </div>
         </dl>
       </div>

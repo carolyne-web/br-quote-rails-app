@@ -1,42 +1,36 @@
 # db/seeds.rb
-# Clear existing data
-puts "Clearing existing data..."
-Setting.destroy_all
-Territory.destroy_all
-ProductionHouse.destroy_all
-AdminUser.destroy_all
-PasswordResetToken.destroy_all
+# This seed file is idempotent - it only creates data if it doesn't exist
+# Safe to run multiple times - will NOT overwrite or delete existing data
+puts "Seeding database (preserving existing data)..."
 
-# Create default admin user
+# Create default admin user only if it doesn't exist
 admin_password = ENV.fetch('ADMIN_PASSWORD', 'admin123')
-AdminUser.create!(
-  name: "Admin",
-  email: "admin@example.com",
-  password: admin_password,
-  password_confirmation: admin_password
-)
+admin = AdminUser.find_or_initialize_by(email: "admin@example.com")
+if admin.new_record?
+  admin.assign_attributes(
+    name: "Admin",
+    password: admin_password,
+    password_confirmation: admin_password
+  )
+  admin.save!
+  puts "✓ Created admin user (email: admin@example.com)"
+else
+  puts "✓ Admin user already exists (skipping)"
+end
 
-puts "Created admin user (email: admin@example.com)"
-
-# Create default admin production house for testing
-ProductionHouse.create!(
-  name: "Demo Production House",
-  code: "DEMO001",
-  email: "demo@example.com",
-  password: "password123"
-)
-
-puts "Created demo production house (code: DEMO001, email: demo@example.com, password: password123)"
-
-# Create another production house for testing
-ProductionHouse.create!(
-  name: "BENR2 Production House",
-  code: "BENR2",
-  email: "benr2@example.com",
-  password: "br123"
-)
-
-puts "Created BENR2 production house (code: BENR2, email: benr2@example.com, password: br123)"
+# Create demo production house only if it doesn't exist
+demo_house = ProductionHouse.find_or_initialize_by(code: "DEMO001")
+if demo_house.new_record?
+  demo_house.assign_attributes(
+    name: "Demo Production House",
+    email: "demo@example.com",
+    password: "password123"
+  )
+  demo_house.save!
+  puts "✓ Created demo production house (code: DEMO001, password: password123)"
+else
+  puts "✓ Demo production house already exists (skipping)"
+end
 
 # Talent Categories Base Rates
 talent_rates = [
@@ -50,13 +44,13 @@ talent_rates = [
 ]
 
 talent_rates.each do |rate|
-  Setting.create!(
-    key: rate[:key],
-    value: rate[:value],
-    data_type: 'decimal',
-    category: 'talent'
-  )
+  Setting.find_or_create_by!(key: rate[:key]) do |setting|
+    setting.value = rate[:value]
+    setting.data_type = 'decimal'
+    setting.category = 'talent'
+  end
 end
+puts "✓ Talent rates seeded"
 
 # Duration settings
 durations = [
@@ -70,13 +64,13 @@ durations = [
 ]
 
 durations.each do |duration|
-  Setting.create!(
-    key: duration[:key],
-    value: duration[:value],
-    data_type: 'decimal',
-    category: 'duration'
-  )
+  Setting.find_or_create_by!(key: duration[:key]) do |setting|
+    setting.value = duration[:value]
+    setting.data_type = 'decimal'
+    setting.category = 'duration'
+  end
 end
+puts "✓ Duration settings seeded"
 
 # Exclusivity settings
 exclusivity_settings = [
@@ -92,13 +86,13 @@ exclusivity_settings = [
 ]
 
 exclusivity_settings.each do |setting|
-  Setting.create!(
-    key: setting[:key],
-    value: setting[:value],
-    data_type: 'decimal',
-    category: 'general'
-  )
+  Setting.find_or_create_by!(key: setting[:key]) do |s|
+    s.value = setting[:value]
+    s.data_type = 'decimal'
+    s.category = 'general'
+  end
 end
+puts "✓ Exclusivity settings seeded"
 
 # Individual Countries - All Media
 countries_all_media = [
@@ -170,12 +164,11 @@ countries_all_media = [
 ]
 
 countries_all_media.each do |country|
-  Territory.create!(
-    name: country[:name],
-    percentage: country[:percentage],
-    media_type: 'all_media'
-  )
+  Territory.find_or_create_by!(name: country[:name], media_type: 'all_media') do |territory|
+    territory.percentage = country[:percentage]
+  end
 end
+puts "✓ Individual country territories seeded"
 
 # Territory Combinations
 territory_combinations = [
@@ -228,12 +221,18 @@ territory_combinations = [
 ]
 
 territory_combinations.each do |combo|
-  Territory.create!(
-    name: combo[:name],
-    percentage: combo[:percentage],
-    media_type: 'all_media',
-    group_name: combo[:group_name]
-  )
+  Territory.find_or_create_by!(name: combo[:name], media_type: 'all_media') do |territory|
+    territory.percentage = combo[:percentage]
+    territory.group_name = combo[:group_name]
+  end
 end
+puts "✓ Territory combinations seeded"
 
-puts "Seeded #{Setting.count} settings and #{Territory.count} territories"
+puts "\n========================================="
+puts "Database seeding complete!"
+puts "========================================="
+puts "Settings: #{Setting.count}"
+puts "Territories: #{Territory.count}"
+puts "Production Houses: #{ProductionHouse.count}"
+puts "Admin Users: #{AdminUser.count}"
+puts "========================================="
