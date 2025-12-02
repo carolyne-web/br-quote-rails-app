@@ -1385,33 +1385,37 @@ export default class extends Controller {
   }
 
   checkTerritoryOverrides() {
-    // Get current duration
-    const durationSelect = document.querySelector('select[name*="duration"]')
-    if (!durationSelect) return
-    
-    const duration = durationSelect.value
-    const durationMonths = this.parseDurationMonths(duration)
-    
-    // Only apply logic to 12, 18, 24, 36 month durations
-    const thresholds = {
-      12: 1200,  // 12 months: ≥1200%
-      18: 1800,  // 18 months: ≥1800%
-      24: 2400,  // 24 months: ≥2400%
-      36: 3600   // 36 months: ≥3600%
-    }
-
-    const threshold = thresholds[durationMonths]
-    if (!threshold) {
-      // For durations not in the list (3, 6 months), clear any override notices
-      this.clearOverrideNotices()
-      return
-    }
-    
-    // Check each combination
+    // Check each combination with its own duration
     document.querySelectorAll('[data-combo]').forEach(comboElement => {
       const comboId = comboElement.getAttribute('data-combo')
       if (!comboId) return
-      
+
+      // Get duration specific to this combo
+      const durationSelect = document.querySelector(`select[name="combinations[${comboId}][duration]"]`)
+      if (!durationSelect) {
+        console.warn(`Duration select not found for combo ${comboId}`)
+        return
+      }
+
+      const duration = durationSelect.value
+      const durationMonths = this.parseDurationMonths(duration)
+
+      // Only apply logic to 12, 18, 24, 36 month durations
+      const thresholds = {
+        12: 1200,  // 12 months: ≥1200%
+        18: 1800,  // 18 months: ≥1800%
+        24: 2400,  // 24 months: ≥2400%
+        36: 3600   // 36 months: ≥3600%
+      }
+
+      const threshold = thresholds[durationMonths]
+      if (!threshold) {
+        // For durations not in the list (3, 6 months), hide any override notices for this combo
+        this.hideTerritoryOverrideNotice(comboId)
+        this.unforceAllMediaForCombo(comboId)
+        return
+      }
+
       this.checkComboTerritoryOverride(comboId, threshold, durationMonths)
     })
   }
