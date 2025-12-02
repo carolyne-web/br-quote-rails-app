@@ -216,7 +216,7 @@ class FinalQuotationPdf
 
       unique_talent_lines.each do |talent_line|
         talent_data << [
-          talent_line.category_type,
+          short_category_name(talent_line.category_type),
           talent_line.description.present? ? talent_line.description : '-',
           talent_line.talent_count.to_s,
           format_amount(talent_line.adjusted_rate.to_i),
@@ -537,5 +537,18 @@ class FinalQuotationPdf
 
   def number_with_delimiter(number)
     number.to_s.gsub(/(\d)(?=(\d\d\d)+(?!\d))/, "\\1,")
+  end
+
+  def short_category_name(category_type)
+    case category_type
+    when 1 then "Ld"
+    when 2 then "2Ld"
+    when 3 then "FE"
+    when 4 then "Teen"
+    when 5 then "Kid"
+    when 6 then "WO"
+    when 7 then "Ext"
+    else "N/A"
+    end
   end
 end
