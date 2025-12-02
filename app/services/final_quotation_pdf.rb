@@ -266,6 +266,12 @@ class FinalQuotationPdf
         column(3).align = :right
         column(10).align = :right
 
+        # Prevent number wrapping in numeric columns
+        column(3).overflow = :shrink_to_fit
+        column(3).single_line = true
+        column(10).overflow = :shrink_to_fit
+        column(10).single_line = true
+
         # Center align specific columns (text-center)
         column(2).align = :center
         column(4..9).align = :center
@@ -278,7 +284,7 @@ class FinalQuotationPdf
       # Create footer row for total (bg-gray-50, font-semibold, border-t)
       total_row = [[
         { content: "Talent Summary Total:", colspan: 10, align: :right, font_style: :bold, size: 8, text_color: GRAY_900, background_color: GRAY_50, padding: [5, 5] },
-        { content: format_amount(talent_summary_total), align: :right, font_style: :bold, size: 8, text_color: GREEN_600, background_color: GRAY_50, padding: [5, 5] }
+        { content: format_amount(talent_summary_total), align: :right, font_style: :bold, size: 8, text_color: GREEN_600, background_color: GRAY_50, padding: [5, 5], single_line: true }
       ]]
 
       table(total_row, width: bounds.width, cell_style: { borders: [ :top ], border_color: GRAY_200, border_width: 1 })
@@ -407,6 +413,13 @@ class FinalQuotationPdf
               column(1).align = :right
               column(5..7).align = :right
 
+              # Prevent number wrapping in numeric columns
+              column(1).single_line = true  # Day Fee
+              column(4).single_line = true  # # of Comms
+              column(5).single_line = true  # Buyout %
+              column(6).single_line = true  # Per Talent
+              column(7).single_line = true  # Total
+
               # Center align specific columns (text-center)
               column(2..4).align = :center
 
@@ -427,8 +440,8 @@ class FinalQuotationPdf
 
               guarantee_row = [[
                 { content: "Guaranteed (25% Discount):", colspan: 6, align: :right, font_style: :bold, size: 9, text_color: RED_700, background_color: GRAY_50, padding: [6, 9] },
-                { content: "-", align: :right, size: 9, text_color: RED_700, background_color: GRAY_50, padding: [6, 9] },
-                { content: "-#{format_amount(savings.round(2))}", align: :right, font_style: :bold, size: 9, text_color: RED_700, background_color: GRAY_50, padding: [6, 9] }
+                { content: "-", align: :right, size: 9, text_color: RED_700, background_color: GRAY_50, padding: [6, 9], single_line: true },
+                { content: "-#{format_amount(savings.round(2))}", align: :right, font_style: :bold, size: 9, text_color: RED_700, background_color: GRAY_50, padding: [6, 9], single_line: true }
               ]]
 
               table(guarantee_row, width: table_width, cell_style: { borders: [ :top ], border_color: GRAY_200, border_width: 1 })
@@ -439,8 +452,8 @@ class FinalQuotationPdf
             # Styling: px-3 py-2, font-semibold, text-gray-900 / text-blue-600, bg-gray-50, border-t
             total_row = [[
               { content: "Group Total:", colspan: 6, align: :right, font_style: :bold, size: 9, text_color: GRAY_900, background_color: GRAY_50, padding: [6, 9] },
-              { content: "-", align: :right, size: 9, text_color: BLUE_600, background_color: GRAY_50, padding: [6, 9] },
-              { content: format_amount(group_total), align: :right, font_style: :bold, size: 9, text_color: BLUE_600, background_color: GRAY_50, padding: [6, 9] }
+              { content: "-", align: :right, size: 9, text_color: BLUE_600, background_color: GRAY_50, padding: [6, 9], single_line: true },
+              { content: format_amount(group_total), align: :right, font_style: :bold, size: 9, text_color: BLUE_600, background_color: GRAY_50, padding: [6, 9], single_line: true }
             ]]
 
             table(total_row, width: table_width, cell_style: { borders: [ :top ], border_color: GRAY_200, border_width: 1 })

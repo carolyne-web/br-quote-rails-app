@@ -445,7 +445,7 @@
                               <input type="checkbox" name="combinations[1][territories][]" value="<%= territory.id %>" class="mr-3 rounded text-blue-600 focus:ring-blue-500 combination-territory-checkbox" data-territory-id="<%= territory.id %>" data-territory-name="<%= territory.name %>" data-percentage="<%= territory.percentage %>" data-combo="1">
                               <div class="text-sm">
                                 <div class="font-medium text-gray-900"><%= territory.name %></div>
-                                <div class="text-xs text-gray-500"><%= group_name %></div>
+                                <div class="text-xs text-gray-500"><%= group_name.presence || 'Individual Territories' %></div>
                               </div>
                             </div>
                             <div class="text-sm font-medium text-blue-600"><%= territory.percentage.to_i %>%</div>
@@ -780,8 +780,14 @@ window.exclusivitySettings = <%= @exclusivity_settings.to_json.html_safe %>;
 
 // Territories data for JavaScript
 window.territoriesData = <%= @territories.group_by(&:group_name).map { |group_name, territories|
-  [group_name || 'Individual Territories', territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
+  [group_name.presence || 'Individual Territories', territories.map { |t| { id: t.id, name: t.name, percentage: t.percentage } }]
 }.to_h.to_json.html_safe %>;
+
+console.log('🌍 Territories data loaded:', window.territoriesData);
+console.log('📊 Total territory groups:', Object.keys(window.territoriesData).length);
+Object.keys(window.territoriesData).forEach(groupName => {
+  console.log(`  - ${groupName}: ${window.territoriesData[groupName].length} territories`);
+});
 
 // Territory media exceptions for JavaScript calculations
 window.territoryExceptions = <%= @territory_exceptions.map { |ex|
@@ -2408,9 +2414,16 @@ document.addEventListener('turbo:render', initializeQuotationForm);
 
 // Helper function to generate territories HTML for a given combo ID
 function generateTerritoriesHTML(comboId) {
+  console.log(`🗺️ Generating territories HTML for combo ${comboId}`);
+  console.log('Territories data:', territoriesData);
+
   let html = '';
+  let totalTerritories = 0;
+
   Object.entries(territoriesData).forEach(([groupName, territories]) => {
+    console.log(`  Group: ${groupName}, Territories count: ${territories.length}`);
     territories.forEach(territory => {
+      totalTerritories++;
       html += `
         <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="${territory.name.toLowerCase()}">
           <div class="flex items-center">
@@ -2425,6 +2438,8 @@ function generateTerritoriesHTML(comboId) {
       `;
     });
   });
+
+  console.log(`✅ Generated HTML for ${totalTerritories} territories`);
   return html;
 }
 
