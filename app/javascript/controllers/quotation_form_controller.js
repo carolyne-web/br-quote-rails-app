@@ -6047,7 +6047,7 @@ export default class extends Controller {
               <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">${talentCount}</td>
               <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">${exclusivityDisplay}</td>
               <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">1</td>
-              <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">${buyoutPercentage.toFixed(1)}%</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">${Math.round(buyoutPercentage)}%</td>
               <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">R${Math.floor(totalWithBuyout / talentCount).toLocaleString()}</td>
               <td class="py-2 px-3 text-sm text-gray-800 text-right">R${Math.floor(totalWithBuyout).toLocaleString()}</td>
             `
