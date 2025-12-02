@@ -170,12 +170,14 @@ class FinalQuotationGenerator
 
     # Calculate usage fee based on whether this talent was selected in cast selection
     if calculated_values.present? && calculated_values["day_fee"].present?
-      # For JavaScript calculated values, the total_line_cost IS the absolute final amount
-      # DO NOT add any breakdown fees - the JavaScript total already includes everything
+      # For JavaScript calculated values, total_line_cost represents the USAGE amount (buyout),
+      # not the total including base fee. Calculate usage_fee from buyout percentage.
 
       base_talent_fee = calculated_values["day_fee"].to_f * calculated_values["unit_count"].to_i
-      usage_fee = total_line_cost - base_talent_fee
-      usage_fee = [usage_fee, 0].max # Ensure non-negative
+      buyout_percentage = calculated_values["calculated_buyout_percentage"].to_f
+      usage_fee = base_talent_fee * (buyout_percentage / 100.0)
+      # total_line_cost from JavaScript is the usage amount, use it as-is
+      total_line_cost = usage_fee
 
       # For breakdown display, calculate the individual components but ensure they sum to the JavaScript talent fee
       days_count = day_on_set.days_count || shoot_days
@@ -651,10 +653,8 @@ class FinalQuotationGenerator
 
     @quotation.talent_categories.includes(:day_on_sets).each do |category|
       category.day_on_sets.each_with_index do |day_on_set, line_index|
-        # Skip if no talent count
-        next if day_on_set.talent_count <= 0
-
-        # Check if this talent line was selected in cast selection
+        # Check if this talent line was selected in cast selection BEFORE checking talent_count
+        # This ensures that JavaScript calculated values are prioritized over database talent_count
         category_calculated = calculated_values[category.category_type.to_s] || {}
 
         # Find matching calculated line by description
@@ -680,6 +680,10 @@ class FinalQuotationGenerator
             Rails.logger.info "✅ Group 1: Matched by line_index #{line_index} for category #{category.category_type}"
           end
         end
+
+        # Skip only if no talent count AND no calculated values (truly empty line)
+        # If calculated values exist, create the line even if database talent_count is 0
+        next if day_on_set.talent_count <= 0 && line_calculated.blank?
 
         # Create talent line - with usage fees if selected, without if not selected
         if line_calculated.present?

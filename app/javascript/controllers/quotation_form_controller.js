@@ -1426,12 +1426,13 @@ export default class extends Controller {
       return
     }
 
-    // Special case: If Worldwide is selected (alone or with others), bypass override
-    // Worldwide (1200%) is already the default override value, so no need to show override message
+    // Special case: If Worldwide or EMEA is selected (alone or with others), bypass override
+    // These territories should use their exception rates instead of being overridden
     const territoryNames = Array.from(selectedTerritories).map(cb => cb.dataset.territoryName)
 
-    if (territoryNames.includes('Worldwide')) {
-      console.log('🔄 Worldwide is selected - bypassing override logic (already at Worldwide rate)')
+    if (territoryNames.includes('Worldwide') || territoryNames.includes('EMEA Countries')) {
+      const selectedTerritory = territoryNames.includes('Worldwide') ? 'Worldwide' : 'EMEA Countries'
+      console.log(`🔄 ${selectedTerritory} is selected - bypassing override logic to allow exception rates`)
       this.hideTerritoryOverrideNotice(comboId)
       this.unforceAllMediaForCombo(comboId)
       return
@@ -2664,9 +2665,9 @@ export default class extends Controller {
             </td>
             <td class="py-2 px-3 text-sm text-gray-900 text-center border-r border-gray-300">
               <input type="number" min="1" max="20" step="1" value="${existingCommercialValues[`${categoryId}_${lineIndex}`] || 1}" name="talent[${categoryId}][lines][${lineIndex}][commercial_count]" id="commercial_count_${comboId}_${categoryId}_${lineIndex}" class="w-16 px-2 py-1 text-xs text-center border rounded commercial-count-input focus:outline-none focus:ring-2 focus:ring-blue-500" data-combo="${comboId}" data-category="${categoryId}" data-line="${lineIndex}" style="-webkit-appearance: auto; -moz-appearance: textfield-multiline;">
-              <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][buyout_percentage]" value="${rowBuyoutPercentage}">
+              <input type="hidden" name="talent[${categoryId}][lines][${lineIndex}][buyout_percentage]" value="${isNaN(rowBuyoutPercentage) ? 0 : rowBuyoutPercentage}">
             </td>
-            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${Math.round(rowBuyoutPercentage)}%</td>
+            <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">${Math.round(isNaN(rowBuyoutPercentage) ? 0 : rowBuyoutPercentage)}%</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right border-r border-gray-300">R${this.formatNumber(totalRands / unit)}</td>
             <td class="py-2 px-3 text-sm text-gray-900 text-right">R${this.formatNumber(totalRands)}</td>
           </tr>
@@ -2949,9 +2950,19 @@ export default class extends Controller {
     const duration = durationSelect?.value || ''
     
     const territoryCheckboxes = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
-    const territories = Array.from(territoryCheckboxes).map(cb => ({
-      percentage: parseFloat(cb.getAttribute('data-percentage') || 0)
-    }))
+    const territories = Array.from(territoryCheckboxes).map(cb => {
+      const percentageValue = cb.getAttribute('data-percentage')
+      const parsedPercentage = parseFloat(percentageValue)
+      const percentage = isNaN(parsedPercentage) ? 0 : parsedPercentage
+
+      if (isNaN(parsedPercentage)) {
+        console.error(`⚠️ Invalid percentage for territory in calculateBuyoutPercentage, value: "${percentageValue}"`)
+      }
+
+      return {
+        percentage: percentage
+      }
+    })
     
     const mediaCheckboxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
     const mediaTypes = Array.from(mediaCheckboxes).map(cb => cb.value)
@@ -2994,10 +3005,21 @@ export default class extends Controller {
     const duration = durationSelect?.value || ''
 
     const territoryCheckboxes = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
-    const territories = Array.from(territoryCheckboxes).map(cb => ({
-      name: cb.getAttribute('data-territory-name') || cb.textContent.trim(),
-      percentage: parseFloat(cb.getAttribute('data-percentage') || 0)
-    }))
+    const territories = Array.from(territoryCheckboxes).map(cb => {
+      const percentageValue = cb.getAttribute('data-percentage')
+      const parsedPercentage = parseFloat(percentageValue)
+      // Ensure we have a valid number, default to 0 if NaN
+      const percentage = isNaN(parsedPercentage) ? 0 : parsedPercentage
+
+      if (isNaN(parsedPercentage)) {
+        console.error(`⚠️ Invalid percentage for territory: ${cb.getAttribute('data-territory-name')}, value: "${percentageValue}"`)
+      }
+
+      return {
+        name: cb.getAttribute('data-territory-name') || cb.textContent.trim(),
+        percentage: percentage
+      }
+    })
     
     const mediaCheckboxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
     const mediaTypes = Array.from(mediaCheckboxes).map(cb => cb.value)
@@ -3014,31 +3036,80 @@ export default class extends Controller {
       const totalTerritoryPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
       const threshold = overrideThresholds[durationMonths]
 
-      // Special case: If Worldwide is selected (alone or with others), bypass override
-      // Worldwide should use its exception rates (all_moving: 1000%, internet: 600%)
+      // Special case: If Worldwide or EMEA is selected (alone or with others), bypass override
+      // These territories should use their exception rates instead of being overridden
       const hasWorldwide = territories.some(t => t.name === 'Worldwide')
+      const hasEMEA = territories.some(t => t.name === 'EMEA Countries')
 
-      if (totalTerritoryPercentage >= threshold && !hasWorldwide) {
+      if (totalTerritoryPercentage >= threshold && !hasWorldwide && !hasEMEA) {
         // Override is active - use Worldwide rate instead of territory exception
         overridePercentage = threshold
         console.log(`🔥 OVERRIDE ACTIVE: Total territories ${totalTerritoryPercentage}% >= ${threshold}% → Using Worldwide rate ${overridePercentage}%`)
       } else if (hasWorldwide) {
         console.log(`🔄 Worldwide is selected - bypassing override logic to allow exception rates`)
+      } else if (hasEMEA) {
+        console.log(`🔄 EMEA Countries is selected - bypassing override logic to allow exception rates`)
       }
     }
 
     // Check for territory-media exceptions (only if override is NOT active)
     let territoryExceptionPercentage = null
     if (overridePercentage === null) {
+      // Prioritize meta-types: if "all_media" or "all_moving" is selected, use ONLY that
+      // This prevents double-counting when the UI auto-checks individual media types
+      let effectiveMediaTypes = mediaTypes
+      if (mediaTypes.includes('all_media')) {
+        effectiveMediaTypes = ['all_media']
+        console.log(`🎯 All Media selected - using only 'all_media' (ignoring ${mediaTypes.length - 1} other checked types)`)
+      } else if (mediaTypes.includes('all_moving')) {
+        effectiveMediaTypes = ['all_moving']
+        console.log(`🎯 All Moving Media selected - using only 'all_moving' (ignoring ${mediaTypes.length - 1} other checked types)`)
+      }
+
       territories.forEach(territory => {
-        mediaTypes.forEach(mediaType => {
-          const exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
+        effectiveMediaTypes.forEach(mediaType => {
+          // First, try to find exception for the media type as-is (e.g., "all_media", "all_moving")
+          let exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
+
           if (exceptionPercentage !== null) {
-            console.log(`🔄 Territory exception found: ${territory.name} + ${mediaType} = ${exceptionPercentage}% (replaces entire calculation)`)
-            territoryExceptionPercentage = Math.max(territoryExceptionPercentage || 0, exceptionPercentage)
+            // Convert to number to ensure proper addition
+            const numericException = parseFloat(exceptionPercentage)
+            console.log(`🔄 Territory exception found (direct): ${territory.name} + ${mediaType} = ${numericException}%`)
+            territoryExceptionPercentage = (territoryExceptionPercentage || 0) + numericException
+            console.log(`📊 Running total of exceptions: ${territoryExceptionPercentage}%`)
+          } else {
+            // If not found, expand special media types and sum their exceptions
+            let mediaTypesToCheck = []
+            if (mediaType === 'all_media') {
+              mediaTypesToCheck = ['tv', 'cinema', 'print', 'internet']
+            } else if (mediaType === 'all_moving') {
+              mediaTypesToCheck = ['tv', 'cinema']
+            }
+
+            if (mediaTypesToCheck.length > 0) {
+              console.log(`🎬 Expanding ${mediaType} to: [${mediaTypesToCheck.join(', ')}]`)
+              mediaTypesToCheck.forEach(expandedType => {
+                const expandedException = this.findTerritoryException(territory.name, expandedType)
+                if (expandedException !== null) {
+                  // Convert to number to ensure proper addition
+                  const numericExpandedException = parseFloat(expandedException)
+                  console.log(`🔄 Territory exception found (expanded): ${territory.name} + ${expandedType} = ${numericExpandedException}%`)
+                  territoryExceptionPercentage = (territoryExceptionPercentage || 0) + numericExpandedException
+                  console.log(`📊 Running total of exceptions: ${territoryExceptionPercentage}%`)
+                }
+              })
+            }
           }
         })
       })
+
+      // Apply duration multiplier to exception percentage
+      if (territoryExceptionPercentage !== null) {
+        const durationMultiplier = this.getDurationMultiplier(duration)
+        console.log(`⏱️ Applying duration multiplier ${durationMultiplier} to exception total ${territoryExceptionPercentage}%`)
+        territoryExceptionPercentage = territoryExceptionPercentage * durationMultiplier
+        console.log(`✅ Final exception percentage after duration: ${territoryExceptionPercentage}%`)
+      }
     }
 
     let percentage
@@ -3215,6 +3286,20 @@ export default class extends Controller {
     // Store product factor for use in total calculation
     this.lastProductFactor = 1.0
 
+    // Final safety check - ensure we never return NaN
+    if (isNaN(effectivePercentage)) {
+      console.error(`⚠️ NaN detected in effectivePercentage calculation for combo ${comboId}, category ${categoryId}, line ${lineIndex}`)
+      console.error('Debug info:', {
+        duration,
+        territoryCount: territories.length,
+        territories: territories.map(t => `${t.name}: ${t.percentage}%`),
+        mediaTypes,
+        adjustedBase,
+        adjustedExclusivity
+      })
+      return 0 // Default to 0% instead of NaN
+    }
+
     return effectivePercentage
   }
 
@@ -3270,24 +3355,62 @@ export default class extends Controller {
 
   checkTerritoryMediaExceptions(territories, mediaTypes) {
     // Check if there are territory-media exceptions for the selected combination
-    // Returns the exception percentage if found, null otherwise
+    // Returns the sum of all exception percentages if found, null otherwise
     if (!territories || territories.length === 0 || !mediaTypes || mediaTypes.length === 0) {
       return null
     }
 
-    let maxExceptionPercentage = null
+    let totalExceptionPercentage = null
+
+    // Prioritize meta-types: if "all_media" or "all_moving" is selected, use ONLY that
+    // This prevents double-counting when the UI auto-checks individual media types
+    let effectiveMediaTypes = mediaTypes
+    if (mediaTypes.includes('all_media')) {
+      effectiveMediaTypes = ['all_media']
+      console.log(`🎯 All Media selected - using only 'all_media' (ignoring ${mediaTypes.length - 1} other checked types)`)
+    } else if (mediaTypes.includes('all_moving')) {
+      effectiveMediaTypes = ['all_moving']
+      console.log(`🎯 All Moving Media selected - using only 'all_moving' (ignoring ${mediaTypes.length - 1} other checked types)`)
+    }
 
     territories.forEach(territory => {
-      mediaTypes.forEach(mediaType => {
-        const exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
+      effectiveMediaTypes.forEach(mediaType => {
+        // First, try to find exception for the media type as-is (e.g., "all_media", "all_moving")
+        let exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
+
         if (exceptionPercentage !== null) {
-          console.log(`🔄 Found territory exception: ${territory.name} + ${mediaType} = ${exceptionPercentage}%`)
-          maxExceptionPercentage = Math.max(maxExceptionPercentage || 0, exceptionPercentage)
+          // Convert to number to ensure proper addition
+          const numericException = parseFloat(exceptionPercentage)
+          console.log(`🔄 Found territory exception (direct): ${territory.name} + ${mediaType} = ${numericException}%`)
+          totalExceptionPercentage = (totalExceptionPercentage || 0) + numericException
+          console.log(`📊 Running total of exceptions: ${totalExceptionPercentage}%`)
+        } else {
+          // If not found, expand special media types and sum their exceptions
+          let mediaTypesToCheck = []
+          if (mediaType === 'all_media') {
+            mediaTypesToCheck = ['tv', 'cinema', 'print', 'internet']
+          } else if (mediaType === 'all_moving') {
+            mediaTypesToCheck = ['tv', 'cinema']
+          }
+
+          if (mediaTypesToCheck.length > 0) {
+            console.log(`🎬 Expanding ${mediaType} to: [${mediaTypesToCheck.join(', ')}]`)
+            mediaTypesToCheck.forEach(expandedType => {
+              const expandedException = this.findTerritoryException(territory.name, expandedType)
+              if (expandedException !== null) {
+                // Convert to number to ensure proper addition
+                const numericExpandedException = parseFloat(expandedException)
+                console.log(`🔄 Found territory exception (expanded): ${territory.name} + ${expandedType} = ${numericExpandedException}%`)
+                totalExceptionPercentage = (totalExceptionPercentage || 0) + numericExpandedException
+                console.log(`📊 Running total of exceptions: ${totalExceptionPercentage}%`)
+              }
+            })
+          }
         }
       })
     })
 
-    return maxExceptionPercentage
+    return totalExceptionPercentage
   }
 
   getDurationMultiplier(duration) {
@@ -3306,6 +3429,13 @@ export default class extends Controller {
     if (territories.length === 0) return 1.0
 
     const totalPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
+
+    // Safety check for NaN
+    if (isNaN(totalPercentage)) {
+      console.error('⚠️ NaN detected in getTerritoryMultiplier - territories:', territories)
+      return 1.0
+    }
+
     const durationMonths = this.parseDurationMonths(duration)
 
     // Check for override (but skip if Worldwide is selected)
@@ -3381,11 +3511,18 @@ export default class extends Controller {
   shouldApplyTerritoryOverride(durationMonths, totalPercentage, territories = []) {
     if (!durationMonths || !totalPercentage) return false
 
-    // Special case: If Worldwide is selected (alone or with others), bypass override
-    // Worldwide (1200%) is already the default override value, so no need to show override
+    // Special case: If Worldwide or EMEA is selected (alone or with others), bypass override
+    // These territories should use their exception rates instead of being overridden
     const hasWorldwide = territories.some(t => t.name === 'Worldwide')
+    const hasEMEA = territories.some(t => t.name === 'EMEA Countries')
+
     if (hasWorldwide) {
-      console.log('🔄 Worldwide is selected - bypassing override logic (already at Worldwide rate)')
+      console.log('🔄 Worldwide is selected - bypassing override logic to allow exception rates')
+      return false
+    }
+
+    if (hasEMEA) {
+      console.log('🔄 EMEA Countries is selected - bypassing override logic to allow exception rates')
       return false
     }
 
@@ -6129,7 +6266,7 @@ export default class extends Controller {
               <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">${talentCount}</td>
               <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">${exclusivityDisplay}</td>
               <td class="py-2 px-3 text-sm text-gray-800 text-center border-r border-gray-300">1</td>
-              <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">${Math.round(buyoutPercentage)}%</td>
+              <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">${Math.round(isNaN(buyoutPercentage) ? 0 : buyoutPercentage)}%</td>
               <td class="py-2 px-3 text-sm text-gray-800 text-right border-r border-gray-300">R${Math.floor(totalWithBuyout / talentCount).toLocaleString()}</td>
               <td class="py-2 px-3 text-sm text-gray-800 text-right">R${Math.floor(totalWithBuyout).toLocaleString()}</td>
             `
