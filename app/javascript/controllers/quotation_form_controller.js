@@ -1392,16 +1392,17 @@ export default class extends Controller {
     const duration = durationSelect.value
     const durationMonths = this.parseDurationMonths(duration)
     
-    // Only apply logic to 12, 24, 36 month durations
+    // Only apply logic to 12, 18, 24, 36 month durations
     const thresholds = {
       12: 1200,  // 12 months: ≥1200%
-      24: 2400,  // 24 months: ≥2400% 
+      18: 1800,  // 18 months: ≥1800%
+      24: 2400,  // 24 months: ≥2400%
       36: 3600   // 36 months: ≥3600%
     }
-    
+
     const threshold = thresholds[durationMonths]
     if (!threshold) {
-      // For durations not in the list (3, 6, 18 months), clear any override notices
+      // For durations not in the list (3, 6 months), clear any override notices
       this.clearOverrideNotices()
       return
     }
@@ -3004,9 +3005,9 @@ export default class extends Controller {
     const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
     const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
 
-    // Check if override is active (territories >= threshold for 12/24/36 months)
+    // Check if override is active (territories >= threshold for 12/18/24/36 months)
     const durationMonths = this.parseDurationMonths(duration)
-    const overrideThresholds = { 12: 1200, 24: 2400, 36: 3600 }
+    const overrideThresholds = { 12: 1200, 18: 1800, 24: 2400, 36: 3600 }
     let overridePercentage = null
 
     if (overrideThresholds[durationMonths]) {
@@ -3390,6 +3391,7 @@ export default class extends Controller {
 
     const thresholds = {
       12: 1200,
+      18: 1800,
       24: 2400,
       36: 3600
     }
