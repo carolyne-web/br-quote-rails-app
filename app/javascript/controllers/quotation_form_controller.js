@@ -4071,20 +4071,18 @@ export default class extends Controller {
     for (let categoryId = 1; categoryId <= 5; categoryId++) {
       const categorySection = document.querySelector(`#talent-category-${categoryId}`)
       if (categorySection) {
-        // Get total talent count for this category
+        // Get total talent count for this category from the talent input rows only
         let totalTalentCount = 0
 
-        // Check main row
-        const mainRow = categorySection.querySelector('.talent-input-row')
-        if (mainRow) {
-          const talentCountInput = mainRow.querySelector('.talent-count, [name*="talent_count"]')
-          totalTalentCount += parseInt(talentCountInput?.value) || 0
-        }
-
-        // Check additional lines
-        const additionalLines = categorySection.querySelectorAll('[data-line-index] .talent-count')
-        additionalLines.forEach(input => {
-          totalTalentCount += parseInt(input.value) || 0
+        // Only look for talent count inputs within .talent-input-row elements
+        // This excludes preview tables and other summary areas
+        const talentRows = categorySection.querySelectorAll('.talent-input-row')
+        talentRows.forEach(row => {
+          const talentInput = row.querySelector('.talent-count, [name*="talent_count"]')
+          if (talentInput) {
+            const count = parseInt(talentInput.value) || 0
+            totalTalentCount += count
+          }
         })
 
         console.log(`   Category ${categoryId} (${categoryNames[categoryId]}): total talent = ${totalTalentCount}`)
