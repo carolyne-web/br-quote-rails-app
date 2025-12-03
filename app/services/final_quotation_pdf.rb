@@ -237,24 +237,10 @@ class FinalQuotationPdf
       # Create table with matching preview colors - full width
       # Category, Description, Rate, and Total will naturally be wider based on content
       # Table headers and cells: reduced size and padding to prevent wrapping
-      table_width = bounds.width
       table(talent_data,
             header: true,
-            width: table_width,
-            column_widths: {
-              0 => table_width * 0.06,  # Category (shortened)
-              1 => table_width * 0.15,  # Description (smaller)
-              2 => table_width * 0.08,  # Talent
-              3 => table_width * 0.11,  # Rate
-              4 => table_width * 0.10,  # Shoot Days
-              5 => table_width * 0.10,  # Rehearsal
-              6 => table_width * 0.10,  # Down Days
-              7 => table_width * 0.10,  # Travel Days
-              8 => table_width * 0.10,  # Overtime
-              9 => table_width * 0.06,  # Night
-              10 => table_width * 0.14  # Total
-            },
-            cell_style: { size: 8, padding: [5, 5] }) do  # Reduced size and padding to fit more content
+            width: bounds.width,
+            cell_style: { size: 8, padding: [4, 4], overflow: :shrink_to_fit }) do  # Reduced size and padding to fit more content
         # Header row - gray background matching preview (bg-gray-50)
         row(0).font_style = :bold
         row(0).background_color = GRAY_50
@@ -268,6 +254,9 @@ class FinalQuotationPdf
         # Category column (text-sm, font-medium, text-gray-900)
         column(0).font_style = :bold
         column(0).text_color = GRAY_900
+
+        # Description column - allow shrinking to fit
+        column(1).overflow = :shrink_to_fit
 
         # Description and other columns (text-sm, text-gray-700)
         column(1..9).text_color = GRAY_700
@@ -558,8 +547,8 @@ class FinalQuotationPdf
     when "Lead" then "LD"
     when "Second Lead" then "2L"
     when "Featured Extra" then "FE"
-    when "Teenager" then "TN"
-    when "Kid" then "KD"
+    when "Teenagers" then "TN"
+    when "Kids" then "KD"
     when "Walk-on" then "WO"
     when "Extras" then "EX"
     else category_type # Return original if not recognized
