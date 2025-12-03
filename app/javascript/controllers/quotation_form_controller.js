@@ -3059,7 +3059,7 @@ export default class extends Controller {
     // Check for territory-media exceptions (only if override is NOT active)
     let territoryExceptionPercentage = null
     if (overridePercentage === null) {
-      // Prioritize meta-types: if "all_media" or "all_moving" is selected, use ONLY that
+      // Prioritize umbrella types: if "all_media", "all_moving", or "print" is selected, use ONLY that
       // This prevents double-counting when the UI auto-checks individual media types
       let effectiveMediaTypes = mediaTypes
       if (mediaTypes.includes('all_media')) {
@@ -3068,6 +3068,9 @@ export default class extends Controller {
       } else if (mediaTypes.includes('all_moving')) {
         effectiveMediaTypes = ['all_moving']
         console.log(`🎯 All Moving Media selected - using only 'all_moving' (ignoring ${mediaTypes.length - 1} other checked types)`)
+      } else if (mediaTypes.includes('print')) {
+        effectiveMediaTypes = ['print']
+        console.log(`🎯 All Print Media selected - using only 'print' (ignoring ${mediaTypes.length - 1} other checked types)`)
       }
 
       territories.forEach(territory => {
@@ -3076,33 +3079,13 @@ export default class extends Controller {
           let exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
 
           if (exceptionPercentage !== null) {
-            // Convert to number to ensure proper addition
+            // Convert to number and add across territories
             const numericException = parseFloat(exceptionPercentage)
-            console.log(`🔄 Territory exception found (direct): ${territory.name} + ${mediaType} = ${numericException}%`)
+            console.log(`🔄 Territory exception found: ${territory.name} + ${mediaType} = ${numericException}%`)
             territoryExceptionPercentage = (territoryExceptionPercentage || 0) + numericException
-            console.log(`📊 Running total of exceptions: ${territoryExceptionPercentage}%`)
+            console.log(`📊 Running total: ${territoryExceptionPercentage}%`)
           } else {
-            // If not found, expand special media types and sum their exceptions
-            let mediaTypesToCheck = []
-            if (mediaType === 'all_media') {
-              mediaTypesToCheck = ['tv', 'cinema', 'print', 'internet']
-            } else if (mediaType === 'all_moving') {
-              mediaTypesToCheck = ['tv', 'cinema']
-            }
-
-            if (mediaTypesToCheck.length > 0) {
-              console.log(`🎬 Expanding ${mediaType} to: [${mediaTypesToCheck.join(', ')}]`)
-              mediaTypesToCheck.forEach(expandedType => {
-                const expandedException = this.findTerritoryException(territory.name, expandedType)
-                if (expandedException !== null) {
-                  // Convert to number to ensure proper addition
-                  const numericExpandedException = parseFloat(expandedException)
-                  console.log(`🔄 Territory exception found (expanded): ${territory.name} + ${expandedType} = ${numericExpandedException}%`)
-                  territoryExceptionPercentage = (territoryExceptionPercentage || 0) + numericExpandedException
-                  console.log(`📊 Running total of exceptions: ${territoryExceptionPercentage}%`)
-                }
-              })
-            }
+            console.log(`⚠️  No exception found for: ${territory.name} + ${mediaType} - will fall back to standard calculation`)
           }
         })
       })
