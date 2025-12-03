@@ -237,9 +237,23 @@ class FinalQuotationPdf
       # Create table with matching preview colors - full width
       # Category, Description, Rate, and Total will naturally be wider based on content
       # Table headers and cells: reduced size and padding to prevent wrapping
+      table_width = bounds.width
       table(talent_data,
             header: true,
-            width: bounds.width,
+            width: table_width,
+            column_widths: {
+              0 => table_width * 0.06,  # Category (shortened)
+              1 => table_width * 0.15,  # Description (smaller)
+              2 => table_width * 0.08,  # Talent
+              3 => table_width * 0.11,  # Rate
+              4 => table_width * 0.10,  # Shoot Days
+              5 => table_width * 0.10,  # Rehearsal
+              6 => table_width * 0.10,  # Down Days
+              7 => table_width * 0.10,  # Travel Days
+              8 => table_width * 0.10,  # Overtime
+              9 => table_width * 0.06,  # Night
+              10 => table_width * 0.14  # Total
+            },
             cell_style: { size: 8, padding: [5, 5] }) do  # Reduced size and padding to fit more content
         # Header row - gray background matching preview (bg-gray-50)
         row(0).font_style = :bold
@@ -541,14 +555,14 @@ class FinalQuotationPdf
 
   def short_category_name(category_type)
     case category_type
-    when 1 then "Ld"
-    when 2 then "2Ld"
-    when 3 then "FE"
-    when 4 then "Teen"
-    when 5 then "Kid"
-    when 6 then "WO"
-    when 7 then "Ext"
-    else "N/A"
+    when "Lead" then "LD"
+    when "Second Lead" then "2L"
+    when "Featured Extra" then "FE"
+    when "Teenager" then "TN"
+    when "Kid" then "KD"
+    when "Walk-on" then "WO"
+    when "Extras" then "EX"
+    else category_type # Return original if not recognized
     end
   end
 end
