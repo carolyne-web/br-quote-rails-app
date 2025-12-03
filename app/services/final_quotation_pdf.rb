@@ -510,12 +510,19 @@ class FinalQuotationPdf
         stroke_horizontal_rule
         move_down 10
 
-        # Grand Total in larger green text
-        text format_amount(grand_total),
-             size: 12,  # Slightly larger for emphasis: 12pt
-             style: :bold,
-             color: GREEN_600,
-             align: :right
+        # Grand Total with label
+        table([
+          ["Grand Total:", format_amount(grand_total)]
+        ], width: bounds.width, cell_style: { borders: [], padding: 0 }) do
+          column(0).align = :left
+          column(0).size = 12
+          column(0).font_style = :bold
+          column(0).text_color = GRAY_900
+          column(1).align = :right
+          column(1).size = 12
+          column(1).font_style = :bold
+          column(1).text_color = GREEN_600
+        end
       end
     end
 
