@@ -1338,24 +1338,93 @@ function removeUsageCombination(comboId) {
     return totalTerritoryPercentage > 0 ? totalTerritoryPercentage / 100.0 : 1.0;
   }
 
+  // Calculate combined territory-media percentage using exceptions (matching Ruby calculator logic)
+  function calculateTerritoryMediaCombinedPercentage(comboId) {
+    const selectedTerritories = document.querySelectorAll(`input[name="combinations[${comboId}][territories][]"]:checked`);
+    const selectedMedia = document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:checked`);
+
+    if (selectedTerritories.length === 0 || selectedMedia.length === 0) {
+      return 0; // No selection
+    }
+
+    const mediaTypes = Array.from(selectedMedia).map(checkbox => checkbox.value);
+    let totalPercentage = 0;
+    let allHaveExceptions = true;
+
+    console.log('🔍 calculateTerritoryMediaCombinedPercentage - Combo:', comboId);
+    console.log('  Selected territories:', Array.from(selectedTerritories).map(t => t.dataset.territoryName));
+    console.log('  Selected media types:', mediaTypes);
+    console.log('  Available exceptions:', window.territoryExceptions);
+
+    // For each media type, calculate the combined territory percentage
+    for (const mediaType of mediaTypes) {
+      let mediaPercentage = 0;
+
+      for (const territoryCheckbox of selectedTerritories) {
+        const territoryName = territoryCheckbox.dataset.territoryName;
+
+        // Check if there's an exception for this territory + media type combination
+        const exception = window.territoryExceptions.find(ex =>
+          ex.territory_name === territoryName && ex.media_type === mediaType
+        );
+
+        console.log(`  Looking for: "${territoryName}" + "${mediaType}" → ${exception ? exception.percentage + '%' : 'NOT FOUND'}`);
+
+        if (exception) {
+          // Use exception percentage
+          mediaPercentage += parseFloat(exception.percentage);
+        } else {
+          // No exception found - fall through to standard multiplier logic
+          console.log('  ⚠️  Exception not found, falling back to standard calculation');
+          allHaveExceptions = false;
+          break;
+        }
+      }
+
+      if (!allHaveExceptions) {
+        break;
+      }
+
+      // Take the highest media type percentage (not additive across media types)
+      totalPercentage = Math.max(totalPercentage, mediaPercentage);
+    }
+
+    const result = allHaveExceptions ? totalPercentage : 0;
+    console.log(`  ✓ Result: ${result}% (${allHaveExceptions ? 'using exceptions' : 'fallback to standard'})`);
+    return result;
+  }
 
   // Get all active combinations
   function getActiveCombinations() {
     const combinations = [];
     const allCombinations = document.querySelectorAll('.combination-content');
-    
+
     allCombinations.forEach(combo => {
       const comboId = combo.getAttribute('data-combo');
       const durationSelect = document.querySelector(`select[name="combinations[${comboId}][duration]"]`);
       const selectedTerritories = document.querySelectorAll(`input[name="combinations[${comboId}][territories][]"]:checked`);
       const selectedMedia = document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]:checked`);
-      
+
       // Only include combinations that have at least duration, territory, or media selected
       if ((durationSelect && durationSelect.value) || selectedTerritories.length > 0 || selectedMedia.length > 0) {
+        // Check for combined territory-media exceptions first
+        const combinedPercentage = calculateTerritoryMediaCombinedPercentage(comboId);
+
+        let territoryMultiplier, mediaMultiplier;
+        if (combinedPercentage > 0) {
+          // Use exception-based combined percentage
+          territoryMultiplier = combinedPercentage / 100.0;
+          mediaMultiplier = 1.0; // Already factored into territoryMultiplier
+        } else {
+          // Fall back to separate territory × media multiplier logic
+          territoryMultiplier = calculateTerritoryMultiplierForCombo(comboId);
+          mediaMultiplier = calculateMediaMultiplierForCombo(comboId);
+        }
+
         combinations.push({
           id: comboId,
-          territoryMultiplier: calculateTerritoryMultiplierForCombo(comboId),
-          mediaMultiplier: calculateMediaMultiplierForCombo(comboId),
+          territoryMultiplier: territoryMultiplier,
+          mediaMultiplier: mediaMultiplier,
           durationMultiplier: calculateDurationMultiplierForCombo(comboId),
           exclusivityMultiplier: 1.0, // Now handled by new pill system
           unlimitedStills: document.querySelector(`input[name="combinations[${comboId}][unlimited_stills]"]:checked`) ? true : false,
