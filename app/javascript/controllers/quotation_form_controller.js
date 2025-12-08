@@ -7378,12 +7378,25 @@ export default class extends Controller {
   populateGroupMediaTypes(groupNumber, mediaTypes) {
     if (!mediaTypes || mediaTypes.length === 0) return
 
-    mediaTypes.forEach(mediaType => {
+    // IMPORTANT: Check "all_media" FIRST if it exists in the array
+    // This prevents other media types from disabling it before we can check it
+    const hasAllMedia = mediaTypes.includes('all_media')
+    const sortedMediaTypes = hasAllMedia
+      ? ['all_media', ...mediaTypes.filter(mt => mt !== 'all_media')]
+      : mediaTypes
+
+    sortedMediaTypes.forEach(mediaType => {
       // Try multiple naming patterns to find the media type checkbox
       let checkbox = document.querySelector(`input[name="combinations[${groupNumber}][media_types][]"][value="${mediaType}"]`) ||
                     document.querySelector(`input[name="combinations[combination_${groupNumber}][media_types][]"][value="${mediaType}"]`)
 
       if (checkbox) {
+        // Skip if checkbox is disabled (might happen if another media type disabled it)
+        if (checkbox.disabled && mediaType !== 'all_media') {
+          console.log(`ℹ️ Skipping ${mediaType} for Group ${groupNumber} (already handled by all_media or other group checkbox)`)
+          return
+        }
+
         checkbox.checked = true
         checkbox.dispatchEvent(new Event('change'))
         console.log(`✅ Selected media type ${mediaType} for Group ${groupNumber}`)
