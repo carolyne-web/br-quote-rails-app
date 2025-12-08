@@ -7083,16 +7083,20 @@ export default class extends Controller {
           guaranteed: comboData.is_guaranteed
         })
 
-        // Populate this group with the combination data (with delay to avoid conflicts)
+        // Populate this group with the combination data (with delay to ensure DOM is ready)
+        // Use longer delay for Group 2+ to ensure territory checkboxes are fully generated
+        const delay = groupNumber === 1 ? 100 : groupNumber * 300
         setTimeout(() => {
           this.populateGroupData(groupNumber, comboData)
-        }, groupNumber * 100)
+        }, delay)
       })
 
       // Step 3: Ensure Group 1 is active by default
+      // Wait for all groups to be populated (account for longer delays in Group 2+)
+      const maxDelay = combinations.length === 1 ? 100 : combinations.length * 300
       setTimeout(() => {
         this.switchToTab(1)
-      }, (combinations.length * 100) + 200)
+      }, maxDelay + 200)
     }
   }
 
@@ -7341,7 +7345,12 @@ export default class extends Controller {
 
   // Populate territory checkboxes for a group
   populateGroupTerritories(groupNumber, territories) {
-    if (!territories || territories.length === 0) return
+    if (!territories || territories.length === 0) {
+      console.log(`ℹ️ No territories to populate for Group ${groupNumber}`)
+      return
+    }
+
+    console.log(`🌍 Populating ${territories.length} territories for Group ${groupNumber}:`, territories)
 
     territories.forEach(territoryId => {
       // Try multiple naming patterns to find the territory checkbox
@@ -7351,12 +7360,16 @@ export default class extends Controller {
       if (checkbox) {
         checkbox.checked = true
         checkbox.dispatchEvent(new Event('change'))
-        console.log(`✅ Selected territory ${territoryId} for Group ${groupNumber}`)
+        const territoryName = checkbox.dataset.territoryName || territoryId
+        console.log(`✅ Selected territory "${territoryName}" (ID: ${territoryId}) for Group ${groupNumber}`)
       } else {
         console.warn(`❌ Territory checkbox not found: ${territoryId} for Group ${groupNumber}`)
         // Log available territory checkboxes for debugging
         const allTerritoryCheckboxes = document.querySelectorAll(`input[name*="territories"][value="${territoryId}"]`)
-        console.log(`Available territory checkboxes for ${territoryId}:`, Array.from(allTerritoryCheckboxes).map(c => c.name))
+        console.log(`  Available territory checkboxes for ${territoryId}:`, Array.from(allTerritoryCheckboxes).map(c => ({name: c.name, dataCombo: c.dataset.combo})))
+        // Also log all territory checkboxes for this group
+        const groupCheckboxes = document.querySelectorAll(`input[name="combinations[${groupNumber}][territories][]"]`)
+        console.log(`  All territory checkboxes in Group ${groupNumber} (${groupCheckboxes.length} found):`, Array.from(groupCheckboxes).map(c => ({value: c.value, name: c.dataset.territoryName})))
       }
     })
   }

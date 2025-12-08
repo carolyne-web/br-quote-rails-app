@@ -1229,13 +1229,15 @@ function removeUsageCombination(comboId) {
       </div>
     `;
 
-    // Populate territories list with JavaScript after DOM creation
-    setTimeout(() => {
+    // Populate territories list immediately (no setTimeout needed)
+    // Use requestAnimationFrame to ensure DOM is ready, then populate synchronously
+    requestAnimationFrame(() => {
       const territoriesList = content.querySelector(`.territories-list[data-combo="${comboId}"]`);
       if (territoriesList) {
         territoriesList.innerHTML = generateTerritoriesHTML(comboId);
+        console.log(`✅ Populated territories for Group ${comboId}`);
       }
-    }, 0);
+    });
 
     return content;
   }
