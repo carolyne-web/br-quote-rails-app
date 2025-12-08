@@ -7333,7 +7333,7 @@ export default class extends Controller {
 
     if (durationSelect) {
       durationSelect.value = duration
-      durationSelect.dispatchEvent(new Event('change', { bubbles: true }))
+      durationSelect.dispatchEvent(new Event('change'))
       console.log(`✅ Set Group ${groupNumber} duration: ${duration}`)
     } else {
       console.warn(`❌ Duration select not found for Group ${groupNumber}`)
@@ -7359,7 +7359,7 @@ export default class extends Controller {
 
       if (checkbox) {
         checkbox.checked = true
-        checkbox.dispatchEvent(new Event('change', { bubbles: true }))
+        checkbox.dispatchEvent(new Event('change'))
         const territoryName = checkbox.dataset.territoryName || territoryId
         console.log(`✅ Selected territory "${territoryName}" (ID: ${territoryId}) for Group ${groupNumber}`)
       } else {
@@ -7385,7 +7385,7 @@ export default class extends Controller {
 
       if (checkbox) {
         checkbox.checked = true
-        checkbox.dispatchEvent(new Event('change', { bubbles: true }))
+        checkbox.dispatchEvent(new Event('change'))
         console.log(`✅ Selected media type ${mediaType} for Group ${groupNumber}`)
       } else {
         console.warn(`❌ Media type checkbox not found: ${mediaType} for Group ${groupNumber}`)
@@ -7411,7 +7411,7 @@ export default class extends Controller {
                         document.querySelector(`input[name="combinations[combination_${groupNumber}][unlimited_stills]"]`)
     if (stillsCheckbox) {
       stillsCheckbox.checked = toBool(comboData.unlimited_stills)
-      stillsCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+      stillsCheckbox.dispatchEvent(new Event('change'))
       console.log(`✅ Set unlimited stills for Group ${groupNumber}: ${stillsCheckbox.checked} (from ${comboData.unlimited_stills})`)
     } else {
       console.warn(`❌ Unlimited stills checkbox not found for Group ${groupNumber}`)
@@ -7422,7 +7422,7 @@ export default class extends Controller {
                           document.querySelector(`input[name="combinations[combination_${groupNumber}][unlimited_versions]"]`)
     if (versionsCheckbox) {
       versionsCheckbox.checked = toBool(comboData.unlimited_versions)
-      versionsCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+      versionsCheckbox.dispatchEvent(new Event('change'))
       console.log(`✅ Set unlimited versions for Group ${groupNumber}: ${versionsCheckbox.checked} (from ${comboData.unlimited_versions})`)
     } else {
       console.warn(`❌ Unlimited versions checkbox not found for Group ${groupNumber}`)
