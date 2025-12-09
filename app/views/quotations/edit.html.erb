@@ -1232,9 +1232,14 @@ function removeUsageCombination(comboId) {
     // Populate territories list immediately (no setTimeout needed)
     // Use requestAnimationFrame to ensure DOM is ready, then populate synchronously
     requestAnimationFrame(() => {
+      console.log(`🏗️ Populating territories for combo ${comboId} in createCombinationContent`);
       const territoriesList = content.querySelector(`.territories-list[data-combo="${comboId}"]`);
       if (territoriesList) {
-        territoriesList.innerHTML = generateTerritoriesHTML(comboId);
+        const html = generateTerritoriesHTML(comboId);
+        territoriesList.innerHTML = html;
+        console.log(`✅ Territories list populated for combo ${comboId}, HTML length: ${html.length}`);
+      } else {
+        console.error(`❌ Territories list container not found for combo ${comboId}`);
       }
     });
 
@@ -2531,14 +2536,24 @@ document.addEventListener('turbo:render', initializeQuotationForm);
 
 // Helper function to generate territories HTML for a given combo ID
 function generateTerritoriesHTML(comboId) {
+  console.log(`🌍 generateTerritoriesHTML called for combo ${comboId}`);
   let html = '';
   const territoriesDataSource = window.territoriesData || territoriesData;
 
   if (!territoriesDataSource) {
+    console.error(`❌ No territories data source found for combo ${comboId}`);
+    console.log('window.territoriesData:', window.territoriesData);
+    console.log('territoriesData:', typeof territoriesData !== 'undefined' ? territoriesData : 'undefined');
     return html;
   }
 
+  console.log(`✅ Territories data source found:`, Object.keys(territoriesDataSource));
+  let totalTerritories = 0;
+
   Object.entries(territoriesDataSource).forEach(([groupName, territories]) => {
+    console.log(`  📋 Group "${groupName}": ${territories.length} territories`);
+    totalTerritories += territories.length;
+
     territories.forEach(territory => {
       html += `
         <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="${territory.name.toLowerCase()}">
@@ -2555,6 +2570,7 @@ function generateTerritoriesHTML(comboId) {
     });
   });
 
+  console.log(`✅ Generated HTML for ${totalTerritories} total territories for combo ${comboId}`);
   return html;
 }
 

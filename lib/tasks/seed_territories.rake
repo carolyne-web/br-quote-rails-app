@@ -1,7 +1,10 @@
 namespace :territories do
   desc "Seed missing individual country territories"
   task seed_missing: :environment do
+    puts "========================================="
     puts "Starting to seed missing territories..."
+    puts "Current time: #{Time.current}"
+    puts "========================================="
 
     countries_all_media = [
       # Africa
@@ -72,33 +75,69 @@ namespace :territories do
     ]
 
     created_count = 0
+    updated_count = 0
     skipped_count = 0
+    error_count = 0
+
+    puts "\nProcessing #{countries_all_media.count} territories..."
+    puts "-" * 40
 
     countries_all_media.each do |country|
-      territory = Territory.find_or_initialize_by(name: country[:name], media_type: 'all_media')
+      begin
+        # Find existing territory or create new one
+        territory = Territory.find_or_initialize_by(name: country[:name], media_type: 'all_media')
 
-      if territory.new_record?
-        territory.percentage = country[:percentage]
-        if territory.save
-          created_count += 1
-          puts "  ✓ Created: #{country[:name]}"
+        if territory.new_record?
+          # New territory - create it
+          territory.percentage = country[:percentage]
+          territory.group_name = nil  # Ensure it's marked as individual territory
+
+          if territory.save
+            created_count += 1
+            puts "  ✓ Created: #{country[:name]} (#{country[:percentage]}%)"
+          else
+            error_count += 1
+            puts "  ✗ Failed to create: #{country[:name]} - #{territory.errors.full_messages.join(', ')}"
+          end
+        elsif territory.percentage != country[:percentage]
+          # Existing territory with different percentage - update it
+          old_percentage = territory.percentage
+          territory.percentage = country[:percentage]
+
+          if territory.save
+            updated_count += 1
+            puts "  ↻ Updated: #{country[:name]} (#{old_percentage}% → #{country[:percentage]}%)"
+          else
+            error_count += 1
+            puts "  ✗ Failed to update: #{country[:name]} - #{territory.errors.full_messages.join(', ')}"
+          end
         else
-          puts "  ✗ Failed to create: #{country[:name]} - #{territory.errors.full_messages.join(', ')}"
+          # Existing territory with same data - skip
+          skipped_count += 1
+          puts "  - Already exists: #{country[:name]} (#{country[:percentage]}%)"
         end
-      else
-        skipped_count += 1
-        puts "  - Skipped (already exists): #{country[:name]}"
+      rescue => e
+        error_count += 1
+        puts "  ✗ Error processing #{country[:name]}: #{e.message}"
+        puts "    #{e.backtrace.first}"
       end
     end
 
     puts "\n========================================="
     puts "Territory Seeding Complete!"
     puts "========================================="
-    puts "Total territories in list: #{countries_all_media.count}"
+    puts "Total territories in source list: #{countries_all_media.count}"
     puts "Created: #{created_count}"
-    puts "Skipped (already existed): #{skipped_count}"
-    puts "Total territories in database: #{Territory.count}"
-    puts "Individual territories: #{Territory.where(group_name: nil).count}"
+    puts "Updated: #{updated_count}"
+    puts "Skipped (no changes): #{skipped_count}"
+    puts "Errors: #{error_count}"
+    puts "-" * 40
+    puts "Database Status:"
+    puts "  Total territories: #{Territory.count}"
+    puts "  Individual territories (no group): #{Territory.where(group_name: nil).count}"
+    puts "  Territory groups: #{Territory.where.not(group_name: nil).pluck(:group_name).uniq.count}"
+    puts "========================================="
+    puts "Completed at: #{Time.current}"
     puts "========================================="
   end
 end

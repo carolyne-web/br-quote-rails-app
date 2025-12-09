@@ -85,4 +85,7 @@ Rails.application.routes.draw do
       resources :settings, only: [ :index ]
     end
   end
+
+  # Diagnostics
+  get "diagnostics/territories", to: "diagnostics#territories"
 end
