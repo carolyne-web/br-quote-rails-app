@@ -1235,7 +1235,6 @@ function removeUsageCombination(comboId) {
       const territoriesList = content.querySelector(`.territories-list[data-combo="${comboId}"]`);
       if (territoriesList) {
         territoriesList.innerHTML = generateTerritoriesHTML(comboId);
-        console.log(`✅ Populated territories for Group ${comboId}`);
       }
     });
 
@@ -2533,7 +2532,13 @@ document.addEventListener('turbo:render', initializeQuotationForm);
 // Helper function to generate territories HTML for a given combo ID
 function generateTerritoriesHTML(comboId) {
   let html = '';
-  Object.entries(territoriesData).forEach(([groupName, territories]) => {
+  const territoriesDataSource = window.territoriesData || territoriesData;
+
+  if (!territoriesDataSource) {
+    return html;
+  }
+
+  Object.entries(territoriesDataSource).forEach(([groupName, territories]) => {
     territories.forEach(territory => {
       html += `
         <label class="territory-item flex items-center justify-between p-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer" data-name="${territory.name.toLowerCase()}">
@@ -2549,6 +2554,7 @@ function generateTerritoriesHTML(comboId) {
       `;
     });
   });
+
   return html;
 }
 
