@@ -20,6 +20,10 @@ bundle exec rails assets:clean
 echo "Running database migrations..."
 bundle exec rails db:migrate
 
+# Seed missing territories (safe to run multiple times)
+echo "Seeding missing territories..."
+bundle exec rake territories:seed_missing
+
 # Note: Seeds are NOT run automatically on deployment to preserve production data
 # To seed the database manually (first time only), run: bundle exec rails db:seed
 
