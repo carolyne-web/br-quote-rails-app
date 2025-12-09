@@ -1,5 +1,5 @@
 class DiagnosticsController < ApplicationController
-  skip_before_action :require_login, only: [:territories]
+  skip_before_action :check_mobile_device, only: [:territories]
 
   def territories
     @total_territories = Territory.count
