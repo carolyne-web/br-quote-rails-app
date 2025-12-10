@@ -258,33 +258,48 @@ class QuotationCalculator
   end
 
   # Calculate combined territory-media percentage using exceptions when available
+  # IMPORTANT: Exceptions should ONLY be used for SINGLE media type selections
+  # For multiple media types, use standard 50%/75%/100% multipliers instead
   def calculate_territory_media_combined_percentage(media_types)
     return 0 if @territories.empty? || media_types.empty?
 
-    total_percentage = 0
-
-    # For each media type, calculate the combined territory percentage
-    media_types.each do |media_type|
-      media_percentage = 0
-
-      @territories.each do |territory|
-        # Check if there's an exception for this territory + media type combination
-        exception = TerritoryMediaException.find_exception(territory.name, media_type)
-
-        if exception
-          # Use exception percentage
-          media_percentage += exception.percentage.to_f
-        else
-          # No exception found - return 0 to fall through to standard media multiplier logic
-          # (e.g., TV Only, Cinema Only, All Print Media should use 50%/75% multipliers)
-          return 0
-        end
-      end
-
-      # Take the highest media type percentage (not additive across media types)
-      total_percentage = [total_percentage, media_percentage].max
+    # Determine the primary media type to check for exceptions
+    # Special handling for combination media types that auto-select multiple checkboxes:
+    # - "all_media" auto-selects everything → treat as single "all_media"
+    # - "all_moving" auto-selects tv+internet+cinema → treat as single "all_moving"
+    # - "print" auto-selects internet → treat as single "print"
+    primary_media_type = if media_types.include?('all_media')
+      'all_media'
+    elsif media_types.include?('all_moving')
+      'all_moving'
+    elsif media_types.include?('print') && media_types.count == 2 && media_types.include?('internet')
+      'print' # All Print Media (auto-checks internet)
+    elsif media_types.count == 1
+      media_types.first # Single individual media type
+    else
+      # Multiple individual media types (e.g., TV + Cinema) - use standard multiplier
+      Rails.logger.info "🔄 Multiple individual media types selected (#{media_types.join(', ')}) - using standard multiplier logic"
+      return 0
     end
 
+    # Check if exceptions exist for all territories with this primary media type
+    total_percentage = 0
+
+    @territories.each do |territory|
+      exception = TerritoryMediaException.find_exception(territory.name, primary_media_type)
+
+      if exception
+        # Use exception percentage (sum across all selected territories)
+        total_percentage += exception.percentage.to_f
+        Rails.logger.info "✓ Using exception: #{territory.name} + #{primary_media_type} = #{exception.percentage}%"
+      else
+        # No exception found - fall back to standard media multiplier logic
+        Rails.logger.info "✗ No exception for: #{territory.name} + #{primary_media_type} - falling back to standard logic"
+        return 0
+      end
+    end
+
+    Rails.logger.info "📊 Total exception percentage for #{primary_media_type}: #{total_percentage}%"
     total_percentage
   end
 
