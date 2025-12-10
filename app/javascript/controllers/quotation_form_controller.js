@@ -3343,21 +3343,32 @@ export default class extends Controller {
   checkTerritoryMediaExceptions(territories, mediaTypes) {
     // Check if there are territory-media exceptions for the selected combination
     // Returns the sum of all exception percentages if found, null otherwise
+    // IMPORTANT: Exceptions should ONLY be used for SINGLE media type selections
     if (!territories || territories.length === 0 || !mediaTypes || mediaTypes.length === 0) {
       return null
     }
 
     let totalExceptionPercentage = null
 
-    // Prioritize meta-types: if "all_media" or "all_moving" is selected, use ONLY that
-    // This prevents double-counting when the UI auto-checks individual media types
-    let effectiveMediaTypes = mediaTypes
+    // Determine the primary media type to check for exceptions
+    // Special handling for combination media types that auto-select multiple checkboxes
+    let effectiveMediaTypes
     if (mediaTypes.includes('all_media')) {
       effectiveMediaTypes = ['all_media']
-      console.log(`🎯 All Media selected - using only 'all_media' (ignoring ${mediaTypes.length - 1} other checked types)`)
+      console.log(`🎯 All Media selected - using only 'all_media' exception`)
     } else if (mediaTypes.includes('all_moving')) {
       effectiveMediaTypes = ['all_moving']
-      console.log(`🎯 All Moving Media selected - using only 'all_moving' (ignoring ${mediaTypes.length - 1} other checked types)`)
+      console.log(`🎯 All Moving Media selected - using only 'all_moving' exception`)
+    } else if (mediaTypes.includes('print') && mediaTypes.length === 2 && mediaTypes.includes('internet')) {
+      effectiveMediaTypes = ['print']
+      console.log(`🎯 All Print Media selected - using only 'print' exception`)
+    } else if (mediaTypes.length === 1) {
+      effectiveMediaTypes = mediaTypes
+      console.log(`🎯 Single media type selected - checking for exception`)
+    } else {
+      // Multiple individual media types - don't use exceptions, fall back to standard multiplier
+      console.log(`🔄 Multiple individual media types (${mediaTypes.join(', ')}) - using standard multiplier, not exceptions`)
+      return null
     }
 
     territories.forEach(territory => {
