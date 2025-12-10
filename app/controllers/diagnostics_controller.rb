@@ -1,5 +1,31 @@
 class DiagnosticsController < ApplicationController
-  skip_before_action :check_mobile_device, only: [:territories]
+  skip_before_action :check_mobile_device, only: [:territories, :media_exceptions]
+
+  def media_exceptions
+    @exceptions = TerritoryMediaException.all.order(:territory_name, :media_type)
+    @exceptions_by_territory = @exceptions.group_by(&:territory_name)
+
+    render html: "<html><head><title>Media Exceptions Diagnostics</title></head><body style='font-family: monospace; padding: 20px;'>
+      <h1>🔍 Territory Media Exceptions Database</h1>
+
+      <h2>Summary</h2>
+      <p><strong>Total Exceptions:</strong> #{@exceptions.count}</p>
+      <p><strong>Territories with Exceptions:</strong> #{@exceptions_by_territory.keys.count}</p>
+
+      <h2>All Exceptions</h2>
+      #{@exceptions_by_territory.map { |territory_name, exceptions|
+        "<h3>#{territory_name} (#{exceptions.count} exceptions)</h3>
+        <ul>
+          #{exceptions.map { |ex|
+            "<li><strong>#{ex.media_type_label}</strong>: #{ex.percentage}% | Created: #{ex.created_at.strftime('%Y-%m-%d %H:%M')} | ID: #{ex.id}</li>"
+          }.join}
+        </ul>"
+      }.join}
+
+      <hr>
+      <p style='color: #666;'>Generated at: #{Time.current}</p>
+    </body></html>".html_safe
+  end
 
   def territories
     @total_territories = Territory.count

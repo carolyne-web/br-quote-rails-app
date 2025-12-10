@@ -88,4 +88,5 @@ Rails.application.routes.draw do
 
   # Diagnostics
   get "diagnostics/territories", to: "diagnostics#territories"
+  get "diagnostics/media_exceptions", to: "diagnostics#media_exceptions"
 end
