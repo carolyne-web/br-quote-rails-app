@@ -3341,9 +3341,11 @@ export default class extends Controller {
   }
 
   checkTerritoryMediaExceptions(territories, mediaTypes) {
+    // VERSION: 2025-12-11-FIX - Force asset recompilation
     // Check if there are territory-media exceptions for the selected combination
     // Returns the sum of all exception percentages if found, null otherwise
     // IMPORTANT: Exceptions should ONLY be used for SINGLE media type selections
+    console.log(`🔧 checkTerritoryMediaExceptions called - VERSION: 2025-12-11-FIX - mediaTypes:`, mediaTypes)
     if (!territories || territories.length === 0 || !mediaTypes || mediaTypes.length === 0) {
       return null
     }
