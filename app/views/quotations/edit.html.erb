@@ -2146,19 +2146,17 @@ function removeUsageCombination(comboId) {
             hasActiveCategories = true;
             grandTotal += categoryTotal;
 
-            // Get talent count from all rows (main + additional lines)
+            // Get talent count from all rows (all rows now have data-line-index attribute)
             let talentCount = 0;
 
-            // Count talent from first row
-            const firstRow = section.querySelector('.talent-input-row');
-            if (firstRow) {
-              talentCount += parseInt(firstRow.querySelector('[name*="talent_count"], .talent-count')?.value) || 0;
-            }
-
-            // Count talent from additional lines
-            const additionalLines = section.querySelectorAll('[data-line-index] .talent-count');
-            additionalLines.forEach(input => {
-              talentCount += parseInt(input.value) || 0;
+            // Count talent from ALL lines (including first row at index 0)
+            // All rows are in .additional-lines tbody with data-line-index attribute
+            const allLineRows = section.querySelectorAll('.additional-lines .talent-input-row');
+            allLineRows.forEach(row => {
+              const countInput = row.querySelector('[name*="talent_count"], .talent-count');
+              if (countInput) {
+                talentCount += parseInt(countInput.value) || 0;
+              }
             });
 
             const categoryAbbrevs = { 1: 'LD', 2: '2L', 3: 'FE', 4: 'TN', 5: 'KD', 6: 'WO', 7: 'EX' };
