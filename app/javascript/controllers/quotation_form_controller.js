@@ -29,7 +29,8 @@ export default class extends Controller {
       exclusivity: window.quotationExclusivityClickListenerAttached,
       mediaType: window.quotationMediaTypeChangeListenerAttached,
       rateValidation: window.quotationRateValidationInputListenerAttached,
-      comboSummary: window.quotationComboSummaryChangeListenerAttached
+      comboSummary: window.quotationComboSummaryChangeListenerAttached,
+      tablePopulation: window.quotationTablePopulationInputListenerAttached
     })
 
     try {
@@ -163,6 +164,19 @@ export default class extends Controller {
     }
     window.quotationComboSummaryChangeListenerAttached = false
     window.quotationComboSummaryChangeHandler = null
+
+    // Remove table population listeners
+    if (window.quotationTablePopulationInputHandler) {
+      document.removeEventListener('input', window.quotationTablePopulationInputHandler)
+      console.log('✓ Table population input listener removed')
+    }
+    if (window.quotationTablePopulationChangeHandler) {
+      document.removeEventListener('change', window.quotationTablePopulationChangeHandler)
+      console.log('✓ Table population change listener removed')
+    }
+    window.quotationTablePopulationInputListenerAttached = false
+    window.quotationTablePopulationInputHandler = null
+    window.quotationTablePopulationChangeHandler = null
 
     console.log('✅ All event listeners cleaned up successfully')
   }
@@ -2425,9 +2439,15 @@ export default class extends Controller {
   setupTablePopulation() {
     // Initial population
     this.populateAllTables()
-    
+
+    // Prevent duplicate listener attachment
+    if (window.quotationTablePopulationInputListenerAttached) {
+      console.log('⚠️ Table population input listener already attached, skipping...')
+      return
+    }
+
     // Re-populate when relevant form data changes
-    document.addEventListener('input', (e) => {
+    const inputHandler = (e) => {
       if (e.target.name?.includes('description') ||
           e.target.name?.includes('adjusted_rate') ||
           e.target.name?.includes('talent_count') ||
@@ -2439,10 +2459,10 @@ export default class extends Controller {
         console.log('Form input changed, repopulating tables:', e.target)
         this.populateAllTables()
       }
-    })
-    
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('combination-media') || 
+    }
+
+    const changeHandler = (e) => {
+      if (e.target.classList.contains('combination-media') ||
           e.target.classList.contains('combination-territory-checkbox') ||
           e.target.matches('select[name*="duration"]') ||
           e.target.matches('select[name*="exclusivity"]') ||
@@ -2450,7 +2470,17 @@ export default class extends Controller {
           e.target.matches('[name*="unlimited_versions"]')) {
         this.populateAllTables()
       }
-    })
+    }
+
+    document.addEventListener('input', inputHandler)
+    document.addEventListener('change', changeHandler)
+
+    // Store handlers and set flag
+    window.quotationTablePopulationInputHandler = inputHandler
+    window.quotationTablePopulationChangeHandler = changeHandler
+    window.quotationTablePopulationInputListenerAttached = true
+
+    console.log('✅ Table population listeners attached')
   }
 
   populateAllTables() {

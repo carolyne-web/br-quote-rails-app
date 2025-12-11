@@ -10,8 +10,9 @@ class TerritoryMediaException < ApplicationRecord
   end
 
   # Define available media types (using current form values from /quotations/new)
+  # NOTE: 'all_media' is excluded from MEDIA_TYPES because territories already
+  # cover all media by default. Exceptions should only be used for specific media types.
   MEDIA_TYPES = [
-    'all_media',
     'cinema',
     'all_moving',
     'tv',

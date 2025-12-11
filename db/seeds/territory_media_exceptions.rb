@@ -1,16 +1,18 @@
 # Territory Media Exceptions Seed Data
 # Run with: rails runner db/seeds/territory_media_exceptions.rb
+#
+# NOTE: 'all_media' exceptions are NOT included because territories already cover
+# all media by default. Exceptions should only be used for specific media types
+# to override the standard calculation.
 
 puts "Creating territory media exceptions..."
 
 exceptions = [
   # Worldwide exceptions
-  { territory: 'Worldwide', media: 'all_media', percentage: 1200, description: 'Worldwide All Media exception' },
   { territory: 'Worldwide', media: 'all_moving', percentage: 1000, description: 'Worldwide All Moving Media exception' },
   { territory: 'Worldwide', media: 'internet', percentage: 600, description: 'Worldwide Internet Only exception' },
 
   # USA & Canada exceptions
-  { territory: 'USA & Canada', media: 'all_media', percentage: 600, description: 'USA & Canada All Media exception' },
   { territory: 'USA & Canada', media: 'all_moving', percentage: 500, description: 'USA & Canada All Moving Media exception (instead of 450%)' },
   { territory: 'USA & Canada', media: 'internet', percentage: 250, description: 'USA & Canada Internet Only exception' }
 ]
