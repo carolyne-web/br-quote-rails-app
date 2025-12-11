@@ -3057,6 +3057,8 @@ export default class extends Controller {
     }
 
     // Check for territory-media exceptions (only if override is NOT active)
+    // IMPORTANT: Territory exceptions should ONLY be used for single media type selections
+    // For multiple media types, use standard 50%/75%/100% multipliers instead
     let territoryExceptionPercentage = null
     if (overridePercentage === null) {
       // Prioritize umbrella types: if "all_media", "all_moving", or "print" is selected, use ONLY that
@@ -3073,29 +3075,37 @@ export default class extends Controller {
         console.log(`🎯 All Print Media selected - using only 'print' (ignoring ${mediaTypes.length - 1} other checked types)`)
       }
 
-      territories.forEach(territory => {
-        effectiveMediaTypes.forEach(mediaType => {
-          // First, try to find exception for the media type as-is (e.g., "all_media", "all_moving")
-          let exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
+      // Check if multiple individual media types are selected
+      // If yes, skip territory exception logic and use standard calculation
+      if (effectiveMediaTypes.length > 1) {
+        console.log(`🔄 Multiple individual media types selected (${effectiveMediaTypes.join(', ')}) - using standard multiplier logic`)
+        territoryExceptionPercentage = null
+      } else {
+        // Single media type - check for territory exceptions
+        territories.forEach(territory => {
+          effectiveMediaTypes.forEach(mediaType => {
+            // First, try to find exception for the media type as-is (e.g., "all_media", "all_moving")
+            let exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
 
-          if (exceptionPercentage !== null) {
-            // Convert to number and add across territories
-            const numericException = parseFloat(exceptionPercentage)
-            console.log(`🔄 Territory exception found: ${territory.name} + ${mediaType} = ${numericException}%`)
-            territoryExceptionPercentage = (territoryExceptionPercentage || 0) + numericException
-            console.log(`📊 Running total: ${territoryExceptionPercentage}%`)
-          } else {
-            console.log(`⚠️  No exception found for: ${territory.name} + ${mediaType} - will fall back to standard calculation`)
-          }
+            if (exceptionPercentage !== null) {
+              // Convert to number and add across territories
+              const numericException = parseFloat(exceptionPercentage)
+              console.log(`🔄 Territory exception found: ${territory.name} + ${mediaType} = ${numericException}%`)
+              territoryExceptionPercentage = (territoryExceptionPercentage || 0) + numericException
+              console.log(`📊 Running total: ${territoryExceptionPercentage}%`)
+            } else {
+              console.log(`⚠️  No exception found for: ${territory.name} + ${mediaType} - will fall back to standard calculation`)
+            }
+          })
         })
-      })
 
-      // Apply duration multiplier to exception percentage
-      if (territoryExceptionPercentage !== null) {
-        const durationMultiplier = this.getDurationMultiplier(duration)
-        console.log(`⏱️ Applying duration multiplier ${durationMultiplier} to exception total ${territoryExceptionPercentage}%`)
-        territoryExceptionPercentage = territoryExceptionPercentage * durationMultiplier
-        console.log(`✅ Final exception percentage after duration: ${territoryExceptionPercentage}%`)
+        // Apply duration multiplier to exception percentage
+        if (territoryExceptionPercentage !== null) {
+          const durationMultiplier = this.getDurationMultiplier(duration)
+          console.log(`⏱️ Applying duration multiplier ${durationMultiplier} to exception total ${territoryExceptionPercentage}%`)
+          territoryExceptionPercentage = territoryExceptionPercentage * durationMultiplier
+          console.log(`✅ Final exception percentage after duration: ${territoryExceptionPercentage}%`)
+        }
       }
     }
 
