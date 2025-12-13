@@ -59,6 +59,9 @@ Rails.application.routes.draw do
 
   # Production House Routes (to be added in next steps)
   resources :quotations do
+    collection do
+      post :check_worldwide_suggestion # API endpoint for dynamic Worldwide comparison
+    end
     member do
       get :pdf
       post :duplicate

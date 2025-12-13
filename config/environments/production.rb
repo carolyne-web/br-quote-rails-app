@@ -85,6 +85,7 @@ Rails.application.configure do
   config.hosts = [
     /.*\.onrender\.com/,  # Allow all Render subdomains
     ENV.fetch("APP_HOST", nil),  # Allow custom domain if set
+    ".brcasting.co.za",  # Allow all subdomains of brcasting.co.za
   ].compact
 
   # Skip DNS rebinding protection for the default health check endpoint.
