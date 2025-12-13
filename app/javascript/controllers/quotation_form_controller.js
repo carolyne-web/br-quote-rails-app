@@ -72,6 +72,7 @@ export default class extends Controller {
     this.setupFormSubmissionHandler()
     this.setupCastSelection()
     this.setupTerritoryExclusivityLogic()
+    this.setupWorldwideComparison()
 
     // Make functions available globally
     window.removeTalentCategory = (categoryId) => this.removeTalentCategory(categoryId)
@@ -1315,30 +1316,11 @@ export default class extends Controller {
   }
 
   setupDurationLogic() {
-    // Add event listeners for duration changes
-    const durationSelect = document.querySelector('select[name*="duration"]')
-    if (durationSelect) {
-      durationSelect.addEventListener('change', () => {
-        this.checkTerritoryOverrides()
-      })
-      
-      // Check on page load
-      this.checkTerritoryOverrides()
-    }
-    
-    // Add event listeners to territory checkboxes to update tags and check overrides
+    // Add event listeners to territory checkboxes to update tags
     document.querySelectorAll('.territory-checkbox').forEach(checkbox => {
       checkbox.addEventListener('change', () => {
         this.updateTerritoryTags()
-        this.checkTerritoryOverrides()
       })
-    })
-    
-    // Also listen to combination territory checkboxes
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('combination-territory-checkbox')) {
-        this.checkTerritoryOverrides()
-      }
     })
   }
 
@@ -1398,194 +1380,6 @@ export default class extends Controller {
     })
   }
 
-  checkTerritoryOverrides() {
-    // Check each combination with its own duration
-    document.querySelectorAll('[data-combo]').forEach(comboElement => {
-      const comboId = comboElement.getAttribute('data-combo')
-      if (!comboId) return
-
-      // Get duration specific to this combo
-      const durationSelect = document.querySelector(`select[name="combinations[${comboId}][duration]"]`)
-      if (!durationSelect) {
-        console.warn(`Duration select not found for combo ${comboId}`)
-        return
-      }
-
-      const duration = durationSelect.value
-      const durationMonths = this.parseDurationMonths(duration)
-
-      // Only apply logic to 12, 18, 24, 36 month durations
-      const thresholds = {
-        12: 1200,  // 12 months: ≥1200%
-        18: 1800,  // 18 months: ≥1800%
-        24: 2400,  // 24 months: ≥2400%
-        36: 3600   // 36 months: ≥3600%
-      }
-
-      const threshold = thresholds[durationMonths]
-      if (!threshold) {
-        // For durations not in the list (3, 6 months), hide any override notices for this combo
-        this.hideTerritoryOverrideNotice(comboId)
-        this.unforceAllMediaForCombo(comboId)
-        return
-      }
-
-      this.checkComboTerritoryOverride(comboId, threshold, durationMonths)
-    })
-  }
-
-  checkComboTerritoryOverride(comboId, threshold, durationMonths) {
-    // Calculate total percentage for this combo
-    const selectedTerritories = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
-
-    if (selectedTerritories.length === 0) {
-      this.hideTerritoryOverrideNotice(comboId)
-      this.unforceAllMediaForCombo(comboId)
-      return
-    }
-
-    // Special case: If Worldwide or EMEA is selected (alone or with others), bypass override
-    // These territories should use their exception rates instead of being overridden
-    const territoryNames = Array.from(selectedTerritories).map(cb => cb.dataset.territoryName)
-
-    if (territoryNames.includes('Worldwide') || territoryNames.includes('EMEA Countries')) {
-      const selectedTerritory = territoryNames.includes('Worldwide') ? 'Worldwide' : 'EMEA Countries'
-      console.log(`🔄 ${selectedTerritory} is selected - bypassing override logic to allow exception rates`)
-      this.hideTerritoryOverrideNotice(comboId)
-      this.unforceAllMediaForCombo(comboId)
-      return
-    }
-
-    // Calculate total percentage using RAW territory percentages (NOT exception rates)
-    // Exception rates should only be used if override is NOT triggered
-    let totalPercentage = 0
-
-    selectedTerritories.forEach(checkbox => {
-      const territoryName = checkbox.dataset.territoryName || checkbox.textContent.trim()
-      const rawPercentage = parseFloat(checkbox.dataset.percentage) || 0
-      totalPercentage += rawPercentage
-      console.log(`📊 Territory: ${territoryName} = ${rawPercentage}% (raw)`)
-    })
-
-    console.log(`📊 Total territory percentage (raw): ${totalPercentage}% vs threshold: ${threshold}%`)
-
-    if (totalPercentage >= threshold) {
-      // Show override notice
-      this.showTerritoryOverrideNotice(comboId, totalPercentage, threshold, durationMonths)
-
-      // Force All Media selection for this combo
-      this.forceAllMediaForCombo(comboId)
-
-    } else {
-      // Remove override notice if it exists
-      this.hideTerritoryOverrideNotice(comboId)
-
-      // Unforce All Media to allow user to select other options again
-      this.unforceAllMediaForCombo(comboId)
-    }
-  }
-
-  showTerritoryOverrideNotice(comboId, actualPercentage, threshold, durationMonths) {
-    console.log(`⚠️ Showing territory override notice for combo ${comboId}`)
-    let noticeContainer = document.getElementById(`territory-override-notice-${comboId}`)
-
-    // Create notice container if it doesn't exist
-    if (!noticeContainer) {
-      console.log(`📝 Creating new notice container`)
-      noticeContainer = document.createElement('div')
-      noticeContainer.id = `territory-override-notice-${comboId}`
-      noticeContainer.className = 'bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-3 mb-4 rounded'
-
-      // Find where to insert the notice (after territory selection section)
-      const comboContent = document.querySelector(`[data-combo="${comboId}"].combination-content`)
-      console.log(`🔍 Looking for combo content, found: ${!!comboContent}`)
-      if (comboContent) {
-        const territorySection = comboContent.querySelector('.territories-list')?.parentElement?.parentElement
-        console.log(`🔍 Looking for territory section, found: ${!!territorySection}`)
-        if (territorySection) {
-          territorySection.appendChild(noticeContainer)
-          console.log(`✅ Notice container appended to territory section`)
-        } else {
-          console.error(`❌ Territory section not found for combo ${comboId}`)
-        }
-      } else {
-        console.error(`❌ Combo content not found for combo ${comboId}`)
-      }
-    } else {
-      console.log(`ℹ️ Notice container already exists, updating content`)
-    }
-    
-    noticeContainer.innerHTML = `
-      <div class="flex">
-        <div class="flex-shrink-0">
-          <svg class="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-          </svg>
-        </div>
-        <div class="ml-3">
-          <h3 class="text-sm font-medium text-orange-800">Territory Override Active</h3>
-          <p class="text-sm text-orange-700 mt-1">
-            Selected territories total ${actualPercentage}% which exceeds the ${threshold}% threshold for ${durationMonths} month duration. 
-            <strong>Worldwide (1200%) + All Media rates will be applied instead.</strong>
-          </p>
-        </div>
-      </div>
-    `
-  }
-
-  hideTerritoryOverrideNotice(comboId) {
-    const noticeContainer = document.getElementById(`territory-override-notice-${comboId}`)
-    if (noticeContainer) {
-      noticeContainer.remove()
-    }
-  }
-
-  clearOverrideNotices() {
-    document.querySelectorAll('[id^="territory-override-notice-"]').forEach(notice => {
-      notice.remove()
-    })
-  }
-
-  forceAllMediaForCombo(comboId) {
-    console.log(`🔒 Forcing All Media for combo ${comboId}`)
-    const selector = `input[name="combinations[${comboId}][media_types][]"][value="all_media"]`
-    console.log(`🔍 Looking for selector: ${selector}`)
-    const allMediaCheckbox = document.querySelector(selector)
-
-    if (!allMediaCheckbox) {
-      console.error(`❌ All Media checkbox not found for combo ${comboId}`)
-      return
-    }
-
-    console.log(`✅ Found All Media checkbox, currently checked: ${allMediaCheckbox.checked}`)
-
-    if (!allMediaCheckbox.checked) {
-      allMediaCheckbox.checked = true
-      console.log(`✅ Set All Media checkbox to checked`)
-      // Trigger the media logic to disable other options
-      allMediaCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
-      console.log(`✅ Dispatched change event`)
-    } else {
-      console.log(`ℹ️ All Media already checked, no action needed`)
-    }
-  }
-
-  unforceAllMediaForCombo(comboId) {
-    // Re-enable all media checkboxes for this combo when override no longer applies
-    const mediaCheckboxes = document.querySelectorAll(`input[name="combinations[${comboId}][media_types][]"]`)
-    mediaCheckboxes.forEach(checkbox => {
-      // Remove disabled attribute if it was set by the override
-      checkbox.disabled = false
-    })
-
-    // Also re-enable the labels
-    mediaCheckboxes.forEach(checkbox => {
-      const label = checkbox.closest('label')
-      if (label) {
-        label.classList.remove('opacity-50', 'cursor-not-allowed')
-      }
-    })
-  }
 
   getWorldwideTerritory() {
     // Find the Worldwide territory checkbox by looking for the territory with name "Worldwide"
@@ -1611,16 +1405,19 @@ export default class extends Controller {
     // Update territory tags for a specific combination
     const checkedTerritories = document.querySelectorAll(`.combination-territory-checkbox[data-combo="${comboId}"]:checked`)
     const territoryNames = Array.from(checkedTerritories).map(checkbox => {
-      return checkbox.getAttribute('data-territory-name')
-    }).filter(name => name)
+      return {
+        name: checkbox.getAttribute('data-territory-name'),
+        id: checkbox.value
+      }
+    }).filter(t => t.name)
 
     const tagsContainer = document.querySelector(`.selected-territory-tags[data-combo="${comboId}"]`)
     if (tagsContainer) {
       if (territoryNames.length > 0) {
-        tagsContainer.innerHTML = territoryNames.map(name => 
+        tagsContainer.innerHTML = territoryNames.map(territory =>
           `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            ${name}
-            <button type="button" class="ml-1 text-blue-600 hover:text-blue-800" onclick="removeTerritory('${name}', ${comboId})">×</button>
+            ${territory.name}
+            <button type="button" class="ml-1 text-blue-600 hover:text-blue-800" onclick="removeTerritoryTag(${comboId}, ${territory.id})">×</button>
           </span>`
         ).join('')
       } else {
@@ -3061,56 +2858,31 @@ export default class extends Controller {
     const unlimitedStills = document.querySelector(`input[name*="combinations[${comboId}][unlimited_stills]"]:checked`)
     const unlimitedVersions = document.querySelector(`input[name*="combinations[${comboId}][unlimited_versions]"]:checked`)
 
-    // Check if override is active (territories >= threshold for 12/18/24/36 months)
-    const durationMonths = this.parseDurationMonths(duration)
-    const overrideThresholds = { 12: 1200, 18: 1800, 24: 2400, 36: 3600 }
-    let overridePercentage = null
-
-    if (overrideThresholds[durationMonths]) {
-      const totalTerritoryPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
-      const threshold = overrideThresholds[durationMonths]
-
-      // Special case: If Worldwide or EMEA is selected (alone or with others), bypass override
-      // These territories should use their exception rates instead of being overridden
-      const hasWorldwide = territories.some(t => t.name === 'Worldwide')
-      const hasEMEA = territories.some(t => t.name === 'EMEA Countries')
-
-      if (totalTerritoryPercentage >= threshold && !hasWorldwide && !hasEMEA) {
-        // Override is active - use Worldwide rate instead of territory exception
-        overridePercentage = threshold
-        console.log(`🔥 OVERRIDE ACTIVE: Total territories ${totalTerritoryPercentage}% >= ${threshold}% → Using Worldwide rate ${overridePercentage}%`)
-      } else if (hasWorldwide) {
-        console.log(`🔄 Worldwide is selected - bypassing override logic to allow exception rates`)
-      } else if (hasEMEA) {
-        console.log(`🔄 EMEA Countries is selected - bypassing override logic to allow exception rates`)
-      }
-    }
-
-    // Check for territory-media exceptions (only if override is NOT active)
+    // Check for territory-media exceptions
     // IMPORTANT: Territory exceptions should ONLY be used for single media type selections
     // For multiple media types, use standard 50%/75%/100% multipliers instead
     let territoryExceptionPercentage = null
-    if (overridePercentage === null) {
-      // Prioritize umbrella types: if "all_media", "all_moving", or "print" is selected, use ONLY that
-      // This prevents double-counting when the UI auto-checks individual media types
-      let effectiveMediaTypes = mediaTypes
-      if (mediaTypes.includes('all_media')) {
-        effectiveMediaTypes = ['all_media']
-        console.log(`🎯 All Media selected - using only 'all_media' (ignoring ${mediaTypes.length - 1} other checked types)`)
-      } else if (mediaTypes.includes('all_moving')) {
-        effectiveMediaTypes = ['all_moving']
-        console.log(`🎯 All Moving Media selected - using only 'all_moving' (ignoring ${mediaTypes.length - 1} other checked types)`)
-      } else if (mediaTypes.includes('print')) {
-        effectiveMediaTypes = ['print']
-        console.log(`🎯 All Print Media selected - using only 'print' (ignoring ${mediaTypes.length - 1} other checked types)`)
-      }
 
-      // Check if multiple individual media types are selected
-      // If yes, skip territory exception logic and use standard calculation
-      if (effectiveMediaTypes.length > 1) {
-        console.log(`🔄 Multiple individual media types selected (${effectiveMediaTypes.join(', ')}) - using standard multiplier logic`)
-        territoryExceptionPercentage = null
-      } else {
+    // Prioritize umbrella types: if "all_media", "all_moving", or "print" is selected, use ONLY that
+    // This prevents double-counting when the UI auto-checks individual media types
+    let effectiveMediaTypes = mediaTypes
+    if (mediaTypes.includes('all_media')) {
+      effectiveMediaTypes = ['all_media']
+      console.log(`🎯 All Media selected - using only 'all_media' (ignoring ${mediaTypes.length - 1} other checked types)`)
+    } else if (mediaTypes.includes('all_moving')) {
+      effectiveMediaTypes = ['all_moving']
+      console.log(`🎯 All Moving Media selected - using only 'all_moving' (ignoring ${mediaTypes.length - 1} other checked types)`)
+    } else if (mediaTypes.includes('print')) {
+      effectiveMediaTypes = ['print']
+      console.log(`🎯 All Print Media selected - using only 'print' (ignoring ${mediaTypes.length - 1} other checked types)`)
+    }
+
+    // Check if multiple individual media types are selected
+    // If yes, skip territory exception logic and use standard calculation
+    if (effectiveMediaTypes.length > 1) {
+      console.log(`🔄 Multiple individual media types selected (${effectiveMediaTypes.join(', ')}) - using standard multiplier logic`)
+      territoryExceptionPercentage = null
+    } else {
         // Single media type - check for territory exceptions
         territories.forEach(territory => {
           effectiveMediaTypes.forEach(mediaType => {
@@ -3137,15 +2909,13 @@ export default class extends Controller {
           console.log(`✅ Final exception percentage after duration: ${territoryExceptionPercentage}%`)
         }
       }
-    }
 
     let percentage
-    const basePercentage = overridePercentage !== null ? overridePercentage : territoryExceptionPercentage
+    const basePercentage = territoryExceptionPercentage
 
     if (basePercentage !== null) {
-      // Use override or territory exception as the base percentage (replaces duration × territory × media calculation)
-      const source = overridePercentage !== null ? 'OVERRIDE' : 'territory exception'
-      console.log(`🎯 Using ${source} as base: ${basePercentage}%`)
+      // Use territory exception as the base percentage (replaces duration × territory × media calculation)
+      console.log(`🎯 Using territory exception as base: ${basePercentage}%`)
       percentage = basePercentage
 
       // Still apply unlimited options and custom exclusivities as percentages of the base
@@ -3476,25 +3246,13 @@ export default class extends Controller {
       return 1.0
     }
 
-    const durationMonths = this.parseDurationMonths(duration)
-
-    // Check for override (but skip if Worldwide is selected)
-    if (this.shouldApplyTerritoryOverride(durationMonths, totalPercentage, territories)) {
-      return 12.0 // Worldwide override
-    }
-
     return totalPercentage / 100.0
   }
 
   getMediaMultiplier(mediaTypes, territories, duration) {
-    if (mediaTypes.length === 0) return 1.0
-
-    const totalPercentage = territories.reduce((sum, t) => sum + t.percentage, 0)
-    const durationMonths = this.parseDurationMonths(duration)
-
-    // Force All Media if territory override is active (but skip if Worldwide is selected)
-    if (this.shouldApplyTerritoryOverride(durationMonths, totalPercentage, territories)) {
-      return 1.0
+    if (mediaTypes.length === 0) {
+      console.log(`🎬 No media types selected - returning 0`)
+      return 0
     }
 
     console.log(`🎬 MEDIA DEBUG - mediaTypes: [${mediaTypes.join(', ')}], length: ${mediaTypes.length}`)
@@ -8611,13 +8369,290 @@ export default class extends Controller {
   // Helper function to get selected media types for a specific combo
   getSelectedMediaTypesForCombo(comboId) {
     const selectedMediaTypes = []
-    const mediaCheckboxes = document.querySelectorAll(`.combination-media-checkbox[data-combo="${comboId}"]:checked`)
+    const mediaCheckboxes = document.querySelectorAll(`.combination-media[data-combo="${comboId}"]:checked`)
 
     mediaCheckboxes.forEach(checkbox => {
       selectedMediaTypes.push(checkbox.value)
     })
 
-    // If no specific media types selected, assume all_media
-    return selectedMediaTypes.length > 0 ? selectedMediaTypes : ['all_media']
+    // Return empty array if no media types selected (don't assume anything)
+    return selectedMediaTypes
+  }
+
+  // NEW: Dynamic Worldwide Comparison Methods
+  // Setup event listeners for dynamic Worldwide vs current selection comparison
+  setupWorldwideComparison() {
+    console.log('🌍 Setting up dynamic Worldwide comparison...')
+
+    // Track dismissed suggestions (user clicked "No")
+    // Store as "comboId:territoryIds:mediaTypes:duration" to reset if selection changes
+    this.dismissedWorldwideSuggestions = new Set()
+
+    // Debounce helper to avoid too many API calls
+    let debounceTimer = null
+    const debounceDelay = 500 // ms
+
+    const checkAllCombos = () => {
+      // Clear existing timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer)
+      }
+
+      // Set new timer
+      debounceTimer = setTimeout(() => {
+        // Get all combination IDs
+        const comboIds = this.getAllCombinationIds()
+        comboIds.forEach(comboId => {
+          this.checkWorldwideSuggestion(comboId)
+        })
+      }, debounceDelay)
+    }
+
+    // Listen for territory changes
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('combination-territory-checkbox')) {
+        // Clear dismissals when territories change (new selection, should re-check)
+        this.dismissedWorldwideSuggestions.clear()
+        checkAllCombos()
+      }
+    })
+
+    // Listen for media type changes
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('combination-media')) {
+        // Clear dismissals when media types change
+        this.dismissedWorldwideSuggestions.clear()
+        checkAllCombos()
+      }
+    })
+
+    // Listen for duration changes
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('select[name*="combinations"][name*="duration"]')) {
+        // Clear dismissals when duration changes
+        this.dismissedWorldwideSuggestions.clear()
+        checkAllCombos()
+      }
+    })
+
+    console.log('✅ Worldwide comparison setup complete')
+  }
+
+  // Get all combination IDs from the page
+  getAllCombinationIds() {
+    const comboElements = document.querySelectorAll('[data-combo]')
+    const comboIds = new Set()
+
+    comboElements.forEach(el => {
+      const comboId = el.getAttribute('data-combo')
+      if (comboId) {
+        comboIds.add(comboId)
+      }
+    })
+
+    return Array.from(comboIds)
+  }
+
+  // Check if Worldwide should be suggested for a specific combination
+  async checkWorldwideSuggestion(comboId) {
+    try {
+      // Get selected territories
+      const territoryCheckboxes = document.querySelectorAll(
+        `.combination-territory-checkbox[data-combo="${comboId}"]:checked`
+      )
+
+      // Don't check if no territories selected or if Worldwide is already selected
+      if (territoryCheckboxes.length === 0) {
+        this.hideWorldwideSuggestion(comboId)
+        return
+      }
+
+      const isWorldwideSelected = Array.from(territoryCheckboxes).some(
+        cb => cb.getAttribute('data-territory-name') === 'Worldwide'
+      )
+
+      if (isWorldwideSelected) {
+        this.hideWorldwideSuggestion(comboId)
+        return
+      }
+
+      // Get territory IDs
+      const territoryIds = Array.from(territoryCheckboxes).map(
+        cb => cb.value
+      )
+
+      // Get selected media types
+      const mediaTypes = this.getSelectedMediaTypesForCombo(comboId)
+
+      // Get duration
+      const durationSelect = document.querySelector(
+        `select[name*="combinations[${comboId}][duration]"]`
+      )
+      const duration = durationSelect?.value || ''
+
+      // Don't check if no media types or duration selected
+      if (mediaTypes.length === 0 || !duration) {
+        this.hideWorldwideSuggestion(comboId)
+        return
+      }
+
+      // Check if user already dismissed this suggestion for current selection
+      const dismissalKey = `${comboId}:${territoryIds.sort().join(',')}:${mediaTypes.sort().join(',')}:${duration}`
+      if (this.dismissedWorldwideSuggestions && this.dismissedWorldwideSuggestions.has(dismissalKey)) {
+        this.hideWorldwideSuggestion(comboId)
+        return
+      }
+
+      console.log(`🔍 Checking Worldwide suggestion for combo ${comboId}:`, {
+        territoryIds,
+        mediaTypes,
+        duration
+      })
+
+      // Call API endpoint
+      const response = await fetch('/quotations/check_worldwide_suggestion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+          territory_ids: territoryIds,
+          media_types: mediaTypes,
+          duration: duration
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      console.log(`📊 Worldwide suggestion result for combo ${comboId}:`, result)
+
+      if (result.should_switch) {
+        // Pass the dismissal key so "No" button can track dismissals
+        this.showWorldwideSuggestion(comboId, result, dismissalKey)
+      } else {
+        this.hideWorldwideSuggestion(comboId)
+      }
+
+    } catch (error) {
+      console.error(`Error checking Worldwide suggestion for combo ${comboId}:`, error)
+    }
+  }
+
+  // Show Worldwide suggestion modal
+  showWorldwideSuggestion(comboId, suggestionData, dismissalKey) {
+    // Check if modal already exists for this combo
+    let modal = document.querySelector(`#worldwide-suggestion-modal-${comboId}`)
+
+    if (!modal) {
+      // Create modal
+      modal = document.createElement('div')
+      modal.id = `worldwide-suggestion-modal-${comboId}`
+      modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50'
+      modal.style.display = 'none'
+
+      modal.innerHTML = `
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+              <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Consider Worldwide</h3>
+            <div class="mt-2 px-7 py-3">
+              <p class="text-sm text-gray-500" id="worldwide-suggestion-message-${comboId}">
+                <!-- Message will be populated dynamically -->
+              </p>
+            </div>
+            <div class="items-center px-4 py-3">
+              <button id="worldwide-yes-btn-${comboId}"
+                      class="px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 mb-2">
+                Switch to Worldwide
+              </button>
+              <button id="worldwide-no-btn-${comboId}"
+                      class="px-4 py-2 bg-gray-300 text-gray-700 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                Keep Current Selection
+              </button>
+            </div>
+          </div>
+        </div>
+      `
+
+      document.body.appendChild(modal)
+
+      // Add event listeners
+      document.querySelector(`#worldwide-yes-btn-${comboId}`).addEventListener('click', () => {
+        this.switchToWorldwide(comboId)
+        this.hideWorldwideSuggestion(comboId)
+      })
+
+      document.querySelector(`#worldwide-no-btn-${comboId}`).addEventListener('click', () => {
+        // Track dismissal so modal won't show again for this selection
+        const key = modal.getAttribute('data-dismissal-key')
+        if (key && this.dismissedWorldwideSuggestions) {
+          this.dismissedWorldwideSuggestions.add(key)
+        }
+        this.hideWorldwideSuggestion(comboId)
+      })
+    }
+
+    // Store current dismissal key on modal for "No" button
+    modal.setAttribute('data-dismissal-key', dismissalKey)
+
+    // Update message
+    const messageEl = document.querySelector(`#worldwide-suggestion-message-${comboId}`)
+    if (messageEl) {
+      messageEl.innerHTML = `
+        Current selection: <strong>${suggestionData.current_cost}%</strong><br>
+        Worldwide: <strong>${suggestionData.worldwide_cost}%</strong><br>
+        <span class="text-green-600 font-semibold">Savings: ${suggestionData.savings}%</span>
+      `
+    }
+
+    // Show modal
+    modal.style.display = 'block'
+  }
+
+  // Hide Worldwide suggestion modal
+  hideWorldwideSuggestion(comboId) {
+    const modal = document.querySelector(`#worldwide-suggestion-modal-${comboId}`)
+    if (modal) {
+      modal.style.display = 'none'
+    }
+  }
+
+  // Switch to Worldwide territory for a combo
+  switchToWorldwide(comboId) {
+    console.log(`🌍 Switching combo ${comboId} to Worldwide...`)
+
+    // Uncheck all territories for this combo
+    const allTerritories = document.querySelectorAll(
+      `.combination-territory-checkbox[data-combo="${comboId}"]`
+    )
+
+    allTerritories.forEach(checkbox => {
+      checkbox.checked = false
+    })
+
+    // Find and check Worldwide checkbox
+    const worldwideCheckbox = document.querySelector(
+      `.combination-territory-checkbox[data-combo="${comboId}"][data-territory-name="Worldwide"]`
+    )
+
+    if (worldwideCheckbox) {
+      worldwideCheckbox.checked = true
+      // Trigger change event to update calculations
+      worldwideCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+      // Update territory tags to show Worldwide prominently at the top
+      this.updateTerritoryTagsForCombo(comboId)
+      console.log(`✅ Switched combo ${comboId} to Worldwide`)
+    } else {
+      console.error(`❌ Worldwide checkbox not found for combo ${comboId}`)
+    }
   }
 }

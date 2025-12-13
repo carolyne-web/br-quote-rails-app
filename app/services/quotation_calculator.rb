@@ -479,4 +479,159 @@ class QuotationCalculator
 
     total_adjustment
   end
+
+  # NEW: Dynamic Worldwide Comparison Methods
+  # These methods enable intelligent comparison between user's territory selection
+  # and Worldwide to suggest the most cost-effective option
+  # Comparison formula: territory × media × duration (exclusivity excluded as it applies equally)
+
+  public
+
+  # Get Worldwide territory percentage for given media types
+  # Returns the actual Worldwide rate considering media-specific exceptions
+  def get_worldwide_rate_for_media(media_types)
+    return 0 if media_types.blank?
+
+    worldwide_territory = Territory.find_by(name: 'Worldwide', media_type: 'all_media')
+    return 0 unless worldwide_territory
+
+    # Determine primary media type for exception lookup
+    primary_media_type = if media_types.include?('all_media')
+      'all_media'
+    elsif media_types.include?('all_moving')
+      'all_moving'
+    elsif media_types.include?('print') && media_types.count == 2 && media_types.include?('internet')
+      'print'
+    elsif media_types.count == 1
+      media_types.first
+    else
+      # Multiple individual media types - use base Worldwide
+      'all_media'
+    end
+
+    # Check for Worldwide exception for this media type
+    exception = TerritoryMediaException.find_exception('Worldwide', primary_media_type)
+
+    if exception
+      # Use exception rate (e.g., All Moving = 1000%, Internet = 600%)
+      exception.percentage.to_f
+    else
+      # Use base Worldwide rate (1200%)
+      worldwide_territory.percentage.to_f
+    end
+  end
+
+  # Calculate what Worldwide would cost for given parameters
+  # Formula: (worldwide_exception_rate / 100) × duration_multiplier
+  # NOTE: Exception rates already include media consideration, so NO media multiplier needed
+  def calculate_worldwide_cost(media_types, duration)
+    return 0 if media_types.blank?
+
+    # Get Worldwide territory rate (exception rate if exists, otherwise base rate)
+    worldwide_territory_rate = get_worldwide_rate_for_media(media_types)
+    return 0 if worldwide_territory_rate.zero?
+
+    # Calculate duration multiplier
+    duration_multiplier = calculate_duration_multiplier_for_duration(duration)
+
+    # Return total cost as multiplier
+    # NOTE: Don't apply media multiplier - exception rates are already final rates
+    (worldwide_territory_rate / 100.0) * duration_multiplier
+  end
+
+  # Calculate what current territory selection would cost
+  # Formula: (sum_of_territories / 100) × media_multiplier × duration_multiplier
+  def calculate_current_selection_cost(territories, media_types, duration)
+    return 0 if territories.blank? || media_types.blank?
+
+    # Sum territory percentages
+    total_territory_percentage = territories.is_a?(Array) ?
+      territories.sum { |t| t.is_a?(Hash) ? t[:percentage].to_f : t.percentage.to_f } :
+      territories.sum(:percentage).to_f
+
+    # Calculate media multiplier
+    media_multiplier = calculate_media_multiplier_for_media_types(media_types)
+
+    # Calculate duration multiplier
+    duration_multiplier = calculate_duration_multiplier_for_duration(duration)
+
+    # Return total cost as multiplier
+    (total_territory_percentage / 100.0) * media_multiplier * duration_multiplier
+  end
+
+  # Main comparison method - determines if Worldwide should be suggested
+  # Returns hash with comparison data or nil if Worldwide not cheaper
+  def should_suggest_worldwide?(territories, media_types, duration)
+    return nil if territories.blank? || media_types.blank?
+
+    # Don't suggest if Worldwide is already selected
+    if territories.is_a?(Array)
+      return nil if territories.any? { |t| (t.is_a?(Hash) ? t[:name] : t.name) == 'Worldwide' }
+    else
+      return nil if territories.where(name: 'Worldwide').exists?
+    end
+
+    current_cost = calculate_current_selection_cost(territories, media_types, duration)
+    worldwide_cost = calculate_worldwide_cost(media_types, duration)
+
+    return nil if worldwide_cost.zero? || current_cost.zero?
+
+    # Suggest Worldwide if it's cheaper
+    if current_cost > worldwide_cost
+      {
+        should_switch: true,
+        current_cost: (current_cost * 100).round(2),  # Convert back to percentage for display
+        worldwide_cost: (worldwide_cost * 100).round(2),
+        savings: ((current_cost - worldwide_cost) * 100).round(2)
+      }
+    else
+      {
+        should_switch: false,
+        current_cost: (current_cost * 100).round(2),
+        worldwide_cost: (worldwide_cost * 100).round(2),
+        savings: 0
+      }
+    end
+  end
+
+  # Helper: Calculate media multiplier for given media types (without instance variables)
+  def calculate_media_multiplier_for_media_types(media_types)
+    return 0 if media_types.blank?
+
+    if media_types.include?('all_media')
+      return 1.0 # All Media = 100%
+    elsif media_types.include?('all_moving')
+      return 0.75 # All Moving = 75%
+    elsif media_types.count == 1
+      return 0.5 # Single media = 50%
+    elsif media_types.count == 2
+      return 0.75 # Two media = 75%
+    elsif media_types.count >= 3
+      return 1.0 # Three or more media = 100%
+    else
+      return 1.0
+    end
+  end
+
+  # Helper: Calculate duration multiplier for given duration (without instance variables)
+  def calculate_duration_multiplier_for_duration(duration)
+    return 1.0 if duration.blank?
+
+    case duration
+    when '3_months'
+      0.5
+    when '6_months'
+      0.75
+    when '12_months'
+      1.0
+    when '18_months'
+      1.75
+    when '24_months'
+      2.0
+    when '36_months'
+      3.0
+    else
+      1.0
+    end
+  end
 end

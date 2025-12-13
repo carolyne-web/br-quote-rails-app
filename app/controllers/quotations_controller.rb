@@ -463,6 +463,30 @@ class QuotationsController < ApplicationController
     end
   end
 
+  # API endpoint to check if Worldwide should be suggested
+  # Called dynamically from frontend when territories/media/duration change
+  def check_worldwide_suggestion
+    # Get parameters from request
+    territory_ids = params[:territory_ids] || []
+    media_types = params[:media_types] || []
+    duration = params[:duration]
+
+    # Build temporary quotation calculator to use helper methods
+    temp_quotation = Quotation.new
+    calculator = QuotationCalculator.new(temp_quotation)
+
+    # Get territories from IDs
+    territories = Territory.where(id: territory_ids)
+
+    # Call the comparison method
+    result = calculator.should_suggest_worldwide?(territories, media_types, duration)
+
+    render json: result || { should_switch: false }
+  rescue => e
+    Rails.logger.error "Error checking worldwide suggestion: #{e.message}"
+    render json: { error: e.message, should_switch: false }, status: :unprocessable_entity
+  end
+
   private
 
   def set_quotation
