@@ -558,6 +558,8 @@ class QuotationsController < ApplicationController
     @quotation.talent_categories.destroy_all
 
     params[:talent].each do |category_id, category_data|
+      # Track descriptions in this category to prevent duplicates
+      seen_descriptions = Set.new
       # Handle both old and new form structures
       # New structure: talent[category_id][lines][0][field_name]
       # Old structure: talent[category_id][field_name] (for backward compatibility)
@@ -634,19 +636,27 @@ class QuotationsController < ApplicationController
           category_data[:buyout_percentage].to_f
         end
 
-        day_on_set = talent_category.day_on_sets.create!(
-          talent_count: talent_count,
-          days_count: days_count > 0 ? days_count : 1,
-          description: description,
-          adjusted_rate: adjusted_rate,
-          rehearsal_days: rehearsal_days,
-          down_days: down_days,
-          travel_days: travel_days,
-          overtime_hours: overtime_hours,
-          night_premium: night_premium,
-          exclusivity_type: exclusivity_type,
-          buyout_percentage: main_buyout_percentage
-        )
+        # Only create if we haven't seen this description before in this category
+        normalized_desc = description.to_s.strip
+        unless seen_descriptions.include?(normalized_desc)
+          day_on_set = talent_category.day_on_sets.create!(
+            talent_count: talent_count,
+            days_count: days_count > 0 ? days_count : 1,
+            description: description,
+            adjusted_rate: adjusted_rate,
+            rehearsal_days: rehearsal_days,
+            down_days: down_days,
+            travel_days: travel_days,
+            overtime_hours: overtime_hours,
+            night_premium: night_premium,
+            exclusivity_type: exclusivity_type,
+            buyout_percentage: main_buyout_percentage
+          )
+          seen_descriptions.add(normalized_desc)
+          Rails.logger.info "✅ Created day_on_set for '#{description}' in category #{category_id}"
+        else
+          Rails.logger.warn "⚠️  Skipped duplicate talent line '#{description}' in category #{category_id}"
+        end
       end
 
       # Process additional talent lines if present (skip line 0 as it's already processed)
@@ -683,6 +693,12 @@ class QuotationsController < ApplicationController
           # Skip empty lines
           next if line_talent_count == 0 && line_adjusted_rate == 0 && line_description.blank?
 
+          # Skip duplicate descriptions in the same category
+          normalized_line_desc = line_description.to_s.strip
+          if seen_descriptions.include?(normalized_line_desc)
+            Rails.logger.warn "⚠️  Skipped duplicate talent line '#{line_description}' (line #{line_index}) in category #{category_id}"
+            next
+          end
 
           # Create additional day_on_set for this line with individual details
           talent_category.day_on_sets.create!(
@@ -698,6 +714,8 @@ class QuotationsController < ApplicationController
             exclusivity_type: line_exclusivity_type,
             buyout_percentage: line_buyout_percentage
           )
+          seen_descriptions.add(normalized_line_desc)
+          Rails.logger.info "✅ Created additional day_on_set for '#{line_description}' (line #{line_index}) in category #{category_id}"
         end
       end
 

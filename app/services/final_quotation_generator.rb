@@ -594,14 +594,22 @@ class FinalQuotationGenerator
           category = @quotation.talent_categories.find_by(category_type: category_id.to_i)
           next unless category
 
-          # Find the correct day_on_set by matching description (more reliable than line_index)
-          calc_description = line_calculated["description"].to_s
-          # Extract the actual description part (after the prefix like "KD - ")
-          actual_description = calc_description.split(" - ").last.to_s.strip
+          # Find the correct day_on_set by matching FULL description (more reliable than line_index)
+          calc_description = line_calculated["description"].to_s.strip
 
-          # Find the day_on_set that matches this description
+          # Try exact match first (most reliable)
           day_on_set = category.day_on_sets.find do |dos|
-            dos.description.to_s.strip == actual_description
+            dos.description.to_s.strip == calc_description
+          end
+
+          # If no exact match, try removing category prefix and match
+          if day_on_set.nil?
+            # Extract the actual description part (after the prefix like "LD - ", "KD - ")
+            actual_description = calc_description.split(" - ", 2).last.to_s.strip
+
+            day_on_set = category.day_on_sets.find do |dos|
+              dos.description.to_s.strip == actual_description
+            end
           end
 
           # Fallback: if no match by description, try matching by line_index
@@ -623,7 +631,7 @@ class FinalQuotationGenerator
           # Get the actual line index for this day_on_set
           actual_line_index = category.day_on_sets.index(day_on_set)
 
-          Rails.logger.info "✅ Matched calculated line '#{actual_description}' to day_on_set at index #{actual_line_index}"
+          Rails.logger.info "✅ Matched calculated line '#{calc_description}' to day_on_set at index #{actual_line_index}: '#{day_on_set.description}'"
 
           # Create talent line using the calculated values
           create_individual_talent_line(category, day_on_set, actual_line_index, group, combo_id, combo_exclusivities, line_calculated)
