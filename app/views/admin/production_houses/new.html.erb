@@ -35,12 +35,41 @@
 
         <div>
           <%= f.label :password, class: "block text-sm font-medium text-gray-700" %>
-          <%= f.password_field :password, class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" %>
+          <div class="mt-1 relative">
+            <%= f.password_field :password, id: "password-field", class: "block w-full pr-20 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm", placeholder: "Enter password or generate one" %>
+            <div class="absolute inset-y-0 right-0 flex items-center pr-3 space-x-2">
+              <!-- Eye toggle button -->
+              <button type="button" onclick="togglePasswordVisibility()" class="text-gray-400 hover:text-gray-600 focus:outline-none" title="Show/Hide password">
+                <svg id="eye-open" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+                <svg id="eye-closed" class="h-5 w-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                </svg>
+              </button>
+              <!-- Copy button -->
+              <button type="button" onclick="copyPassword()" class="text-gray-400 hover:text-gray-600 focus:outline-none" title="Copy password">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="mt-2 flex items-center space-x-3">
+            <button type="button" onclick="generatePassword()" class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+              <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              Generate Random Password
+            </button>
+            <span id="copy-feedback" class="text-sm text-green-600 hidden">Copied!</span>
+          </div>
         </div>
 
         <div>
           <%= f.label :password_confirmation, class: "block text-sm font-medium text-gray-700" %>
-          <%= f.password_field :password_confirmation, class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" %>
+          <%= f.password_field :password_confirmation, id: "password-confirmation-field", class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" %>
         </div>
 
         <div class="flex justify-end space-x-3">
@@ -51,3 +80,87 @@
     </div>
   </div>
 </div>
+
+<script>
+  // Generate secure random password
+  function generatePassword() {
+    const length = 16;
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+
+    // Ensure at least one of each type
+    password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)]; // uppercase
+    password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]; // lowercase
+    password += '0123456789'[Math.floor(Math.random() * 10)]; // number
+    password += '!@#$%^&*'[Math.floor(Math.random() * 8)]; // special char
+
+    // Fill the rest randomly
+    for (let i = password.length; i < length; i++) {
+      password += charset[Math.floor(Math.random() * charset.length)];
+    }
+
+    // Shuffle the password
+    password = password.split('').sort(() => Math.random() - 0.5).join('');
+
+    // Set password in both fields
+    const passwordField = document.getElementById('password-field');
+    const confirmField = document.getElementById('password-confirmation-field');
+
+    passwordField.value = password;
+    confirmField.value = password;
+
+    // Show the password automatically when generated
+    passwordField.type = 'text';
+    confirmField.type = 'text';
+    document.getElementById('eye-open').classList.add('hidden');
+    document.getElementById('eye-closed').classList.remove('hidden');
+
+    // Focus the password field so user can see it
+    passwordField.focus();
+  }
+
+  // Toggle password visibility
+  function togglePasswordVisibility() {
+    const passwordField = document.getElementById('password-field');
+    const confirmField = document.getElementById('password-confirmation-field');
+    const eyeOpen = document.getElementById('eye-open');
+    const eyeClosed = document.getElementById('eye-closed');
+
+    if (passwordField.type === 'password') {
+      passwordField.type = 'text';
+      confirmField.type = 'text';
+      eyeOpen.classList.add('hidden');
+      eyeClosed.classList.remove('hidden');
+    } else {
+      passwordField.type = 'password';
+      confirmField.type = 'password';
+      eyeOpen.classList.remove('hidden');
+      eyeClosed.classList.add('hidden');
+    }
+  }
+
+  // Copy password to clipboard
+  function copyPassword() {
+    const passwordField = document.getElementById('password-field');
+    const feedback = document.getElementById('copy-feedback');
+
+    if (!passwordField.value) {
+      alert('Please generate a password first');
+      return;
+    }
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(passwordField.value).then(() => {
+      // Show feedback
+      feedback.classList.remove('hidden');
+
+      // Hide feedback after 2 seconds
+      setTimeout(() => {
+        feedback.classList.add('hidden');
+      }, 2000);
+    }).catch(err => {
+      alert('Failed to copy password');
+      console.error('Copy failed:', err);
+    });
+  }
+</script>
