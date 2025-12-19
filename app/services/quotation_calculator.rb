@@ -178,16 +178,34 @@ class QuotationCalculator
   def calculate_territory_multiplier
     return 1.0 if @territories.empty?
 
+    # Check if we're using territory-media exceptions (MIXED MODE)
+    # If so, return 1.0 to avoid double-counting territories
+    # (territories are already included in the media_multiplier via exceptions)
+    media_types = []
+    if @quotation.respond_to?(:media_types) && @quotation.media_types.present?
+      media_types = @quotation.media_types
+    elsif @detail.respond_to?(:selected_media_types) && @detail.selected_media_types.present?
+      media_types = @detail.selected_media_types
+    end
+
+    if media_types.present?
+      combined_exception_percentage = calculate_territory_media_combined_percentage(media_types)
+      if combined_exception_percentage > 0
+        Rails.logger.info "🔄 Using territory-media exceptions - setting territory_multiplier = 1.0 (territories already in media_multiplier)"
+        return 1.0
+      end
+    end
+
     # Check for territory percentage override based on duration
     total_percentage = @territories.sum(:percentage)
     duration_months = parse_duration_months(@detail&.duration)
-    
+
     # Territory override logic for specific durations
     if should_apply_territory_override?(duration_months, total_percentage)
       return 12.0  # Use Worldwide (1200%) instead of sum
     end
 
-    # NEW LOGIC: Additive territories (sum all percentages)
+    # Standard: Additive territories (sum all percentages)
     total_percentage / 100.0
   end
 
@@ -257,9 +275,12 @@ class QuotationCalculator
     end
   end
 
-  # Calculate combined territory-media percentage using exceptions when available
-  # IMPORTANT: Exceptions should ONLY be used for SINGLE media type selections
-  # For multiple media types, use standard 50%/75%/100% multipliers instead
+  # Calculate combined territory-media percentage using MIXED MODE
+  # MIXED MODE: Support both exception and non-exception territories
+  # For each territory:
+  #   - If exception exists: use exception percentage (already includes media)
+  #   - If no exception: calculate territory% × media multiplier
+  # Then sum all results
   def calculate_territory_media_combined_percentage(media_types)
     return 0 if @territories.empty? || media_types.empty?
 
@@ -282,25 +303,47 @@ class QuotationCalculator
       return 0
     end
 
-    # Check if exceptions exist for all territories with this primary media type
-    total_percentage = 0
+    # MIXED MODE: Calculate combined percentage for all territories
+    # Some may use exceptions, others use standard calculation
+    combined_percentage = 0
+
+    # Get the standard media multiplier for non-exception territories
+    standard_media_multiplier = calculate_standard_media_multiplier(media_types)
 
     @territories.each do |territory|
       exception = TerritoryMediaException.find_exception(territory.name, primary_media_type)
 
       if exception
-        # Use exception percentage (sum across all selected territories)
-        total_percentage += exception.percentage.to_f
-        Rails.logger.info "✓ Using exception: #{territory.name} + #{primary_media_type} = #{exception.percentage}%"
+        # Exception found: use it directly (already includes media consideration)
+        combined_percentage += exception.percentage.to_f
+        Rails.logger.info "✅ Territory exception: #{territory.name} + #{primary_media_type} = #{exception.percentage}%"
       else
-        # No exception found - fall back to standard media multiplier logic
-        Rails.logger.info "✗ No exception for: #{territory.name} + #{primary_media_type} - falling back to standard logic"
-        return 0
+        # No exception: calculate territory% × media%
+        territory_media_product = territory.percentage * standard_media_multiplier
+        combined_percentage += territory_media_product
+        Rails.logger.info "📐 Standard calculation: #{territory.name} (#{territory.percentage}%) × media (#{standard_media_multiplier * 100}%) = #{territory_media_product}%"
       end
     end
 
-    Rails.logger.info "📊 Total exception percentage for #{primary_media_type}: #{total_percentage}%"
-    total_percentage
+    Rails.logger.info "📊 Combined territory+media total: #{combined_percentage}%"
+    combined_percentage
+  end
+
+  # Helper method to get standard media multiplier (without exceptions)
+  def calculate_standard_media_multiplier(media_types)
+    if media_types.include?('all_media')
+      1.0 # All Media = 100%
+    elsif media_types.count == 1 && media_types.include?('all_moving')
+      0.75 # All Moving Media alone = 75%
+    elsif media_types.count == 1
+      0.5 # One other media = 50%
+    elsif media_types.count == 2
+      0.75 # Two media = 75%
+    elsif media_types.count >= 3
+      1.0 # Three or more media = 100%
+    else
+      1.0 # Default
+    end
   end
 
   def calculate_duration_multiplier

@@ -2883,30 +2883,41 @@ export default class extends Controller {
       console.log(`🔄 Multiple individual media types selected (${effectiveMediaTypes.join(', ')}) - using standard multiplier logic`)
       territoryExceptionPercentage = null
     } else {
-        // Single media type - check for territory exceptions
+        // Single media type - MIXED MODE: Support both exception and non-exception territories
+        // For each territory:
+        //   - If exception exists: use exception percentage (already includes media)
+        //   - If no exception: calculate territory% × media%
+        // Then sum all results and multiply by duration
+
+        let combinedTerritoryMediaPercentage = 0
+        const mediaMultiplier = this.getMediaMultiplier(effectiveMediaTypes, territories, duration)
+
         territories.forEach(territory => {
           effectiveMediaTypes.forEach(mediaType => {
-            // First, try to find exception for the media type as-is (e.g., "all_media", "all_moving")
+            // Try to find exception for this territory + media combination
             let exceptionPercentage = this.findTerritoryException(territory.name, mediaType)
 
             if (exceptionPercentage !== null) {
-              // Convert to number and add across territories
+              // Exception found: use it directly (already includes media consideration)
               const numericException = parseFloat(exceptionPercentage)
-              console.log(`🔄 Territory exception found: ${territory.name} + ${mediaType} = ${numericException}%`)
-              territoryExceptionPercentage = (territoryExceptionPercentage || 0) + numericException
-              console.log(`📊 Running total: ${territoryExceptionPercentage}%`)
+              console.log(`✅ Territory exception: ${territory.name} + ${mediaType} = ${numericException}%`)
+              combinedTerritoryMediaPercentage += numericException
             } else {
-              console.log(`⚠️  No exception found for: ${territory.name} + ${mediaType} - will fall back to standard calculation`)
+              // No exception: calculate territory% × media%
+              const territoryMediaProduct = territory.percentage * mediaMultiplier
+              console.log(`📐 Standard calculation: ${territory.name} (${territory.percentage}%) × media (${mediaMultiplier * 100}%) = ${territoryMediaProduct}%`)
+              combinedTerritoryMediaPercentage += territoryMediaProduct
             }
           })
         })
 
-        // Apply duration multiplier to exception percentage
-        if (territoryExceptionPercentage !== null) {
+        console.log(`📊 Combined territory+media total: ${combinedTerritoryMediaPercentage}%`)
+
+        // Apply duration multiplier to the combined total
+        if (combinedTerritoryMediaPercentage > 0) {
           const durationMultiplier = this.getDurationMultiplier(duration)
-          console.log(`⏱️ Applying duration multiplier ${durationMultiplier} to exception total ${territoryExceptionPercentage}%`)
-          territoryExceptionPercentage = territoryExceptionPercentage * durationMultiplier
-          console.log(`✅ Final exception percentage after duration: ${territoryExceptionPercentage}%`)
+          territoryExceptionPercentage = combinedTerritoryMediaPercentage * durationMultiplier
+          console.log(`⏱️ After duration multiplier (${durationMultiplier}): ${territoryExceptionPercentage}%`)
         }
       }
 
@@ -5746,6 +5757,10 @@ export default class extends Controller {
     }
     if (e.target.name && e.target.name.includes('description')) {
       console.log('🎯 CONTROLLER: Talent description input detected:', e.target.name, e.target.value)
+      setTimeout(() => this.updateCastSelection(), 50)
+    }
+    if (e.target.name && e.target.name.includes('adjusted_rate')) {
+      console.log('🎯 CONTROLLER: Adjusted rate input detected:', e.target.name, e.target.value)
       setTimeout(() => this.updateCastSelection(), 50)
     }
   }
